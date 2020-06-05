@@ -1,0 +1,280 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p/>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.solr.benchmarks.solrcloud;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.solr.benchmarks.beans.Cluster;
+import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest.Delete;
+import org.apache.solr.client.solrj.request.ConfigSetAdminRequest;
+import org.apache.solr.client.solrj.request.RequestWriter;
+import org.apache.solr.client.solrj.response.CollectionAdminResponse;
+import org.apache.solr.common.cloud.SolrZkClient;
+import org.apache.solr.common.cloud.ZkConfigManager;
+import org.apache.solr.common.params.ConfigSetParams;
+import org.apache.solr.common.params.SolrParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+
+public class SolrCloud {
+
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+  final int numNodes;
+  Zookeeper zookeeper;
+  public List<SolrNode> nodes = new ArrayList<>();
+
+  private Set<String> configsets = new HashSet<>();
+
+  private Set<String> colls = new HashSet<>();
+
+  String provisioningMethod;
+  final Cluster cluster;
+  private final String solrPackagePath;
+
+  public SolrCloud(int numNodes, String provisioningMethod, Cluster cluster, String solrPackagePath) throws Exception {
+    this.numNodes = numNodes;
+    this.provisioningMethod = provisioningMethod;
+    this.cluster = cluster;
+    this.solrPackagePath = solrPackagePath;
+    
+    log.info("Provisioning method: "+provisioningMethod);
+  }
+
+  /**
+   * A method used for getting ready to set up the Solr Cloud.
+   * @throws Exception 
+   */
+  public void init() throws Exception {
+    if ("local".equalsIgnoreCase(provisioningMethod)) {
+      zookeeper = new LocalZookeeper();
+      int initValue = zookeeper.start();
+      if (initValue != 0) {
+        log.error("Failed to start Zookeeper!");
+        throw new RuntimeException("Failed to start Zookeeper!");
+      }
+
+      for (int i = 1; i <= numNodes; i++) {
+        SolrNode node = new LocalSolrNode(solrPackagePath, zookeeper);
+        node.init();
+        node.start();
+        nodes.add(node);
+      }
+    } else if ("terraform-gcp".equalsIgnoreCase(provisioningMethod)) {
+    	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
+    	System.out.println("ZK node: "+getZkNodeFromTFState());
+    	zookeeper = new GenericZookeeper(getZkNodeFromTFState());
+    	for (String host: getSolrNodesFromTFState()) {
+    		nodes.add(new GenericSolrNode(host));
+    	}
+    }
+
+  }
+
+  List<String> getSolrNodesFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
+	  List<String> out = new ArrayList<String>();
+	  Map<String, Object> tfstate = new ObjectMapper().readValue(FileUtils.readFileToString(new File("terraform/terraform.tfstate"), "UTF-8"), Map.class);
+	  for (Map m: (List<Map>)((Map)((Map)tfstate.get("outputs")).get("solr_node_details")).get("value")) {
+		  out.add(m.get("name").toString());
+	  }
+	  return out;
+  }
+
+  String getZkNodeFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
+	  Map<String, Object> tfstate = new ObjectMapper().readValue(FileUtils.readFileToString(new File("terraform/terraform.tfstate"), "UTF-8"), Map.class);
+	  for (Map m: (List<Map>)((Map)((Map)tfstate.get("outputs")).get("zookeeper_details")).get("value")) {
+		  return m.get("name").toString();
+	  }
+	  throw new RuntimeException("Couldn't get ZK node from tfstate");
+  }
+
+  /**
+   * A method used for creating a collection.
+   * 
+   * @param collectionName
+   * @param configName
+   * @param shards
+   * @param replicas
+   * @throws Exception 
+   */
+  public void createCollection(String collectionName, String configName, int shards, int replicas) throws Exception {
+	  try (HttpSolrClient hsc = createClient()) {
+		  Create create = Create.createCollection(collectionName, configName, shards, replicas);
+		  CollectionAdminResponse resp = create.process(hsc);
+		  log.info("");
+		  log.info("Collection created: "+ resp.jsonStr());
+      }
+	  colls.add(collectionName);
+  }
+
+  HttpSolrClient createClient() {
+    return new HttpSolrClient.Builder(nodes.get(0).getBaseUrl()).build();
+  }
+
+  /**
+   * A method for deleting a collection.
+   * 
+   * @param collectionName
+   * @throws Exception 
+   */
+  public void deleteCollection(String collectionName) throws Exception {
+	  try (HttpSolrClient hsc = createClient()) {
+		  Delete delete = Delete.deleteCollection(collectionName); //Create.createCollection(collectionName, shards, replicas);
+		  CollectionAdminResponse resp = delete.process(hsc);
+		  log.info("Collection delete: "+resp.getCollectionStatus());
+	  }
+  }
+
+  /**
+   * A method used to get the zookeeper url for communication with the solr
+   * cloud.
+   * 
+   * @return String
+   */
+  public String getZookeeperUrl() {
+    return zookeeper.getHost() + ":" + zookeeper.getPort();
+  }
+
+  /**
+   * A method used for shutting down the solr cloud.
+   * @throws Exception 
+   */
+  public void shutdown(boolean cleanup) throws Exception {
+    if (provisioningMethod.equalsIgnoreCase("local")) {
+      for (String coll : colls) {
+          try (HttpSolrClient hsc = createClient()) {
+            try {
+              CollectionAdminRequest.deleteCollection(coll).process(hsc);
+            } catch (Exception e) {
+              //failed but continue
+            }
+          }
+      }
+
+      //cleanup configsets created , if any
+      for (String configset : configsets) {
+        try (HttpSolrClient hsc = createClient()) {
+          try {
+            new ConfigSetAdminRequest.Delete().setConfigSetName(configset).process(hsc);
+          } catch (Exception e) {
+            //failed but continue
+            e.printStackTrace();
+          }
+        }
+      }
+
+      for (SolrNode node : nodes) {
+       node.stop();
+        if (cleanup) {
+          node.cleanup();
+        }
+      }
+      if (cleanup) {
+        zookeeper.stop();
+        zookeeper.cleanup();
+      }
+    }
+  }
+
+  public void uploadConfigSet(String configset) throws Exception {
+    if(configset==null || configsets.contains(configset)) return;
+
+    log.info("Configset: " +configset+
+            " does not exist. creating... ");
+
+    File f = new File(configset + ".zip");
+
+    if (!f.exists()) {
+      throw new RuntimeException("Could not find configset file: " + configset);
+    }
+
+    try (HttpSolrClient hsc = createClient()) {
+      ConfigSetAdminRequest.Create create = new ConfigSetAdminRequest.Create() {
+
+        @Override
+        public RequestWriter.ContentWriter getContentWriter(String expectedType) {
+
+          return new RequestWriter.ContentWriter() {
+            @Override
+            public void write(OutputStream os) throws IOException {
+
+              try (InputStream is = new FileInputStream(f)) {
+                IOUtils.copy(is, os);
+              }
+            }
+
+            @Override
+            public String getContentType() {
+              return "Content-Type:application/octet-stream";
+            }
+          };
+        }
+
+        @Override
+        public SolrParams getParams() {
+          super.action = ConfigSetParams.ConfigSetAction.UPLOAD;
+          return super.getParams();
+        }
+      };
+      
+      try {
+	      ConfigSetAdminRequest.Delete delete = new ConfigSetAdminRequest.Delete();
+	      delete.setConfigSetName(configset);
+	      delete.process(hsc);
+      } catch (Exception ex) {
+    	  log.warn("Exception trying to delete configset", ex);
+      }
+      create.setMethod(SolrRequest.METHOD.POST);
+      create.setConfigSetName(configset);
+      create.process(hsc);
+      configsets.add(configset);
+      //this is a hack . We want all configsets to be trusted
+
+      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
+        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configset, (byte[]) null, true);
+      }
+      log.info("Configset: " + configset +
+              " created successfully ");
+
+
+    }
+
+
+  }
+}
