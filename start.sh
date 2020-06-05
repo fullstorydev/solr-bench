@@ -127,8 +127,8 @@ then
      do
           SOLR_NODE=${line//\"/}
           SOLR_DIR=`tar --exclude='*/*/*' -tf solr-custom.tgz | head -1| cut -d '/' -f 1`
-    echo "scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current $SOLR_NODE_gc.log"
-          scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current $SOLR_NODE_gc.log
+    echo "scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log"
+          scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log
      done
      zip gclogs.zip *_gc.log
      rm *_gc.log
