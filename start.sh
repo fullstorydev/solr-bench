@@ -118,12 +118,29 @@ echo "Running suite from working directory: $ORIG_WORKING_DIR"
 java -cp org.apache.solr.benchmarks-0.0.1-SNAPSHOT-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-0.0.1-SNAPSHOT-jar-with-dependencies.jar:. \
    org.apache.solr.benchmarks.BenchmarksMain $CONFIGFILE
 
+# Grab GC logs
+
+if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     echo "Pulling GC logs"
+     for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
+     do
+          SOLR_NODE=${line//\"/}
+          SOLR_DIR=`tar --exclude='*/*/*' -tf solr-custom.tgz | head -1| cut -d '/' -f 1`
+    echo "scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current $SOLR_NODE_gc.log"
+          scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current $SOLR_NODE_gc.log
+     done
+     zip gclogs.zip *_gc.log
+     rm *_gc.log
+fi
+
 # Results upload (results.json), if needed
 cd $ORIG_WORKING_DIR
 if [[ "null" != `jq -r '.["results-upload-location"]' $CONFIGFILE` ]]
 then
      # Results uploading only supported for GCS buckets for now
      gsutil cp results.json `jq -r '.["results-upload-location"]' $CONFIGFILE`
+     gsutil cp gclogs.zip `jq -r '.["results-upload-location"]' $CONFIGFILE`
 fi
 
 # Cleanup
