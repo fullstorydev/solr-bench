@@ -51,12 +51,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-
 public class SolrCloud {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  final int numNodes;
   Zookeeper zookeeper;
   public List<SolrNode> nodes = new ArrayList<>();
 
@@ -64,17 +62,14 @@ public class SolrCloud {
 
   private Set<String> colls = new HashSet<>();
 
-  String provisioningMethod;
   final Cluster cluster;
   private final String solrPackagePath;
 
-  public SolrCloud(int numNodes, String provisioningMethod, Cluster cluster, String solrPackagePath) throws Exception {
-    this.numNodes = numNodes;
-    this.provisioningMethod = provisioningMethod;
+  public SolrCloud(Cluster cluster, String solrPackagePath) throws Exception {
     this.cluster = cluster;
     this.solrPackagePath = solrPackagePath;
     
-    log.info("Provisioning method: "+provisioningMethod);
+    log.info("Provisioning method: " + cluster.provisioningMethod);
   }
 
   /**
@@ -82,7 +77,7 @@ public class SolrCloud {
    * @throws Exception 
    */
   public void init() throws Exception {
-    if ("local".equalsIgnoreCase(provisioningMethod)) {
+    if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
       zookeeper = new LocalZookeeper();
       int initValue = zookeeper.start();
       if (initValue != 0) {
@@ -90,13 +85,13 @@ public class SolrCloud {
         throw new RuntimeException("Failed to start Zookeeper!");
       }
 
-      for (int i = 1; i <= numNodes; i++) {
+      for (int i = 1; i <= cluster.numSolrNodes; i++) {
         SolrNode node = new LocalSolrNode(solrPackagePath, zookeeper);
         node.init();
         node.start();
         nodes.add(node);
       }
-    } else if ("terraform-gcp".equalsIgnoreCase(provisioningMethod)) {
+    } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
     	System.out.println("ZK node: "+getZkNodeFromTFState());
     	zookeeper = new GenericZookeeper(getZkNodeFromTFState());
@@ -176,7 +171,7 @@ public class SolrCloud {
    * @throws Exception 
    */
   public void shutdown(boolean cleanup) throws Exception {
-    if (provisioningMethod.equalsIgnoreCase("local")) {
+    if (cluster.provisioningMethod.equalsIgnoreCase("local")) {
       for (String coll : colls) {
           try (HttpSolrClient hsc = createClient()) {
             try {
@@ -264,8 +259,8 @@ public class SolrCloud {
       create.setConfigSetName(configset);
       create.process(hsc);
       configsets.add(configset);
-      //this is a hack . We want all configsets to be trusted
 
+      // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
       try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
         zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configset, (byte[]) null, true);
       }

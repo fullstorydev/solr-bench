@@ -55,18 +55,4 @@ public class JsonlFileType implements DocsFileStreamer {
         }
         return br;
     }
-
-    public static void main(String[] args) throws IOException {
-        File file = new File("/tmp/1ENq.json.gz");
-        new JsonlFileType("jsonl").stream(file, new Sink<SolrInputDocument>() {
-            int count = 0;
-
-            @Override
-            public boolean item(SolrInputDocument doc) {
-                System.out.println("id " + count + " : "+ doc.getFieldValue("Id"));
-                count++;
-                return count <= 100;
-            }
-        });
-    }
 }

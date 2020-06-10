@@ -27,9 +27,6 @@ import java.net.URL;
 
 /**
  * This class provides blueprint for Zookeeper Node.
- *
- * @author Vivek Narang
- *
  */
 public class LocalZookeeper implements Zookeeper {
 

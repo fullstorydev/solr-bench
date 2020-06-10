@@ -130,7 +130,7 @@ public class LocalSolrNode implements SolrNode {
    */
   @Override
   public void cleanup() throws Exception {
-    //Util.execute("rm -r -f " + baseDirectory, baseDirectory);
+	  Util.execute("rm -r -f " + baseDirectory, baseDirectory);
   }
 
   @Override

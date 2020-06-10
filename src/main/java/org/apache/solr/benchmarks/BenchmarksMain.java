@@ -43,9 +43,7 @@ import org.apache.solr.benchmarks.beans.Configuration;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.beans.Repository;
-import org.apache.solr.benchmarks.readers.DocsFileStreamer;
 import org.apache.solr.benchmarks.readers.JsonlFileType;
-import org.apache.solr.benchmarks.readers.TsvFile;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
@@ -63,7 +61,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
 
 public class BenchmarksMain {
 
@@ -97,7 +94,7 @@ public class BenchmarksMain {
         Cluster cluster = config.cluster;
 
         String solrPackagePath = getSolrPackagePath(config.repo, config.solrPackage);
-        SolrCloud solrCloud = new SolrCloud(cluster.numSolrNodes, config.cluster.provisioningMethod, cluster, solrPackagePath);
+        SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 
         MetricsCollector metricsCollector = null;
         Thread metricsThread = null;
@@ -106,17 +103,15 @@ public class BenchmarksMain {
             solrCloud.init();
             log.info("SolrCloud initialized...");
 
+            Map<String, Map> results = new LinkedHashMap<String, Map>();
+            results.put("indexing-benchmarks", new LinkedHashMap<Map, List<Map>>());
+            results.put("query-benchmarks", new LinkedHashMap<Map, List<Map>>());
+
             // Start metrics collection
             if (config.metrics != null) {
             	metricsCollector = new MetricsCollector(solrCloud.nodes, config.metrics, 2);
             	metricsThread = new Thread(metricsCollector);
             	metricsThread.start();
-            }
-
-            Map<String, Map> results = new LinkedHashMap<String, Map>();
-            results.put("indexing-benchmarks", new LinkedHashMap<Map, List<Map>>());
-            results.put("query-benchmarks", new LinkedHashMap<Map, List<Map>>());
-            if (config.metrics != null) {
             	results.put("solr-metrics", metricsCollector.metrics);
             }
 
@@ -232,14 +227,6 @@ public class BenchmarksMain {
             System.out.println("Error response " + errorout);
         }
     }
-
-
-    private static final Map<String, Supplier<DocsFileStreamer>> typeMapping = ImmutableMap.<String, Supplier<DocsFileStreamer>>builder()
-            .put("tsv", TsvFile::new)
-            .put("jsonl", () -> new JsonlFileType("jsonl"))
-            .put("json", () -> new JsonlFileType("json"))
-            .build();
-
 
     static void index(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
     	if (benchmark.fileFormat.equalsIgnoreCase("json")) {

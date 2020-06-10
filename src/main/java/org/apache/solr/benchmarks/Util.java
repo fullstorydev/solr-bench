@@ -17,49 +17,39 @@
 
 package org.apache.solr.benchmarks;
 
-import au.com.bytecode.opencsv.CSVReader;
-import com.google.cloud.compute.deprecated.*;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.client.WebResource;
-
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.log4j.Logger;
-import org.apache.lucene.util.TestUtil;
-import org.apache.solr.benchmarks.beans.Cluster;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.common.SolrException.ErrorCode;
-import org.apache.solr.common.params.MultiMapSolrParams;
-import org.apache.solr.common.util.Pair;
-import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Repository;
-import org.rauschig.jarchivelib.Archiver;
-import org.rauschig.jarchivelib.ArchiverFactory;
-
-import java.io.*;
-import java.math.BigInteger;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipInputStream;
+
+import org.apache.log4j.Logger;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.params.MultiMapSolrParams;
+import org.rauschig.jarchivelib.Archiver;
+import org.rauschig.jarchivelib.ArchiverFactory;
 
 /**
  * This class provides utility methods for the package.
- * @author Vivek Narang
  *
  */
 public class Util {
@@ -85,9 +75,6 @@ public class Util {
   public static String ZOOKEEPER_DIR = RUN_DIR;
   public static String SOLR_DIR = RUN_DIR;
 
-  public static List<String> argsList;
-
-
   /**
    * A method used for invoking a process with specific parameters.
    * 
@@ -112,7 +99,6 @@ public class Util {
     for (Map.Entry<String, String> e: System.getenv().entrySet()) {
     	vars.add(e.toString());
     }
-    //vars.add("GIT_SSH_COMMAND=\"ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no\"");
 
     try {
       proc = rt.exec(command, (String[])vars.toArray(new String[] {}), workingDirectory);
@@ -129,6 +115,20 @@ public class Util {
     }
   }
 
+  /**
+   * A method used for extracting files from a zip archive.
+   * 
+   * @param filename
+   * @throws IOException
+   */
+  public static void extract(String filename, String destPath) throws IOException {
+	  logger.debug(" Attempting to unzip the downloaded release ...");
+	  System.out.println("destPath: "+destPath);
+	  Archiver archiver = ArchiverFactory.createArchiver("tar", "gz");
+	  archiver.extract(new File(filename), new File(destPath));
+  }
+
+  
   public static Map map(Object... params) {
     LinkedHashMap ret = new LinkedHashMap();
     for (int i=0; i<params.length; i+=2) {
@@ -181,286 +181,6 @@ public class Util {
     return getFreePort();
   }
 
-  /**
-   * 
-   * @param plaintext
-   * @return String
-   * @throws Exception 
-   */
-  static public String md5(String plaintext) throws Exception {
-    MessageDigest m;
-    String hashtext = null;
-    try {
-      m = MessageDigest.getInstance("MD5");
-      m.reset();
-      m.update(plaintext.getBytes());
-      byte[] digest = m.digest();
-      BigInteger bigInt = new BigInteger(1, digest);
-      hashtext = bigInt.toString(16);
-      // Now we need to zero pad it if you actually want the full 32
-      // chars.
-      while (hashtext.length() < 32) {
-        hashtext = "0" + hashtext;
-      }
-    } catch (NoSuchAlgorithmException e) {
-      logger.error(e.getMessage());
-      throw new Exception(e.getMessage());
-    }
-    return hashtext;
-  }
-
-  /**
-   * A metod used for extracting files from an archive.
-   * 
-   * @param zipIn
-   * @param filePath
-   * @throws Exception 
-   */
-  public static void extractFile(ZipInputStream zipIn, String filePath) throws Exception {
-
-    BufferedOutputStream bos = null;
-    try {
-
-      bos = new BufferedOutputStream(new FileOutputStream(filePath));
-      byte[] bytesIn = new byte[4096];
-      int read = 0;
-      while ((read = zipIn.read(bytesIn)) != -1) {
-        bos.write(bytesIn, 0, read);
-      }
-      bos.close();
-    } catch (Exception e) {
-      logger.error(e.getMessage());
-      throw new Exception(e.getMessage());
-    } finally {
-      bos.close();
-      // Marking for GC
-      bos = null;
-    }
-  }
-
-  /**
-   * A method used for downloading a resource from external sources.
-   * 
-   * @param downloadURL
-   * @param fileDownloadLocation
-   * @throws Exception 
-   */
-  public static void download(String downloadURL, String fileDownloadLocation) throws Exception {
-
-    URL link = null;
-    InputStream in = null;
-    FileOutputStream fos = null;
-
-    try {
-
-      link = new URL(downloadURL);
-      in = new BufferedInputStream(link.openStream());
-      fos = new FileOutputStream(fileDownloadLocation);
-      byte[] buf = new byte[1024 * 1024]; // 1mb blocks
-      int n = 0;
-      long size = 0;
-      while (-1 != (n = in.read(buf))) {
-        size += n;
-        logger.debug("\r" + size + " ");
-        fos.write(buf, 0, n);
-      }
-      fos.close();
-      in.close();
-    } catch (Exception e) {
-      logger.error(e.getMessage());
-      throw new Exception(e.getMessage());
-    }
-  }
-
-  /**
-   * A method used for extracting files from a zip archive.
-   * 
-   * @param filename
-   * @throws IOException
-   */
-  public static void extract(String filename, String destPath) throws IOException {
-    logger.debug(" Attempting to unzip the downloaded release ...");
-    System.out.println("destPath: "+destPath);
-    Archiver archiver = ArchiverFactory.createArchiver("tar", "gz");
-    archiver.extract(new File(filename), new File(destPath));
-  }
-
-  /**
-   * A method used for fetching latest commit from a remote repository.
-   * 
-   * @param repositoryURL
-   * @return
-   * @throws IOException
-   */
-  public static String getLatestCommitID(String repositoryURL) throws IOException {
-    logger.debug(" Getting the latest commit ID from: " + repositoryURL);
-    return new BufferedReader(new InputStreamReader(
-        Runtime.getRuntime().exec("git ls-remote " + repositoryURL + " HEAD").getInputStream())).readLine()
-        .split("HEAD")[0].trim();
-  }
-
-  /**
-   * A method used for sending requests to web resources.
-   * 
-   * @param url
-   * @param type
-   * @return
-   * @throws Exception 
-   */
-  public static String getResponse(String url, String type) throws Exception {
-
-    Client client;
-    ClientResponse response;
-
-    try {
-      client = Client.create();
-      WebResource webResource = client.resource(url);
-      response = webResource.accept(type).get(ClientResponse.class);
-
-      if (response.getStatus() != 200) {
-        logger.error("Failed : HTTP error code : " + response.getStatus());
-        throw new RuntimeException("Failed : HTTP error code : " + response.getStatus());
-      }
-
-      return response.getEntity(String.class);
-    } catch (Exception e) {
-      logger.error(e.getMessage());
-      throw new Exception(e.getMessage());
-    } finally {
-      // Marking for GC
-      client = null;
-      response = null;
-    }
-  }
-
-  /**
-   * A method used for generating random sentences for tests.
-   * 
-   * @param r
-   * @param words
-   * @return String
-   */
-  public static String getSentence(Random r, int words) {
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < words; i++) {
-      sb.append(TestUtil.randomSimpleString(r, 4 + r.nextInt(10)) + " ");
-    }
-    return sb.toString().trim();
-  }
-
-  /**
-   * A method used for locating and killing unused processes.
-   * 
-   * @param lookFor
-   * @throws IOException 
-   */
-  public static void killProcesses(String lookFor) throws IOException {
-
-    logger.debug(" Searching and killing " + lookFor + " process(es) ...");
-
-    BufferedReader reader;
-    String line = "";
-
-    try {
-      String[] cmd = { "/bin/sh", "-c", "ps -ef | grep " + lookFor + " | awk '{print $2}'" };
-      reader = new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec(cmd).getInputStream()));
-
-      while ((line = reader.readLine()) != null) {
-
-        line = line.trim();
-        logger.debug(" Found " + lookFor + " Running with PID " + line + " Killing now ..");
-        Runtime.getRuntime().exec("kill -9 " + line);
-      }
-
-      reader.close();
-
-    } catch (IOException e) {
-      logger.error(e.getMessage());
-      throw new IOException(e.getMessage());
-    } finally {
-      // Marking for GC
-      reader = null;
-      line = null;
-    }
-
-  }
-
-  /**
-   * A utility method used for getting the head name.
-   * @param repo
-   * @return string
-   * @throws Exception 
-   */
-  public static String getHeadName(Repository repo) throws Exception {
-    String result = null;
-    try {
-      ObjectId id = repo.resolve(Constants.HEAD);
-      result = id.getName();
-    } catch (IOException e) {
-      logger.error(e.getMessage());
-      throw new Exception(e.getMessage());
-    }
-    return result;
-  }
-
-  public static String getDateString(int epoch) {
-    Date date = new Date(1000L * epoch);
-    SimpleDateFormat format = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
-    format.setTimeZone(TimeZone.getTimeZone("Etc/UTC"));
-    String dateStr = format.format(date);
-    return dateStr;
-  }
-
-  public static void outputMetrics(String filename, Map<String, String> timings) throws Exception {
-    File outputFile = new File(filename);
-
-    String header[] = new String[0];
-    List<Map<String, String>> lines = new ArrayList<>();
-
-    if (outputFile.exists()) {
-      CSVReader reader = new CSVReader(new FileReader(outputFile));
-
-      String tmp[] = reader.readNext();
-      header = new String[tmp.length];
-      for (int i=0; i<header.length; i++) {
-        header[i] = tmp[i].trim();
-      }
-
-      String line[];
-      while((line=reader.readNext()) != null) {
-        if (line.length != header.length) {
-          continue;
-        }
-        Map<String, String> mappedLine = new LinkedHashMap<>();
-
-        for (int i=0; i<header.length; i++) {
-          mappedLine.put(header[i], line[i]);
-        }
-        lines.add(mappedLine);
-      }
-      reader.close();
-    }
-
-    LinkedHashSet<String> newHeaders = new LinkedHashSet<>(Arrays.asList(header));
-    newHeaders.addAll(timings.keySet());
-
-    lines.add(timings);
-    FileWriter out = new FileWriter(filename);
-    out.write(Arrays.toString(newHeaders.toArray()).replaceAll("\\[", "").replaceAll("\\]", "") + "\n");
-    for (Map<String, String> oldLine: lines) {
-      for (int i=0; i<newHeaders.size(); i++) {
-        String col = oldLine.get(newHeaders.toArray()[i]);
-        out.write(col == null? " ": col);
-        if (i==newHeaders.size()-1) {
-          out.write("\n");
-        } else {
-          out.write(",");
-        }
-      }
-    }
-    out.close();                            
-  }
-
   public static class ProcessStreamReader extends Thread {
 
     public final static Logger logger = Logger.getLogger(ProcessStreamReader.class);
@@ -498,71 +218,6 @@ public class Util {
     }
   }
   
-  public static Pair<InstanceId, Operation> createNewInstance(String name, Cluster.InstanceConfig config) {
-    logger.info("Provisioning GCP instance "+name+" ...");
-    Compute compute = ComputeOptions.getDefaultInstance().getService();
-
-    System.out.println("App ID: "+ComputeOptions.getDefaultProjectId());
-
-    //ImageId imageId = ImageId.of("debian-cloud", "debian-10-buster-v20191210");
-    ImageId imageId = ImageId.of(config.imageProject, config.imageName);
-    NetworkId networkId = NetworkId.of(config.network);
-    AttachedDisk attachedDisk = AttachedDisk.of(AttachedDisk.CreateDiskConfiguration.of(imageId));
-    NetworkInterface networkInterface = NetworkInterface.of(networkId);
-    InstanceId instanceId = InstanceId.of(config.region, name);
-    MachineTypeId machineTypeId = MachineTypeId.of(config.region, config.instanceType);
-
-    Operation operation = compute.create(InstanceInfo.of(instanceId, machineTypeId, attachedDisk, networkInterface));
-
-    return new Pair<InstanceId, Operation>(instanceId, operation);
-  }
-  
-  public static Instance waitForInstance(InstanceId instanceId, Operation operation) throws InterruptedException {
-    logger.info("Waiting for GCP instance ("+instanceId+") to be RUNNING");
-    operation = operation.waitFor();
-    if (operation.getErrors() != null) {
-      throw new RuntimeException(operation.getErrors().toString());
-    }
-    // return the instance
-    Compute compute = ComputeOptions.getDefaultInstance().getService();
-    Instance instance = compute.getInstance(instanceId);
-    return instance;
-  }
-
-  public static Instance createNewInstanceWithWait(String name, Cluster.InstanceConfig config) throws InterruptedException {
-    Pair<InstanceId, Operation> instanceDetailsBeforeProvisioning = Util.createNewInstance(name, config);
-    Instance instance = Util.waitForInstance(instanceDetailsBeforeProvisioning.first(), instanceDetailsBeforeProvisioning.second());
-    return instance;
-  }
-
-  public static void deleteInstances(List<Instance> instances) throws InterruptedException {
-    logger.info("Now trying to delete the instance...");
-    ArrayList<Operation> deleteOps = new ArrayList();
-    for (Instance instance: instances) {
-      Operation operation = instance.delete();
-      deleteOps.add(operation);
-      System.out.println("Deleted the instance "+instance.getInstanceId()+"...");
-    }
-    System.out.println("Waiting for all instances to be cleaned up completely.");
-    for (Operation op: deleteOps) {
-      op.waitFor();
-    }
-  }
-
-
-  public static String getUntarredDirectory(String file) throws IOException, FileNotFoundException {
-    try (GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(new File(file)));) {
-      try (TarArchiveInputStream tis = new TarArchiveInputStream(gzis);) {
-        TarArchiveEntry tarEntry = null;
-        while ((tarEntry = tis.getNextTarEntry()) != null) {
-          return (tarEntry.getName().substring(0, tarEntry.getName().indexOf('/')));
-        }
-      }
-    }
-    return null;
-  }
-
-
   private static final Charset CHARSET_US_ASCII = Charset.forName("US-ASCII");
 
   public static final String INPUT_ENCODING_KEY = "ie";

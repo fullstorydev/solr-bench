@@ -1,5 +1,9 @@
 package org.apache.solr.benchmarks;
 
+import java.lang.invoke.MethodHandles;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The rpm requests per minute. It is enforced uniformly
@@ -7,9 +11,11 @@ package org.apache.solr.benchmarks;
  * for instance if rpm is 120. The system tries to limit the request to 2/sec
  * <p>
  * <p>
- * if the rpm is 10 the system will try have keep at least 1 req eveery 6secs
+ * if the rpm is 10 the system will try have keep at least 1 req every 6secs
  */
 public class RateLimiter {
+	
+    private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     final int rpm;
     final int intervalMillis;
@@ -22,7 +28,6 @@ public class RateLimiter {
         this.rpm = rpm;
         intervalMillis = 60 * 1000 / rpm;
     }
-
 
     public synchronized void waitIfRequired() {
         if(isEnd) return;
@@ -37,13 +42,9 @@ public class RateLimiter {
             long timeoutMillis = intervalMillis - timeElapsed;
             Thread.sleep(timeoutMillis);
         } catch (InterruptedException e) {
-            //
+            Thread.currentThread().interrupt();
         } finally {
             lastRequestSentAt = System.currentTimeMillis();
         }
-
     }
-
-
-
 }

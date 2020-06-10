@@ -75,10 +75,6 @@ public class PropertiesUtil {
             } else if (value.charAt(pos + 1) != '{') {
                 //peek ahead to see if the next char is a property or not
                 //not a property: insert the char as a literal
-              /*
-              fragments.addElement(value.substring(pos + 1, pos + 2));
-              prev = pos + 2;
-              */
                 if (value.charAt(pos + 1) == '$') {
                     //backwards compatibility two $ map to one mode
                     fragments.add("$");
@@ -108,7 +104,4 @@ public class PropertiesUtil {
         }
     }
 
-
-
 }
-

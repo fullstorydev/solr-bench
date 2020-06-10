@@ -17,19 +17,6 @@
 
 package org.apache.solr.benchmarks.solrcloud;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
-
-import java.io.File;
-import java.io.FilenameFilter;
-import java.net.URL;
-
-/**
- * This class provides blueprint for Zookeeper Node.
- *
- * @author Vivek Narang
- *
- */
 public class GenericZookeeper implements Zookeeper {
 
 	private final String port = "2181";

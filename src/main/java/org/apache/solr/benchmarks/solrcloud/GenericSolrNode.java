@@ -65,7 +65,7 @@ public class GenericSolrNode implements SolrNode {
 
   @Override
   public String getNodeName() {
-	  return host+":"+port;
+	  return host + ":" + port;
   }
 
 }

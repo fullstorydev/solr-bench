@@ -96,35 +96,4 @@ public class QueryGenerator {
         }
         return request;
     }
-
-
-    public static void main(String[] args) throws Exception {
-        QueryBenchmark qb = new QueryBenchmark();
-        qb.shuffle = Boolean.TRUE;
-        qb.collection = "test";
-        qb.queryFile = "small-data/allqueries.tar.gz";
-        qb.isJsonQuery = true;
-
-        QueryGenerator qg = new QueryGenerator(qb);
-        Random random = new Random();
-
-        ControlledExecutor ce = new ControlledExecutor(16, 20, 80, 5l, -1, () -> () -> {
-            QueryRequest req = qg.nextRequest();
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            try {
-                req.getContentWriter(CommonParams.JSON_MIME).write(bos);
-                System.out.println(new Date().toString() + " : " + new String(bos.toByteArray(), StandardCharsets.UTF_8));
-                Thread.sleep(random.nextInt(50) + 10);
-            } catch (IOException e) {
-                /*does not matter*/
-            } catch (InterruptedException e) {
-
-            }
-        });
-
-        ce.run();
-
-
-    }
-
 }
