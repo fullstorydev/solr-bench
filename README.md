@@ -10,9 +10,9 @@ Benchmarking & stress test for standard operations (indexing, querying) for a So
 
 In the coordinator VM, check out the solr-benchmarking repo.
 
-The VM should have the following installed:
-* apt install wget unzip zip ant ivy lsof git netcat make openjdk-11-jdk jq maven
-* wget https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip; sudo unzip terraform_0.12.26_linux_amd64.zip -d /usr/local/bin
+The VM should have the following:
+* Maven and other tools for building `apt install wget unzip zip ant ivy lsof git netcat make openjdk-11-jdk jq` (For yum/dnf based systems, similar packages need to be installed)
+* terraform. `wget https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip; sudo unzip terraform_0.12.26_linux_amd64.zip -d /usr/local/bin`
 
 ### Running the suite
 

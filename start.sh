@@ -1,3 +1,5 @@
+SOLR_BENCH_VERSION="0.0.1-SNAPSHOT"
+
 download() {
         file=$1
         if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
@@ -115,7 +117,7 @@ fi
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
 echo "Running suite from working directory: $ORIG_WORKING_DIR"
-java -cp org.apache.solr.benchmarks-0.0.1-SNAPSHOT-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-0.0.1-SNAPSHOT-jar-with-dependencies.jar:. \
+java -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    org.apache.solr.benchmarks.BenchmarksMain $CONFIGFILE
 
 # Grab GC logs
@@ -125,10 +127,11 @@ then
      echo "Pulling GC logs"
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
-          SOLR_NODE=${line//\"/}
-          SOLR_DIR=`tar --exclude='*/*/*' -tf solr-custom.tgz | head -1| cut -d '/' -f 1`
-    echo "scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log"
-          scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log
+        SOLR_NODE=${line//\"/}
+        SOLR_DIR=`tar --exclude='*/*/*' -tf solr-custom.tgz | head -1| cut -d '/' -f 1`
+        cmd="scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log"
+        echo "Running $cmd"
+        "$cmd"
      done
      zip gclogs.zip *_gc.log
      rm *_gc.log
