@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ./wait-for-it.sh -t 0 $ZK_NODE:22
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE uptime
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE rm -rf *zook* 

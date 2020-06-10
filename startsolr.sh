@@ -1,3 +1,5 @@
+#!/bin/bash
+
 SOLR_NODE=$1
 
 echo "Starting Solr from $SOLR_TARBALL_NAME in $SOLR_TARBALL_PATH..."
