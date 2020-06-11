@@ -127,7 +127,7 @@ java -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.
    org.apache.solr.benchmarks.BenchmarksMain $CONFIGFILE
 
 # Grab GC logs
-
+NOW=`date +"%Y-%d-%m_%H.%M.%S"`
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      echo "Pulling logs"
@@ -138,7 +138,7 @@ then
         #cmd="scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log"
 	ssh -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE "tar -cf solrlogs-${SOLR_NODE}.tar $SOLR_DIR/server/logs"
 	scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:solrlogs-${SOLR_NODE}.tar .
-        zip logs.zip solrlogs*tar
+        zip logs-${NOW}.zip solrlogs*tar
 
         echo "Running $cmd"
         $cmd
@@ -150,8 +150,9 @@ cd $ORIG_WORKING_DIR
 if [[ "null" != `jq -r '.["results-upload-location"]' $CONFIGFILE` ]]
 then
      # Results uploading only supported for GCS buckets for now
-     gsutil cp results.json `jq -r '.["results-upload-location"]' $CONFIGFILE`
-     gsutil cp logs.zip `jq -r '.["results-upload-location"]' $CONFIGFILE`
+     mv results.json results-${NOW}.json
+     gsutil cp results-${NOW}.json `jq -r '.["results-upload-location"]' $CONFIGFILE`
+     gsutil cp logs-${NOW}.zip `jq -r '.["results-upload-location"]' $CONFIGFILE`
 fi
 
 # Cleanup
