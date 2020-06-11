@@ -330,6 +330,9 @@ public class BenchmarksMain {
             executor.shutdown();
             httpClient.close();
         }
+	HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+	client.commit(collection);
+	client.close();
 
         log.info("Indexed " + count + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
     }
