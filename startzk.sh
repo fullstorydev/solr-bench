@@ -1,6 +1,13 @@
 #!/bin/bash
 
+echo_blue() {
+   BLUE='\033[0;34m'
+   NC='\033[0m' # No Color
+   echo -e "${BLUE}$1${NC}"
+}
+
 ./wait-for-it.sh -t 0 $ZK_NODE:22
+echo_blue "Starting Zookeeper on $ZK_NODE"
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE uptime
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE rm -rf *zook* 
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE rm -rf /tmp/zookeeper 

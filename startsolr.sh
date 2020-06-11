@@ -1,8 +1,15 @@
 #!/bin/bash
 
+echo_blue() {
+   BLUE='\033[0;34m'
+   NC='\033[0m' # No Color
+   echo -e "${BLUE}$1${NC}"
+}
+
+
 SOLR_NODE=$1
 
-echo "Starting Solr from $SOLR_TARBALL_NAME in $SOLR_TARBALL_PATH..."
+echo_blue "Starting Solr from $SOLR_TARBALL_NAME in $SOLR_TARBALL_PATH..."
 ./wait-for-it.sh -t 0 $SOLR_NODE:22
 ./wait-for-it.sh -t 0 $ZK_NODE:2181
 

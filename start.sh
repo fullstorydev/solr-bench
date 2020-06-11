@@ -1,16 +1,22 @@
 #!/bin/bash
 
+echo_blue() {
+   BLUE='\033[0;34m'
+   NC='\033[0m' # No Color
+   echo -e "${BLUE}$1${NC}"
+}
+
 SOLR_BENCH_VERSION="0.0.1-SNAPSHOT"
 
 download() {
         file=$1
         if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
         then
-		echo "Downloading $file"
+		echo_blue "Downloading $file"
                 curl -O $file
         elif [[ $file == "gs://"* ]]
         then
-		echo "Downloading $file"
+		echo_blue "Downloading $file"
                 gsutil cp $file .
         fi
         # else, don't do anything
@@ -44,7 +50,7 @@ then
 fi
 
 terraform-gcp-provisioner() {
-     echo "Using Terraform provisioner"
+     echo_blue "Using Terraform provisioner"
 
      chmod +x start*sh
 
@@ -74,7 +80,7 @@ terraform-gcp-provisioner() {
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
           SOLR_NODE=${line//\"/}
-          echo "Starting Solr on $SOLR_NODE"
+          echo_blue "Starting Solr on $SOLR_NODE"
           ./startsolr.sh $SOLR_NODE
      done
 }
@@ -82,17 +88,13 @@ terraform-gcp-provisioner() {
 # Download the pre-requisites
 wget -c `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
 wget -c https://archive.apache.org/dist/zookeeper/zookeeper-3.5.6/apache-zookeeper-3.5.6-bin.tar.gz
-for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do echo "Downloading $i"; download $i; done
-
-# Some housekeeping
-chmod +x wait-for-it.sh
-rm ~/.ssh/known_hosts
+for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
 # Clone/checkout the git repository and build Solr
 
 if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
 then
-     echo "Building Solr package for $COMMIT"
+     echo_blue "Building Solr package for $COMMIT"
      if [ ! -d $LOCALREPO_VC_DIR ]
      then
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $REPOSRC $LOCALREPO
@@ -109,7 +111,7 @@ then
      bash -c "$BUILDCOMMAND"
      cd $LOCALREPO
      PACKAGE_PATH=`find . -name "solr*tgz" | grep -v src`
-     echo "Package found here: $PACKAGE_PATH"
+     echo_blue "Package found here: $PACKAGE_PATH"
      cp $PACKAGE_PATH $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 fi
 
@@ -122,7 +124,7 @@ fi
 
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
-echo "Running suite from working directory: $ORIG_WORKING_DIR"
+echo_blue "Running suite from working directory: $ORIG_WORKING_DIR"
 java -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    org.apache.solr.benchmarks.BenchmarksMain $CONFIGFILE
 
@@ -130,7 +132,7 @@ java -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.
 NOW=`date +"%Y-%d-%m_%H.%M.%S"`
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
-     echo "Pulling logs"
+     echo_blue "Pulling logs"
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
         SOLR_NODE=${line//\"/}
@@ -140,9 +142,19 @@ then
 	scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:solrlogs-${SOLR_NODE}.tar .
         zip logs-${NOW}.zip solrlogs*tar
 
-        echo "Running $cmd"
+        echo_blue "Running $cmd"
         $cmd
      done
+
+     echo_blue "Removing the hostname entry from ~/.ssh/known_hosts, so that another run can be possible afterwards"
+     cd $ORIG_WORKING_DIR
+     for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
+     do
+        SOLR_NODE=${line//\"/}
+        ssh-keygen -R "$SOLR_NODE"
+     done
+     ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
+     ssh-keygen -R "$ZK_NODE"
 fi
 
 # Results upload (results.json), if needed
