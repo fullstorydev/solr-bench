@@ -137,13 +137,9 @@ then
      do
         SOLR_NODE=${line//\"/}
         SOLR_DIR=`tar --exclude='*/*/*' -tf ${SOLR_TARBALL_NAME} | head -1| cut -d '/' -f 1`
-        #cmd="scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log"
 	ssh -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE "tar -cf solrlogs-${SOLR_NODE}.tar $SOLR_DIR/server/logs"
 	scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:solrlogs-${SOLR_NODE}.tar .
         zip logs-${NOW}.zip solrlogs*tar
-
-        echo_blue "Running $cmd"
-        $cmd
      done
 
      echo_blue "Removing the hostname entry from ~/.ssh/known_hosts, so that another run can be possible afterwards"
