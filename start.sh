@@ -111,6 +111,8 @@ then
      cp $PACKAGE_PATH $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 fi
 
+cd $ORIG_WORKING_DIR
+
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      terraform-gcp-provisioner
