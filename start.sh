@@ -6,9 +6,11 @@ download() {
         file=$1
         if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
         then
+		echo "Downloading $file"
                 curl -O $file
         elif [[ $file == "gs://"* ]]
         then
+		echo "Downloading $file"
                 gsutil cp $file .
         fi
         # else, don't do anything

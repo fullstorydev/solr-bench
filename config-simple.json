@@ -16,6 +16,7 @@
         "tags" : ["benchmarking", "solr", "temp"]
     }
   },
+  "solr-package": "http://apachemirror.wuchna.com/lucene/solr/8.5.2/solr-8.5.2.tgz",
   "repository": {
     "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
     "description": "Solr 8.4",
