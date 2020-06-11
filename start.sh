@@ -134,7 +134,7 @@ then
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
         SOLR_NODE=${line//\"/}
-        SOLR_DIR=`tar --exclude='*/*/*' -tf solr-custom.tgz | head -1| cut -d '/' -f 1`
+        SOLR_DIR=`tar --exclude='*/*/*' -tf ${SOLR_TARBALL_NAME} | head -1| cut -d '/' -f 1`
         cmd="scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:$SOLR_DIR/server/logs/solr_gc.log.0.current ${SOLR_NODE}_gc.log"
         echo "Running $cmd"
         "$cmd"
