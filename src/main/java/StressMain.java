@@ -66,6 +66,8 @@ public class StressMain {
 		Map<String, List<Future>> taskFutures = new HashMap<String, List<Future>>();
 		Map<String, ExecutorService> taskExecutors = new HashMap<String, ExecutorService>();
 
+		Map<String, Map> finalResults = new ConcurrentHashMap<String, Map>();
+
 		for (TaskInstance instance: workflow.executionPlan) {
 			TaskType type = workflow.taskTypes.get(instance.type);
 			System.out.println(instance.task+" is of type: "+type);
@@ -99,8 +101,6 @@ public class StressMain {
 					long start = System.currentTimeMillis();
 					if (type.indexBenchmark != null) {
 						log.info("Running benchmarking task: "+type.indexBenchmark.datasetFile);
-						/*Thread.sleep(1000);
-						log.info("Running benchmarking task: "+type.indexBenchmark.datasetFile);*/
 						Map<String, Map> results = new HashMap<String, Map>();
 			            results.put("indexing-benchmarks", new LinkedHashMap<Map, List<Map>>());
 			            try {
@@ -108,7 +108,12 @@ public class StressMain {
 			            } catch (Exception ex) {
 			            	ex.printStackTrace();
 			            }
-						log.info("Results: "+results);						
+						log.info("Results: "+results.get("indexing-benchmarks"));
+						try {
+							finalResults.put(instance.task, (Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue());
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
 					} else if (type.command != null) {
 						Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
 						String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap);
@@ -122,6 +127,7 @@ public class StressMain {
 						}
 					}
 					long end = System.currentTimeMillis();
+					//finalResults.put(instance.task, (end-start));
 					return end-start;
 				};
 
@@ -133,6 +139,8 @@ public class StressMain {
 		for (String task: taskExecutors.keySet()) {
 			taskExecutors.get(task).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 		}
+		
+		log.info("Final results: "+finalResults);
 	}
 
 	private static String resolveInteger(String cmd, Map<String, Integer> vars) {

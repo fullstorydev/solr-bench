@@ -50,7 +50,7 @@
             "description": "Create 100 collections parallely using 1 threads",
             "task": "task2",
             "type": "collection-creation",
-            "instances": 100,
+            "instances": 10,
             "concurrency": 4,
             "parameters": {
                 "INDEX": "${collection-counter}",
