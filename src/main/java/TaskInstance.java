@@ -4,9 +4,6 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class TaskInstance {
-	@JsonProperty("task")
-	String task;
-	
 	@JsonProperty("type")
 	String type;
 	

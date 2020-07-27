@@ -1,4 +1,3 @@
-import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -14,5 +13,5 @@ public class Workflow {
 	Map<String, String> globalConstants;
 
 	@JsonProperty("execution-plan")
-	List<TaskInstance> executionPlan;
+	Map<String, TaskInstance> executionPlan;
 }

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.Timer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -42,6 +43,7 @@ public class StressMain {
 		ObjectMapper mapper = new ObjectMapper();
 
 		Workflow workflow = mapper.readValue(FileUtils.readFileToString(new File("workflow.json"), "UTF-8"), Workflow.class);
+		validateWorkflow(workflow);
 
 		String solrPackagePath = "SolrNightlyBenchmarksWorkDirectory/Download/solr-d007470bda2f70ba4e1c407ac624e21288947128.tgz";
         Cluster cluster = new Cluster();
@@ -59,6 +61,8 @@ public class StressMain {
 	private static void executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException {
 		Map<String, AtomicInteger> globalVariables = new ConcurrentHashMap<String, AtomicInteger>();
 
+		long executionStart = System.currentTimeMillis();
+
 		for (String var: workflow.globalVariables.keySet()) {
 			globalVariables.put(var, new AtomicInteger(workflow.globalVariables.get(var)));
 		}
@@ -68,15 +72,16 @@ public class StressMain {
 
 		Map<String, Map> finalResults = new ConcurrentHashMap<String, Map>();
 
-		for (TaskInstance instance: workflow.executionPlan) {
+		for (String taskName: workflow.executionPlan.keySet()) {
+			TaskInstance instance = workflow.executionPlan.get(taskName);
 			TaskType type = workflow.taskTypes.get(instance.type);
-			System.out.println(instance.task+" is of type: "+type);
+			System.out.println(taskName+" is of type: "+type);
 
-			taskFutures.put(instance.task, new ArrayList<Future>());
+			taskFutures.put(taskName, new ArrayList<Future>());
 
-			ExecutorService executor = Executors.newFixedThreadPool(instance.concurrency, new ThreadFactoryBuilder().setNameFormat(instance.task+"-threadpool").build()); 
+			ExecutorService executor = Executors.newFixedThreadPool(instance.concurrency, new ThreadFactoryBuilder().setNameFormat(taskName+"-threadpool").build()); 
 
-			taskExecutors.put(instance.task, executor);
+			taskExecutors.put(taskName, executor);
 
 			for (int i=1; i<=instance.instances; i++) {
 
@@ -102,15 +107,18 @@ public class StressMain {
 					if (type.indexBenchmark != null) {
 						log.info("Running benchmarking task: "+type.indexBenchmark.datasetFile);
 						Map<String, Map> results = new HashMap<String, Map>();
-			            results.put("indexing-benchmarks", new LinkedHashMap<Map, List<Map>>());
+			            results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
+			            long taskStart = System.currentTimeMillis();
 			            try {
 			            	BenchmarksMain.runIndexingBenchmarks(Collections.singletonList(type.indexBenchmark), cloud, results);
 			            } catch (Exception ex) {
 			            	ex.printStackTrace();
 			            }
+			            long taskEnd = System.currentTimeMillis();
 						log.info("Results: "+results.get("indexing-benchmarks"));
 						try {
-							finalResults.put(instance.task, (Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue());
+							String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
+							finalResults.put(taskName, Map.of("total-time", totalTime, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
 						} catch (Exception ex) {
 							ex.printStackTrace();
 						}
@@ -131,7 +139,7 @@ public class StressMain {
 					return end-start;
 				};
 
-				taskFutures.get(instance.task).add(executor.submit(c));
+				taskFutures.get(taskName).add(executor.submit(c));
 			}
 			executor.shutdown();
 		}
@@ -170,5 +178,19 @@ public class StressMain {
 			}
 		}
 		return ret;
+	}
+	
+	public static void validateWorkflow(Workflow w) {
+		for (String typeName: w.taskTypes.keySet()) {
+			TaskType type = w.taskTypes.get(typeName);
+			if (type.indexBenchmark != null) {
+				if (type.indexBenchmark.setups.size() != 1) {
+					throw new RuntimeException("Indexing benchmark task type " + typeName + " should have only 1 setup, but has " + type.indexBenchmark.setups.size() + ".");
+				}
+				if (type.indexBenchmark.setups.get(0).threadStep != 1) {
+					throw new RuntimeException("Indexing benchmark task type " + typeName + " should have threadStep=1, but has " + type.indexBenchmark.setups.get(0).threadStep + ".");
+				}
+			}
+		}
 	}
 }

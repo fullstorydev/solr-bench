@@ -40,15 +40,13 @@
         "HOST": "localhost",
         "PORT": "8983"
     },
-    "execution-plan": [
-        {
-            "task": "task1",
+    "execution-plan": {
+        "task1": {
             "type": "indexing",
             "mode": "async"
         },
-        {
+        "task2": {
             "description": "Create 100 collections parallely using 1 threads",
-            "task": "task2",
             "type": "collection-creation",
             "instances": 10,
             "concurrency": 4,
@@ -61,9 +59,8 @@
             ],
             "mode": "async"
         },
-        {
+        "task3": {
             "description": "Once all collections are created, split a shard in collection1",
-            "task": "task3",
             "type": "shard-splitting",
             "parameters": {
                 "COLLECTION": "collection1",
@@ -72,5 +69,5 @@
             "wait-for": "task2",
             "mode": "sync"
         }
-    ]
+    }
 }
