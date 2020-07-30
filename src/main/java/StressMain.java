@@ -70,7 +70,7 @@ public class StressMain {
 		Map<String, List<Future>> taskFutures = new HashMap<String, List<Future>>();
 		Map<String, ExecutorService> taskExecutors = new HashMap<String, ExecutorService>();
 
-		Map<String, Map> finalResults = new ConcurrentHashMap<String, Map>();
+		Map<String, List<Map>> finalResults = new ConcurrentHashMap<String, List<Map>>();
 
 		for (String taskName: workflow.executionPlan.keySet()) {
 			TaskInstance instance = workflow.executionPlan.get(taskName);
@@ -83,6 +83,7 @@ public class StressMain {
 
 			taskExecutors.put(taskName, executor);
 
+			finalResults.put(taskName, new ArrayList<>());
 			for (int i=1; i<=instance.instances; i++) {
 
 				Callable c = () -> {
@@ -118,7 +119,7 @@ public class StressMain {
 						log.info("Results: "+results.get("indexing-benchmarks"));
 						try {
 							String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
-							finalResults.put(taskName, Map.of("total-time", totalTime, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
+							finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
 						} catch (Exception ex) {
 							ex.printStackTrace();
 						}
@@ -127,12 +128,15 @@ public class StressMain {
 						String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap);
 						log.info("Running in "+instance.mode+" mode: "+command);
 
+						long taskStart = System.currentTimeMillis();
 						try {
 							String output = IOUtils.toString(new URL(command).openStream(), Charset.forName("UTF-8"));
 							log.info("Output: "+output);
 						} catch (Exception ex) {
 							ex.printStackTrace();
 						}
+						long taskEnd = System.currentTimeMillis();
+						finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
 					}
 					long end = System.currentTimeMillis();
 					//finalResults.put(instance.task, (end-start));
