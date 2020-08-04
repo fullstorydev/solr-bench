@@ -27,6 +27,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
+import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +106,21 @@ public class StressMain {
 						}
 					}
 					long start = System.currentTimeMillis();
-					if (type.indexBenchmark != null) {
+					
+					if (type.restartSolrNode != null) {
+						String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
+						long taskStart = System.currentTimeMillis();
+			            try {
+			            	LocalSolrNode node = ((LocalSolrNode)cloud.nodes.get(Integer.valueOf(nodeIndex)));
+			            	node.restart();
+			            } catch (Exception ex) {
+			            	ex.printStackTrace();
+			            }
+			            long taskEnd = System.currentTimeMillis();
+						
+						finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
+
+					} else if (type.indexBenchmark != null) {
 						log.info("Running benchmarking task: "+type.indexBenchmark.datasetFile);
 						Map<String, Map> results = new HashMap<String, Map>();
 			            results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
@@ -121,7 +136,7 @@ public class StressMain {
 							String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
 							finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
 						} catch (Exception ex) {
-							ex.printStackTrace();
+							//ex.printStackTrace();
 						}
 					} else if (type.command != null) {
 						Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());

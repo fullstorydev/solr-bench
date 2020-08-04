@@ -12,7 +12,7 @@
 			        {
 			          "setup-name": "cloud_2x2",
 			          "collection": "small-wikipedia",
-			          "replication-factor": 1,
+			          "replication-factor": 3,
 			          "shards": 1,
 			          "min-threads": 2,
 			          "max-threads": 2,
@@ -31,6 +31,13 @@
         "shard-splitting": {
             "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=${COLLECTION}&shard=${SHARD}",
             "defaults": {}
+        },
+        "num-docs": {
+            "command": "${SOLRURL}small-wikipedia/select?q=*:*&rows=0&distrib=false",
+            "defaults": {}
+        },
+        "restart-solr-node": {
+        	"restart-solr-node": "${NODE_INDEX}"
         }
     },
     "global-variables": {
@@ -48,7 +55,7 @@
         "task2": {
             "description": "Create 100 collections parallely using 1 threads",
             "type": "collection-creation",
-            "instances": 10,
+            "instances": 5,
             "concurrency": 4,
             "parameters": {
                 "INDEX": "${collection-counter}",
@@ -68,6 +75,25 @@
             },
             "wait-for": "task2",
             "mode": "sync"
+        },
+        "task4": {
+            "description": "Restart Solr node",
+            "type": "restart-solr-node",
+            "parameters": {
+                "NODE_INDEX": "2"
+            },
+            "wait-for": "task3",
+            "mode": "sync"
+        },
+        "task5": {
+            "description": "validate",
+            "type": "num-docs",
+            "parameters": {
+                "NODE_INDEX": "2"
+            },
+            "wait-for": "task1",
+            "mode": "sync"
         }
+        
     }
 }

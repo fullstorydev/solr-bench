@@ -10,6 +10,9 @@ public class TaskType {
 	
 	@JsonProperty("index-benchmark")
 	IndexBenchmark indexBenchmark;
+	
+	@JsonProperty("restart-solr-node")
+	String restartSolrNode;
 
 	@JsonProperty("defaults")
 	Map<String, String> defaults;

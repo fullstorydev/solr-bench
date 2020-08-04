@@ -137,4 +137,14 @@ public class LocalSolrNode implements SolrNode {
   public String getNodeName() {
 	  return "localhost:"+port;
   }
+  
+  public void restart() throws Exception {
+	    long start = System.currentTimeMillis();
+	    stop();
+	    start();
+	    long end = System.currentTimeMillis();
+
+	    log.info("Time taken for the node restart is: " + (end - start)/1000.0 + " seconds");
+
+  }
 }
