@@ -29,6 +29,12 @@ import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
+import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.common.cloud.ClusterState;
+import org.apache.solr.common.cloud.Replica;
+import org.apache.solr.common.cloud.Slice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,11 +116,39 @@ public class StressMain {
 					if (type.restartSolrNode != null) {
 						String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
 						long taskStart = System.currentTimeMillis();
+		            	LocalSolrNode node = ((LocalSolrNode)cloud.nodes.get(Integer.valueOf(nodeIndex)));
 			            try {
-			            	LocalSolrNode node = ((LocalSolrNode)cloud.nodes.get(Integer.valueOf(nodeIndex)));
 			            	node.restart();
 			            } catch (Exception ex) {
 			            	ex.printStackTrace();
+			            }
+			            
+			            if (type.awaitRecoveries) {
+					        try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+					        
+					        	int numInactive = 0;
+					        	do {
+					        		numInactive = 0;
+					        		Set<String> inactive = new HashSet<>();
+					        		ClusterState state = client.getClusterStateProvider().getClusterState();
+					        		for (String coll: state.getCollectionsMap().keySet()) {
+					        			for (Slice shard: state.getCollection(coll).getActiveSlices()) {
+					        				for (Replica replica: shard.getReplicas()) {
+					        					if (replica.getState() != Replica.State.ACTIVE) {
+					        						if (replica.getNodeName().contains(node.port)) {
+					        							numInactive++;
+					        							inactive.add(replica.getName());
+					        							//System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName());
+					        						}
+					        					}
+					        				}
+					        			}
+					        		}
+					        		System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
+					        		if (numInactive != 0) Thread.sleep(1000);
+					        	} while (numInactive > 0);
+					        }				        
+
 			            }
 			            long taskEnd = System.currentTimeMillis();
 						

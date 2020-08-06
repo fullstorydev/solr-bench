@@ -37,7 +37,8 @@
             "defaults": {}
         },
         "restart-solr-node": {
-        	"restart-solr-node": "${NODE_INDEX}"
+        	"restart-solr-node": "${NODE_INDEX}",
+        	"await-recoveries": true
         }
     },
     "global-variables": {
