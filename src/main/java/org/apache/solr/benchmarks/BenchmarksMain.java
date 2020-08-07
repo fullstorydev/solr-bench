@@ -177,7 +177,10 @@ public class BenchmarksMain {
 		}
 	}
 
-	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results)
+	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results) throws Exception {
+		runIndexingBenchmarks(indexBenchmarks, null, true, solrCloud, results);
+	}
+	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, String collectionNameOverride, boolean deleteAfter, SolrCloud solrCloud, Map<String, Map> results)
 			throws Exception {
 		for (IndexBenchmark benchmark : indexBenchmarks) {
 			results.get("indexing-benchmarks").put(benchmark.name, new LinkedHashMap());
@@ -187,20 +190,23 @@ public class BenchmarksMain {
 		    	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
 
 		        for (int i = setup.minThreads; i <= setup.maxThreads; i += setup.threadStep) {
-		            log.info("Creating collection: " + setup.collection);
+		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
+		        	log.info("Creating collection: " + collectionName);
 		            try {
-		                solrCloud.deleteCollection(setup.collection);
+		                solrCloud.deleteCollection(collectionName);
 		            } catch (Exception ex) {
 		                log.warn("Error trying to delete collection: " + ex);
 		            }
 		            solrCloud.uploadConfigSet(setup.configset);
-		            solrCloud.createCollection(setup);
+		            solrCloud.createCollection(setup, collectionName);
 		            long start = System.nanoTime();
-		            index(solrCloud.nodes.get(0).getBaseUrl(), setup.collection, i, benchmark);
+		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, benchmark);
 		            long end = System.nanoTime();
 
 		            if (i != setup.maxThreads) {
-		                solrCloud.deleteCollection(setup.collection);
+		            	if (deleteAfter) {
+		            		solrCloud.deleteCollection(collectionName);
+		            	}
 		            }
 		            
 		            setupMetrics.add(Util.map("threads", i, "total-time", String.valueOf((end - start) / 1_000_000_000.0)));

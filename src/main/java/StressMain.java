@@ -49,7 +49,7 @@ public class StressMain {
 	public static void main(String[] args) throws Exception {
 		ObjectMapper mapper = new ObjectMapper();
 
-		Workflow workflow = mapper.readValue(FileUtils.readFileToString(new File("workflow.json"), "UTF-8"), Workflow.class);
+		Workflow workflow = mapper.readValue(FileUtils.readFileToString(new File("rolling.json"), "UTF-8"), Workflow.class);
 		validateWorkflow(workflow);
 
 		String solrPackagePath = "SolrNightlyBenchmarksWorkDirectory/Download/solr-d007470bda2f70ba4e1c407ac624e21288947128.tgz";
@@ -112,6 +112,8 @@ public class StressMain {
 						}
 					}
 					long start = System.currentTimeMillis();
+
+					log.info("Hello1: "+params+", "+copyOfGlobalVarialbes+", "+instance.parameters+", "+globalVariables);
 					
 					if (type.restartSolrNode != null) {
 						String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
@@ -156,11 +158,20 @@ public class StressMain {
 
 					} else if (type.indexBenchmark != null) {
 						log.info("Running benchmarking task: "+type.indexBenchmark.datasetFile);
+
+						// resolve the collectio name using template
+						Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+						//String collectionName = resolveString(resolveInteger(resolveString(type.indexBenchmark.setups.get(0).collection, params), copyOfGlobalVarialbes), solrurlMap);
+						String collectionName = resolveString(type.indexBenchmark.setups.get(0).collection, params);
+
+						log.info("Global variables: "+instance.parameters);
+						log.info("Indexing benchmarks for collection: "+collectionName);
+
 						Map<String, Map> results = new HashMap<String, Map>();
 			            results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
 			            long taskStart = System.currentTimeMillis();
 			            try {
-			            	BenchmarksMain.runIndexingBenchmarks(Collections.singletonList(type.indexBenchmark), cloud, results);
+			            	BenchmarksMain.runIndexingBenchmarks(Collections.singletonList(type.indexBenchmark), collectionName, false, cloud, results);
 			            } catch (Exception ex) {
 			            	ex.printStackTrace();
 			            }
@@ -174,7 +185,7 @@ public class StressMain {
 						}
 					} else if (type.command != null) {
 						Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
-						String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap);
+						String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap); //nocommit resolve instance.parameters as well
 						log.info("Running in "+instance.mode+" mode: "+command);
 
 						long taskStart = System.currentTimeMillis();

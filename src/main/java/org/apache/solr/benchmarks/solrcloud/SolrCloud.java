@@ -129,13 +129,13 @@ public class SolrCloud {
    * @param replicas
    * @throws Exception 
    */
-  public void createCollection(IndexBenchmark.Setup setup) throws Exception {
+  public void createCollection(IndexBenchmark.Setup setup, String collectionName) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
 		  Create create;
 		  if (setup.replicationFactor != null) {
-			  create = Create.createCollection(setup.collection, setup.configset, setup.shards, setup.replicationFactor);
+			  create = Create.createCollection(collectionName, setup.configset, setup.shards, setup.replicationFactor);
 		  } else {
-			  create = Create.createCollection(setup.collection, setup.configset, setup.shards,
+			  create = Create.createCollection(collectionName, setup.configset, setup.shards,
 					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
 		  }
 		  CollectionAdminResponse resp = create.process(hsc);
