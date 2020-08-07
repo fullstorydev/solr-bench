@@ -118,7 +118,7 @@ public class StressMain {
 					if (type.restartSolrNode != null) {
 						String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
 						long taskStart = System.currentTimeMillis();
-		            	LocalSolrNode node = ((LocalSolrNode)cloud.nodes.get(Integer.valueOf(nodeIndex)));
+		            	LocalSolrNode node = ((LocalSolrNode)cloud.nodes.get(Integer.valueOf(nodeIndex) - 1));
 			            try {
 			            	node.restart();
 			            } catch (Exception ex) {

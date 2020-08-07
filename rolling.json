@@ -42,7 +42,8 @@
         }
     },
     "global-variables": {
-        "collection-counter": 0
+        "collection-counter": 0,
+        "restart-counter": 0
     },
     "global-constants": {
         "HOST": "localhost",
@@ -61,7 +62,24 @@
             "pre-task-evals": [
                 "inc(collection-counter,1)"
             ]
+        },
+        
+        "task2": {
+            "description": "Restart Solr node",
+            "instances": 3,
+            "concurrency": 1,
+            "type": "restart-solr-node",
+            "parameters": {
+                "NODE_INDEX": "${restart-counter}"
+            },
+            "wait-for": "task1",
+            "mode": "sync",
+            "pre-task-evals": [
+                "inc(restart-counter,1)"
+            ]
+            
         }
+        
         
     }
 }
