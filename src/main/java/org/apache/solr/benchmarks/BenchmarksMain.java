@@ -66,7 +66,8 @@ public class BenchmarksMain {
 
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private static String getSolrPackagePath(Repository repo, String solrPackageUrl) {
+    // nocommit: this should goto Utils
+    public static String getSolrPackagePath(Repository repo, String solrPackageUrl) {
     	if (solrPackageUrl != null) {
     		String filename = solrPackageUrl.split("/")[solrPackageUrl.split("/").length-1];
     		if (new File(filename).exists() == false) {

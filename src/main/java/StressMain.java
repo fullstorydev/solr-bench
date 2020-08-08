@@ -26,6 +26,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.beans.Cluster;
+import org.apache.solr.benchmarks.beans.Configuration;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
@@ -47,7 +48,7 @@ public class StressMain {
 
 
 	public static void main(String[] args) throws Exception {
-		ObjectMapper mapper = new ObjectMapper();
+		/*ObjectMapper mapper = new ObjectMapper();
 
 		Workflow workflow = mapper.readValue(FileUtils.readFileToString(new File("rolling.json"), "UTF-8"), Workflow.class);
 		validateWorkflow(workflow);
@@ -58,7 +59,18 @@ public class StressMain {
         cluster.provisioningMethod = "local";
 
         SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
+        solrCloud.init();*/
+		
+        String configFile = args[0];
+
+        Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
+        Cluster cluster = workflow.cluster;
+
+        String solrPackagePath = BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
+        SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
         solrCloud.init();
+
+
 
 		executeWorkflow(workflow, solrCloud);
 		

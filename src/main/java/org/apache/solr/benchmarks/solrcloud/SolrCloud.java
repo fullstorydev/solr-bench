@@ -87,7 +87,7 @@ public class SolrCloud {
       }
 
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
-        SolrNode node = new LocalSolrNode(solrPackagePath, zookeeper);
+        SolrNode node = new LocalSolrNode(solrPackagePath, cluster.startupParams, zookeeper);
         node.init();
         node.start();
         nodes.add(node);

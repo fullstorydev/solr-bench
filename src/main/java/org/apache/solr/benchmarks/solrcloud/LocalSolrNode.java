@@ -34,10 +34,13 @@ public class LocalSolrNode implements SolrNode {
   private String nodeDirectory;
   private final Zookeeper zookeeper;
   private final String solrPackagePath;
-  public LocalSolrNode(String solrPackagePath, Zookeeper zookeeper)
+  private final String startupParams;
+  
+  public LocalSolrNode(String solrPackagePath, String startupParams, Zookeeper zookeeper)
       throws Exception {
     this.zookeeper = zookeeper;
     this.solrPackagePath = solrPackagePath;
+    this.startupParams = startupParams;
   }
 
   @Override
@@ -89,7 +92,7 @@ public class LocalSolrNode implements SolrNode {
 
     start = System.currentTimeMillis();
     new File(nodeDirectory + "solr").setExecutable(true);
-    	returnValue = Util.execute(nodeDirectory + "solr start -force -Dhost=localhost " + "-p " + port + " -m 5g " + " -z "
+    	returnValue = Util.execute(nodeDirectory + "solr start -force -Dhost=localhost " + "-p " + port + " " + (startupParams!=null?startupParams:"") + " " + " -z "
     			+ zookeeper.getHost() + ":" + zookeeper.getPort(), nodeDirectory);
 
     end = System.currentTimeMillis();
