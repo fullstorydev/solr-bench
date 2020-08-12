@@ -7,7 +7,7 @@
     "startup-params": "-m 1g",
     "provisioning-method": "local"
   },
-  "solr-package": "https://mirrors.estointernet.in/apache/lucene/solr/8.6.0/solr-8.6.0.tgz",
+  "solr-package": "solr-8.6.0.tgz",
   "index-benchmarks": [
     {
       "name": "CLOUD_INDEXING",

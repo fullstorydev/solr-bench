@@ -32,6 +32,7 @@ Example: config.json (GCP), config-local.json (Local mode, it builds Solr from s
 * One can use either TSV files or JSONL files for indexing. Use "tsv" or "json" for the "file-format" section.
 * The configset should be zipped, and "index-benchmarks" section should have the name of the file (without the .zip) as "configset".
 * The query file should have GET parameters that will be queried against /select.
+* Lucene's benchmarks dataset can be found here:  http://people.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
 
 ### Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
