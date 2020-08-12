@@ -21,7 +21,7 @@ In the coordinator VM, check out this solr-bench repository.
      1. mvn clean compile assembly:single
      2. ./start.sh <config-file>
 
-Example: config.json (GCP), config-local.json (Local mode). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id".
+Example: config.json (GCP), config-local.json (Local mode, it builds Solr from source), config-prebuilt (Local mode, uses provided tgz file). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id". For local, the JDK is downloaded but not used and instead the system installed JDK/JRE is used.
 
 ### Results
 

@@ -1,0 +1,46 @@
+{
+  "cluster": {
+    "num-solr-nodes": 2,
+    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u241-linux-x64.tar.gz",
+    "jdk-tarball": "jdk-8u241-linux-x64.tar.gz",
+    "jdk-directory": "jdk1.8.0_241",
+    "startup-params": "-m 1g",
+    "provisioning-method": "local"
+  },
+  "solr-package": "https://mirrors.estointernet.in/apache/lucene/solr/8.6.0/solr-8.6.0.tgz",
+  "index-benchmarks": [
+    {
+      "name": "CLOUD_INDEXING",
+      "description": "Wikipedia dataset on SolrCloud",
+      "replication-type": "cloud",
+      "dataset-file": "small-data/small-enwiki.tsv.gz",
+      "file-format": "tsv",
+      "id-field": "id",
+      "setups": [
+        {
+          "setup-name": "cloud_2x2",
+          "collection": "small-wikipedia",
+          "replication-factor": 1,
+          "shards": 1,
+          "min-threads": 2,
+          "max-threads": 2,
+          "thread-step": 1
+        }
+      ]
+    }
+  ],
+  "query-benchmarks": [
+    {
+      "name": "Terms queries",
+      "collection": "small-wikipedia",
+      "query-file": "small-data/queryFile",
+      "min-threads": 1,
+      "max-threads": 2,
+      "json-query" : false,
+      "rpm": 3000,
+      "total-count" : 21,
+      "warm-count": 5
+    }
+  ],
+  "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad"]
+}
