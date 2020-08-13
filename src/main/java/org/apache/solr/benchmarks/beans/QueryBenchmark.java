@@ -2,6 +2,7 @@ package org.apache.solr.benchmarks.beans;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class QueryBenchmark {
@@ -51,5 +52,5 @@ public class QueryBenchmark {
   public Map<String,String>  templateValues;
 
   @JsonProperty("params")
-  public Map<String,String> params;
+  public Map<String,String> params = new HashMap<>();
 }
