@@ -50,4 +50,6 @@ public class QueryBenchmark {
   @JsonProperty("template-values")
   public Map<String,String>  templateValues;
 
+  @JsonProperty("params")
+  public Map<String,String> params;
 }
