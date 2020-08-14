@@ -63,18 +63,18 @@ public class MetricsCollector implements Runnable {
 						JSONObject json = resp.get(group);
 
 						if (json != null) {
-							json = json.getJSONObject("metrics");
-							int n = elements.length;
-							for(int i = 1; i < n - 1; ++i) {
-								try {
+							try {
+								json = json.getJSONObject("metrics");
+								int n = elements.length;
+								for (int i = 1; i < n - 1; ++i) {
 									json = json.getJSONObject(elements[i]);
-								} catch (JSONException e) {
-									// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
-									log.error("failed to get key %s.", elements[i], e);
 								}
+								Double metric = json.getDouble(elements[n - 1]);
+								metrics.get(node.getNodeName()).get(path).add(metric);
+							} catch (JSONException e) {
+								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
+								log.error("skipped metrics path %s", path, e);
 							}
-							Double metric = json.getDouble(elements[n-1]);
-							metrics.get(node.getNodeName()).get(path).add(metric);
 						} // else this response wasn't fetched
 					}
 				}
