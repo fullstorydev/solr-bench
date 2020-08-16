@@ -15,7 +15,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
 public class MetricsCollector implements Runnable {
 
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -90,5 +89,4 @@ public class MetricsCollector implements Runnable {
 	public void stop() {
 		running.getAndSet(false);
 	}
-
 }
