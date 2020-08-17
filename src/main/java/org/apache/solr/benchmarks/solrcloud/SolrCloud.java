@@ -138,7 +138,7 @@ public class SolrCloud {
   }
 
   String getZkNodeFromVagrant() throws JsonMappingException, JsonProcessingException, IOException {
-	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/solr-servers.json"), "UTF-8"), Map.class);
+	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/zk-servers.json"), "UTF-8"), Map.class);
 	  for (String server: servers.keySet()) {
 		  return servers.get(server).toString();
 	  }
