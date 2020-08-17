@@ -18,7 +18,7 @@ ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE rm -rf solr*
 ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE sudo pkill -9 java
 scp -i $BENCH_KEY -oStrictHostKeyChecking=no ${SOLR_TARBALL_PATH} $BENCH_USER@$SOLR_NODE:
 scp -i $BENCH_KEY -oStrictHostKeyChecking=no /usr/bin/lsof $BENCH_USER@$SOLR_NODE:
-ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE sudo mv lsof /usr/bin/lsof
+#ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE sudo mv lsof /usr/bin/lsof
 scp -i $BENCH_KEY -oStrictHostKeyChecking=no ${JDK_TARBALL} $BENCH_USER@$SOLR_NODE:
 
 ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE "
