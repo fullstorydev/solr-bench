@@ -8,15 +8,15 @@ echo_blue() {
 
 ./wait-for-it.sh -t 0 $ZK_NODE:22
 echo_blue "Starting Zookeeper on $ZK_NODE"
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE uptime
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE rm -rf *zook* 
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE rm -rf /tmp/zookeeper 
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE sudo pkill -9 java
-scp -i terraform/id_rsa -oStrictHostKeyChecking=no $ZK_TARBALL_PATH solruser@$ZK_NODE:
-scp -i terraform/id_rsa -oStrictHostKeyChecking=no ${JDK_TARBALL} solruser@$ZK_NODE:
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE uptime
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE rm -rf *zook* 
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE rm -rf /tmp/zookeeper 
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE sudo pkill -9 java
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no $ZK_TARBALL_PATH $BENCH_USER@$ZK_NODE:
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no ${JDK_TARBALL} $BENCH_USER@$ZK_NODE:
 
 
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$ZK_NODE "
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE "
 	export JDK_TARBALL=$JDK_TARBALL;
 	tar -xf $JDK_TARBALL; 
 	export JDK_DIR=\`tar tf $JDK_TARBALL | head -1| cut -d '/' -f 1\`;

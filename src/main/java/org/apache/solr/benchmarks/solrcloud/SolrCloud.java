@@ -99,7 +99,15 @@ public class SolrCloud {
     	for (String host: getSolrNodesFromTFState()) {
     		nodes.add(new GenericSolrNode(host));
     	}
+    } else if ("vagrant".equalsIgnoreCase(cluster.provisioningMethod)) {
+    	System.out.println("Solr nodes: "+getSolrNodesFromVagrant());
+    	System.out.println("ZK node: "+getZkNodeFromVagrant());
+    	zookeeper = new GenericZookeeper(getZkNodeFromVagrant());
+    	for (String host: getSolrNodesFromVagrant()) {
+    		nodes.add(new GenericSolrNode(host));
+    	}
     }
+
 
   }
 
@@ -116,6 +124,23 @@ public class SolrCloud {
 	  Map<String, Object> tfstate = new ObjectMapper().readValue(FileUtils.readFileToString(new File("terraform/terraform.tfstate"), "UTF-8"), Map.class);
 	  for (Map m: (List<Map>)((Map)((Map)tfstate.get("outputs")).get("zookeeper_details")).get("value")) {
 		  return m.get("name").toString();
+	  }
+	  throw new RuntimeException("Couldn't get ZK node from tfstate");
+  }
+
+  List<String> getSolrNodesFromVagrant() throws JsonMappingException, JsonProcessingException, IOException {
+	  List<String> out = new ArrayList<String>();
+	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/solr-servers.json"), "UTF-8"), Map.class);
+	  for (String server: servers.keySet()) {
+		  out.add(servers.get(server).toString());
+	  }
+	  return out;
+  }
+
+  String getZkNodeFromVagrant() throws JsonMappingException, JsonProcessingException, IOException {
+	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/solr-servers.json"), "UTF-8"), Map.class);
+	  for (String server: servers.keySet()) {
+		  return servers.get(server).toString();
 	  }
 	  throw new RuntimeException("Couldn't get ZK node from tfstate");
   }

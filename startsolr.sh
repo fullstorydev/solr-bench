@@ -13,15 +13,15 @@ echo_blue "Starting Solr from $SOLR_TARBALL_NAME in $SOLR_TARBALL_PATH..."
 ./wait-for-it.sh -t 0 $SOLR_NODE:22
 ./wait-for-it.sh -t 0 $ZK_NODE:2181
 
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE uptime
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE rm -rf solr* 
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE sudo pkill -9 java
-scp -i terraform/id_rsa -oStrictHostKeyChecking=no ${SOLR_TARBALL_PATH} solruser@$SOLR_NODE:
-scp -i terraform/id_rsa -oStrictHostKeyChecking=no /usr/bin/lsof solruser@$SOLR_NODE:
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE sudo mv lsof /usr/bin/lsof
-scp -i terraform/id_rsa -oStrictHostKeyChecking=no ${JDK_TARBALL} solruser@$SOLR_NODE:
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE uptime
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE rm -rf solr* 
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE sudo pkill -9 java
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no ${SOLR_TARBALL_PATH} $BENCH_USER@$SOLR_NODE:
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no /usr/bin/lsof $BENCH_USER@$SOLR_NODE:
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE sudo mv lsof /usr/bin/lsof
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no ${JDK_TARBALL} $BENCH_USER@$SOLR_NODE:
 
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE "
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$SOLR_NODE "
 	export JDK_TARBALL=$JDK_TARBALL;
 	tar -xf $JDK_TARBALL; 
 	export JDK_DIR=\`tar tf $JDK_TARBALL | head -1| cut -d '/' -f 1\`;
@@ -32,5 +32,5 @@ ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE "
 	tar -xf $SOLR_TARBALL_NAME;
 
 	cd \$SOLR_DIR;
-	bin/solr -V -c $SOLR_STARTUP_PARAMS -z $ZK_NODE:2181 -Dsolr.host=$SOLR_NODE
+	bin/solr -V -c $SOLR_STARTUP_PARAMS -z $ZK_NODE:2181 -h $SOLR_NODE
 "

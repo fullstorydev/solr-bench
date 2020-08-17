@@ -1,2 +1,8 @@
 /target/
 SolrNightlyBenchmarksWorkDirectory/
+vagrant/solr-servers.json
+vagrant/zk-servers.json
+vagrant/files/*
+vagrant/id_rsa.pub
+vagrant/id_rsa
+vagrant/.vagrant

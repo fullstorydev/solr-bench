@@ -1,0 +1,21 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+
+  - name: Java | Ensure Oracle Java 11 is installed
+    unarchive:
+      src: "files/jdk-8u241-linux-x64.tar.gz"
+      dest: "/opt"
+  - shell: echo JAVA_HOME is $JAVA_HOME
+    environment:
+      JAVA_HOME: /opt/jdk1.8.0_241
+  - name: Setup Java Home
+    shell: "echo 'export JAVA_HOME=/opt/jdk1.8.0_241; export PATH=$PATH:$JAVA_HOME/bin' >> /home/vagrant/.bashrc"
+  - name: Generate hosts file
+    template:
+      src: "templates/hosts"
+      dest: "/opt/hosts"
+  - name: "Fix the /etc/hosts"
+    shell: "cat /opt/hosts >> /etc/hosts"
+

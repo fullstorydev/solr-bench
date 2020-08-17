@@ -1,0 +1,62 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.box = "generic/ubuntu1804"
+
+  memory_mb = 2048
+  zk = JSON.parse(File.read(File.join(File.dirname(__FILE__), 'zk-servers.json')))
+  zk_version = JSON.parse(File.read(File.join(File.dirname(__FILE__), 'zk_version.json')))
+  solr = JSON.parse(File.read(File.join(File.dirname(__FILE__), 'solr-servers.json')))
+
+  zk.each_with_index do |(short_name, ip), idx|
+    config.vm.define short_name do |host|
+      host.vm.network :private_network, ip: ip
+      host.vm.hostname = short_name
+      host.vm.provider :virtualbox do |vb|
+        vb.customize ["modifyvm", :id, "--memory", memory_mb]
+      end
+
+      # Put the public key
+      host.vm.provision "file", source: "id_rsa.pub", destination: "~/.ssh/me.pub"
+      host.vm.provision "shell", inline: "cat /home/vagrant/.ssh/me.pub >> /home/vagrant/.ssh/authorized_keys"
+      
+      host.vm.provision :ansible do |ansible|
+        ansible.playbook = "provision-zk.yml"
+        ansible.extra_vars = {
+          zk_version: zk_version.values[0],
+          zk_node_seq: idx + 1,
+          zk_ip_addresses: zk.values,
+          solr_ip_addresses: solr.values
+        }
+      end
+    end
+  end
+
+  solr.each_with_index do |(short_name, ip), idx|
+    config.vm.define short_name do |host|
+      host.vm.network :private_network, ip: ip
+      host.vm.hostname = short_name
+      host.vm.provider :virtualbox do |vb|
+        vb.customize ["modifyvm", :id, "--memory", memory_mb]
+      end
+
+      # Put the public key
+      host.vm.provision "file", source: "id_rsa.pub", destination: "~/.ssh/me.pub"
+      host.vm.provision "shell", inline: "cat /home/vagrant/.ssh/me.pub >> /home/vagrant/.ssh/authorized_keys"
+
+      host.vm.provision :ansible do |ansible|
+        ansible.playbook = "provision-solr.yml"
+        ansible.extra_vars = {
+          zk_node_seq: idx + 1,
+          zk_ip_addresses: zk.values,
+          solr_ip_addresses: solr.values
+        }
+      end
+    end
+  end
+
+end

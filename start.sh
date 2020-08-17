@@ -71,10 +71,11 @@ terraform-gcp-provisioner() {
      export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
-     export ZK_TARBALL_NAME="apache-zookeeper-3.5.6-bin.tar.gz"
-     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.5.6-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.1-bin.tar.gz"
+     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.1-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
-
+     export BENCH_USER="solruser"
+     export BENCH_KEY="terraform/id_rsa"
      ./startzk.sh
 
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
@@ -85,9 +86,60 @@ terraform-gcp-provisioner() {
      done
 }
 
+vagrant-provisioner() {
+     echo_blue "Using Vagrant provisioner"
+
+     cd $ORIG_WORKING_DIR
+
+     chmod +x start*sh
+
+     # Generate the Terraform JSON file
+     export SOLR_NODE_COUNT=`jq '.["cluster"]["vagrant-config"]["solr_node_count"]' $CONFIGFILE`
+     export ZK_NODE_COUNT=1
+
+     export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.1-bin.tar.gz"
+
+     echo_blue "Solr servers: $SOLR_NODE_COUNT"
+     bash -c 'printf "["; for ((i=1; i<$SOLR_NODE_COUNT; i++)); do printf "$i,"; done; printf $SOLR_NODE_COUNT; printf "]"' | jq 'map({"name":("solr-"+(.|tostring)), "ip": ("192.168.5."+((.+100)|tostring))}) | map( {(.name): .ip}  )|add' > vagrant/solr-servers.json
+     bash -c 'printf "["; for ((i=1; i<$ZK_NODE_COUNT; i++));   do printf "$i,"; done; printf $ZK_NODE_COUNT;   printf "]"' | jq 'map({"name":("zk-"+(.|tostring)), "ip": ("192.168.5."+((.+ 50)|tostring))}) | map( {(.name): .ip}  )|add' > vagrant/zk-servers.json
+
+     # Generate temporary ssh keys
+     rm vagrant/id_rsa*
+     ssh-keygen -f vagrant/id_rsa -N ""
+
+     # Copy JDK and ZK downloads to vagrant/files
+     cp $JDK_TARBALL vagrant/files
+     cp $ZK_TARBALL_NAME vagrant/files
+
+     # Provision instances using Terraform
+     cd $ORIG_WORKING_DIR/vagrant
+     vagrant destroy -f
+     vagrant up --provider virtualbox 
+
+     echo_blue "NOCOMMIT this should work till here"
+     # Start Solr on provisioned instances
+     cd $ORIG_WORKING_DIR
+
+     export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
+     export ZK_NODE=`jq -r ".[]" vagrant/zk-servers.json`
+     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.1-bin.tar.gz"
+     export BENCH_USER="vagrant"
+     export BENCH_KEY="vagrant/id_rsa"
+
+     # ./startzk.sh
+
+     for SOLR_NODE in `jq -r ".[]" vagrant/solr-servers.json`
+     do
+          echo_blue "Starting Solr on $SOLR_NODE"
+          ./startsolr.sh $SOLR_NODE
+     done
+}
+
+
 # Download the pre-requisites
 wget -c `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://archive.apache.org/dist/zookeeper/zookeeper-3.5.6/apache-zookeeper-3.5.6-bin.tar.gz
+wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.1/apache-zookeeper-3.6.1-bin.tar.gz
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
 # Clone/checkout the git repository and build Solr
@@ -120,6 +172,9 @@ cd $ORIG_WORKING_DIR
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      terraform-gcp-provisioner
+elif [ "vagrant" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     vagrant-provisioner
 fi
 
 # Run the benchmarking suite
@@ -170,4 +225,9 @@ then
      terraform destroy --auto-approve
      rm id_rsa*
 fi
-
+if [ "vagrant" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     cd $ORIG_WORKING_DIR/vagrant
+     vagrant destroy -f
+     rm id_rsa*
+fi
