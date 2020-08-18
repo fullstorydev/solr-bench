@@ -10,6 +10,10 @@ SOLR_BENCH_VERSION="0.0.1-SNAPSHOT"
 
 download() {
         file=$1
+        if [ -f "$(basename "$file")" ]; then
+		return
+        fi
+
         if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
         then
 		echo_blue "Downloading $file"
@@ -97,15 +101,19 @@ then
      echo_blue "Building Solr package for $COMMIT"
      if [ ! -d $LOCALREPO_VC_DIR ]
      then
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $REPOSRC $LOCALREPO
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --config credential.helper=cache $REPOSRC $LOCALREPO
           cd $LOCALREPO
      else
           cd $LOCALREPO
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
      fi
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
+     if [[ "$REPOSRC" == http* ]]
+     then
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git -c 'url.https://github.com/.insteadof=git@github.com:' submodule update --init --recursive
+     else
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update --init --recursive
+     fi
 
      # Build Solr package
      bash -c "$BUILDCOMMAND"

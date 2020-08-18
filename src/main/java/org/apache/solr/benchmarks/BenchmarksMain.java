@@ -127,7 +127,6 @@ public class BenchmarksMain {
             // Stop metrics collection
             if (config.metrics != null) {
             	metricsCollector.stop();
-            	metricsThread.stop();
             }
             // Write results to a file
             results.put("configuration", Util.map("configuration", config));
