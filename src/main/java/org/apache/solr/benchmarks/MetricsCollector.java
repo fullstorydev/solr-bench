@@ -73,6 +73,7 @@ public class MetricsCollector implements Runnable {
 							} catch (JSONException e) {
 								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
 								log.error("skipped metrics path {}:", path, e);
+								metrics.get(node.getNodeName()).get(path).add(Double.MIN_VALUE);
 							}
 						} // else this response wasn't fetched
 					}
