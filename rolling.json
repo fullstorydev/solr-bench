@@ -97,6 +97,7 @@
     "submodules": false,
     "url": "https://github.com/apache/lucene-solr",
     "user"  : "ishan"
-  }
+  },
+  "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad", "solr.jetty/solr.jetty/org.eclipse.jetty.server.handler.DefaultHandler.get-requests/count"]
 }
 

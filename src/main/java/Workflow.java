@@ -32,4 +32,8 @@ public class Workflow {
 
 	@JsonProperty("execution-plan")
 	Map<String, TaskInstance> executionPlan;
+	
+	  @JsonProperty("metrics")
+	  public List<String> metrics;
+
 }

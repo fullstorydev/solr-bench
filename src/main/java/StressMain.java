@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
+import org.apache.solr.benchmarks.MetricsCollector;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.Configuration;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
@@ -39,6 +40,8 @@ import org.apache.solr.common.cloud.Slice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -72,13 +75,30 @@ public class StressMain {
 
 
 
+
 		executeWorkflow(workflow, solrCloud);
 		
 		solrCloud.shutdown(true);
 	}
 
-	private static void executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException {
+	private static void executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException {
 		Map<String, AtomicInteger> globalVariables = new ConcurrentHashMap<String, AtomicInteger>();
+
+        // Start metrics collection
+        MetricsCollector metricsCollector = null;
+        Thread metricsThread = null;
+
+		Map<String, List<Future>> taskFutures = new HashMap<String, List<Future>>();
+		Map<String, ExecutorService> taskExecutors = new HashMap<String, ExecutorService>();
+
+		Map<String, List<Map>> finalResults = new ConcurrentHashMap<String, List<Map>>();
+
+        if (workflow.metrics != null) {
+        	metricsCollector = new MetricsCollector(cloud.nodes, workflow.metrics, 2);
+        	metricsThread = new Thread(metricsCollector);
+        	metricsThread.start();
+        	//results.put("solr-metrics", metricsCollector.metrics);
+        }
 
 		long executionStart = System.currentTimeMillis();
 
@@ -86,10 +106,6 @@ public class StressMain {
 			globalVariables.put(var, new AtomicInteger(workflow.globalVariables.get(var)));
 		}
 
-		Map<String, List<Future>> taskFutures = new HashMap<String, List<Future>>();
-		Map<String, ExecutorService> taskExecutors = new HashMap<String, ExecutorService>();
-
-		Map<String, List<Map>> finalResults = new ConcurrentHashMap<String, List<Map>>();
 
 		for (String taskName: workflow.executionPlan.keySet()) {
 			TaskInstance instance = workflow.executionPlan.get(taskName);
@@ -224,7 +240,15 @@ public class StressMain {
 			taskExecutors.get(task).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 		}
 		
+        // Stop metrics collection
+        if (workflow.metrics != null) {
+        	metricsCollector.stop();
+        	metricsThread.stop();
+        }
+
 		log.info("Final results: "+finalResults);
+        new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
+        new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
 	}
 
 	private static String resolveInteger(String cmd, Map<String, Integer> vars) {
