@@ -53,7 +53,7 @@ public class MetricsCollector implements Runnable {
 							URL url = new URL(node.getBaseUrl()+"admin/metrics?group="+group);
 							resp.put(group, new JSONObject(IOUtils.toString(url, Charset.forName("UTF-8"))));
 						} catch (JSONException | IOException e1) {
-							log.error("Couldn't get metrics from "+node.getBaseUrl(), e1);
+							log.debug("Couldn't get metrics from "+node.getBaseUrl(), e1);
 						}
 					}
 					for (String path: metricsPaths) {
@@ -72,7 +72,7 @@ public class MetricsCollector implements Runnable {
 								metrics.get(node.getNodeName()).get(path).add(metric);
 							} catch (JSONException e) {
 								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
-								log.error("skipped metrics path {}:", path, e);
+								log.debug("skipped metrics path {}:", path, e);
 								metrics.get(node.getNodeName()).get(path).add(-1.0);
 							}
 						} else { // else this response wasn't fetched
