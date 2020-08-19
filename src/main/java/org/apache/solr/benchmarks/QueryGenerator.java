@@ -9,6 +9,8 @@ import org.apache.solr.client.solrj.impl.InputStreamResponseParser;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.MapSolrParams;
+import org.apache.solr.common.params.SolrParams;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -83,6 +85,11 @@ public class QueryGenerator {
                 @Override
                 public String toString() {
                     return q;
+                }
+
+                @Override
+                public SolrParams getParams() {
+                    return new MapSolrParams(queryBenchmark.params);
                 }
             };
 

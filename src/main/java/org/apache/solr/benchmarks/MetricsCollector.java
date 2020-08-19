@@ -1,18 +1,5 @@
 package org.apache.solr.benchmarks;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Vector;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
 import org.json.JSONException;
@@ -20,6 +7,13 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MetricsCollector implements Runnable {
 
@@ -63,14 +57,24 @@ public class MetricsCollector implements Runnable {
 						}
 					}
 					for (String path: metricsPaths) {
-						String group = path.split("/")[0];
+						String[] elements = path.split("/");
+						String group = elements[0];
 						JSONObject json = resp.get(group);
 
 						if (json != null) {
-							String key1 = path.split("/")[1];
-							String key2 = path.split("/")[2];
-							Double metric = json.getJSONObject("metrics").getJSONObject(key1).getDouble(key2);
-							metrics.get(node.getNodeName()).get(path).add(metric);
+							try {
+								json = json.getJSONObject("metrics");
+								int n = elements.length;
+								for (int i = 1; i < n - 1; ++i) {
+									json = json.getJSONObject(elements[i]);
+								}
+								Double metric = json.getDouble(elements[n - 1]);
+								metrics.get(node.getNodeName()).get(path).add(metric);
+							} catch (JSONException e) {
+								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
+								log.error("skipped metrics path {}:", path, e);
+								metrics.get(node.getNodeName()).get(path).add(Double.MIN_VALUE);
+							}
 						} // else this response wasn't fetched
 					}
 				}
@@ -86,5 +90,4 @@ public class MetricsCollector implements Runnable {
 	public void stop() {
 		running.getAndSet(false);
 	}
-	
 }
