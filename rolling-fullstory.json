@@ -16,7 +16,8 @@
 			          "shards": 1,
 			          "min-threads": 2,
 			          "max-threads": 2,
-			          "thread-step": 1
+			          "thread-step": 1,
+				  "collection-creation-params": {"externalState": "true"}
 			        }
 			      ]
 		    }		
@@ -63,7 +64,6 @@
                 "inc(collection-counter,1)"
             ]
         },
-        
         "task2": {
             "description": "Restart Solr node",
             "instances": 9,
@@ -79,10 +79,7 @@
             ]
             
         }
-        
-        
     },
-
   "cluster": {
     "num-solr-nodes": 10,
     "startup-params": "-m 1g -V",

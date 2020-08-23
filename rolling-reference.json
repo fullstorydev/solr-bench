@@ -43,7 +43,7 @@
     },
     "global-variables": {
         "collection-counter": 0,
-        "restart-counter": 0
+        "restart-counter": 1
     },
     "global-constants": {
         "HOST": "localhost",
@@ -52,7 +52,7 @@
     "execution-plan": {
         "task1": {
             "type": "indexing",
-            "instances": 15,
+            "instances": 40,
             "concurrency": 1,
             "mode": "sync",
             "parameters": {
@@ -66,7 +66,7 @@
         
         "task2": {
             "description": "Restart Solr node",
-            "instances": 10,
+            "instances": 9,
             "concurrency": 1,
             "type": "restart-solr-node",
             "parameters": {
@@ -89,7 +89,7 @@
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "75ae1b71b6e929b60c65d00129fb50c0deca0fa7",
+    "commit-id": "8d58c6ab3ff4bdd74f9034513f3bbbfe1c451a80",
     "description": "Solr Reference Branch",
     "name": "git-repository",
     "package-subdir": "/solr/package/",
