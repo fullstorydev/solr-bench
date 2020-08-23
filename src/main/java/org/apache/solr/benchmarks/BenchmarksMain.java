@@ -49,7 +49,10 @@ import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException;
 import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.DocRouter;
@@ -195,7 +198,11 @@ public class BenchmarksMain {
 		            try {
 		                solrCloud.deleteCollection(collectionName);
 		            } catch (Exception ex) {
-		                log.warn("Error trying to delete collection: " + ex);
+		            	if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
+		            		log.debug("Error trying to delete collection: " + ex);
+		            	} else {
+		            		log.warn("Error trying to delete collection: " + ex);
+		            	}
 		            }
 		            solrCloud.uploadConfigSet(setup.configset);
 		            solrCloud.createCollection(setup, collectionName);
