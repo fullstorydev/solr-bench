@@ -248,7 +248,9 @@ public class StressMain {
 
 		log.info("Final results: "+finalResults);
         new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
-        new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
+        if (metricsCollector != null) {
+        	new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
+        }
 	}
 
 	private static String resolveInteger(String cmd, Map<String, Integer> vars) {
