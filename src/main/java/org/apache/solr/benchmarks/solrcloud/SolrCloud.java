@@ -44,6 +44,7 @@ import org.apache.solr.client.solrj.response.CollectionAdminResponse;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkConfigManager;
 import org.apache.solr.common.params.ConfigSetParams;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,10 +139,36 @@ public class SolrCloud {
 			  create = Create.createCollection(collectionName, setup.configset, setup.shards,
 					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
 		  }
-		  CollectionAdminResponse resp = create.process(hsc);
+		  CollectionAdminResponse resp = new CreateWithAdditionalParameters(create, collectionName, setup.collectionCreationParams).process(hsc);
 		  log.info("Collection created: "+ resp.jsonStr());
       }
 	  colls.add(setup.collection);
+  }
+
+  class CreateWithAdditionalParameters extends Create {
+	  private CreateWithAdditionalParameters(String collection, String config, Integer numShards, Integer numNrtReplicas,
+			  Integer numTlogReplicas, Integer numPullReplicas) {
+		  super(collection, config, numShards, numNrtReplicas, numTlogReplicas, numPullReplicas);
+	  }
+
+	  Create cr;
+	  Map<String, String> additionalParams;
+	  public CreateWithAdditionalParameters(Create cr, String collection, Map<String, String> additionalParams) {
+		  super(collection, cr.getConfigName(), cr.getNumShards(), cr.getNumNrtReplicas(), cr.getNumTlogReplicas(), cr.getNumPullReplicas());
+		  this.cr = cr;
+		  this.additionalParams = additionalParams;
+	  }
+
+	  @Override
+	  public SolrParams getParams() {
+		  ModifiableSolrParams params = (ModifiableSolrParams)cr.getParams();
+		  if (additionalParams != null) {
+			  for (String k: additionalParams.keySet()) {
+				  params.set(k, additionalParams.get(k));
+			  }
+		  }
+		  return params;
+	  }
   }
 
   HttpSolrClient createClient() {
