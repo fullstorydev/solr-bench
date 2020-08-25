@@ -1,18 +1,10 @@
 package org.apache.solr.benchmarks;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.StringReader;
+import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -194,6 +186,16 @@ public class BenchmarksMain {
             e.printStackTrace();
         } finally {
             solrCloud.shutdown(true);
+            RESULT_DUMP.close();
+        }
+    }
+
+    static volatile BufferedWriter RESULT_DUMP;
+    static {
+        try {
+            RESULT_DUMP = Files.newBufferedWriter(Paths.get("dump-result-" + System.currentTimeMillis() + ".txt"));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -219,6 +221,10 @@ public class BenchmarksMain {
         }
         IOUtils.copy((InputStream) rsp.get("stream"), baos);
         String errorout = new String(baos.toByteArray());
+        synchronized(BenchmarksMain.class) {
+            RESULT_DUMP.write(errorout);
+            RESULT_DUMP.newLine();
+        }
         if (!errorout.trim().startsWith("{")) {
             // it's not a JSON output, something must be wrong
             System.out.println("########### A query failed ");
