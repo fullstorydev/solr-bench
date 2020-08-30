@@ -86,7 +86,7 @@
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "2a403dd0806fd9726118b326669bbf3b251bb7b7",
+    "commit-id": "1a3411caf32eaeb6126539ba8c656db1656897eb",
     "description": "Solr 8.6",
     "name": "fs-repository",
     "package-subdir": "/solr/package/",
