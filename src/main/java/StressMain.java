@@ -51,19 +51,6 @@ public class StressMain {
 
 
 	public static void main(String[] args) throws Exception {
-		/*ObjectMapper mapper = new ObjectMapper();
-
-		Workflow workflow = mapper.readValue(FileUtils.readFileToString(new File("rolling.json"), "UTF-8"), Workflow.class);
-		validateWorkflow(workflow);
-
-		String solrPackagePath = "SolrNightlyBenchmarksWorkDirectory/Download/solr-d007470bda2f70ba4e1c407ac624e21288947128.tgz";
-        Cluster cluster = new Cluster();
-        cluster.numSolrNodes = 3;
-        cluster.provisioningMethod = "local";
-
-        SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
-        solrCloud.init();*/
-		
         String configFile = args[0];
 
         Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
@@ -72,9 +59,6 @@ public class StressMain {
         String solrPackagePath = BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
         SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
         solrCloud.init();
-
-
-
 
 		executeWorkflow(workflow, solrCloud);
 		
@@ -143,7 +127,49 @@ public class StressMain {
 
 					log.info("Hello1: "+params+", "+copyOfGlobalVarialbes+", "+instance.parameters+", "+globalVariables);
 					
-					if (type.restartSolrNode != null) {
+					if (type.pauseSolrNode != null) {
+						String nodeIndex = resolveString(resolveString(type.pauseSolrNode, params), workflow.globalConstants);
+						int pauseDuration = type.pauseSeconds;
+						long taskStart = System.currentTimeMillis();
+		            	LocalSolrNode node = ((LocalSolrNode)cloud.nodes.get(Integer.valueOf(nodeIndex) - 1));
+			            try {
+			            	node.pause(pauseDuration);
+			            } catch (Exception ex) {
+			            	ex.printStackTrace();
+			            }
+			            
+			            if (type.awaitRecoveries) {
+					        try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+					        
+					        	int numInactive = 0;
+					        	do {
+					        		numInactive = 0;
+					        		Set<String> inactive = new HashSet<>();
+					        		ClusterState state = client.getClusterStateProvider().getClusterState();
+					        		for (String coll: state.getCollectionsMap().keySet()) {
+					        			for (Slice shard: state.getCollection(coll).getActiveSlices()) {
+					        				for (Replica replica: shard.getReplicas()) {
+					        					if (replica.getState() != Replica.State.ACTIVE) {
+					        						if (replica.getNodeName().contains(node.port)) {
+					        							numInactive++;
+					        							inactive.add(replica.getName());
+					        							//System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName());
+					        						}
+					        					}
+					        				}
+					        			}
+					        		}
+					        		System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
+					        		if (numInactive != 0) Thread.sleep(1000);
+					        	} while (numInactive > 0);
+					        }				        
+
+			            }
+			            long taskEnd = System.currentTimeMillis();
+						
+						finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
+
+					} else if (type.restartSolrNode != null) {
 						String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
 						long taskStart = System.currentTimeMillis();
 		            	LocalSolrNode node = ((LocalSolrNode)cloud.nodes.get(Integer.valueOf(nodeIndex) - 1));
@@ -187,7 +213,7 @@ public class StressMain {
 					} else if (type.indexBenchmark != null) {
 						log.info("Running benchmarking task: "+type.indexBenchmark.datasetFile);
 
-						// resolve the collectio name using template
+						// resolve the collection name using template
 						Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
 						//String collectionName = resolveString(resolveInteger(resolveString(type.indexBenchmark.setups.get(0).collection, params), copyOfGlobalVarialbes), solrurlMap);
 						String collectionName = resolveString(type.indexBenchmark.setups.get(0).collection, params);
@@ -227,7 +253,6 @@ public class StressMain {
 						finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
 					}
 					long end = System.currentTimeMillis();
-					//finalResults.put(instance.task, (end-start));
 					return end-start;
 				};
 

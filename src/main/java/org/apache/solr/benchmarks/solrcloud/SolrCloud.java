@@ -139,7 +139,12 @@ public class SolrCloud {
 			  create = Create.createCollection(collectionName, setup.configset, setup.shards,
 					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
 		  }
-		  CollectionAdminResponse resp = new CreateWithAdditionalParameters(create, collectionName, setup.collectionCreationParams).process(hsc);
+		  CollectionAdminResponse resp;
+		  if (setup.collectionCreationParams != null && setup.collectionCreationParams.isEmpty()==false) {
+			  resp = new CreateWithAdditionalParameters(create, collectionName, setup.collectionCreationParams).process(hsc);
+		  } else {
+			  resp = create.process(hsc);
+		  }
 		  log.info("Collection created: "+ resp.jsonStr());
       }
 	  colls.add(setup.collection);

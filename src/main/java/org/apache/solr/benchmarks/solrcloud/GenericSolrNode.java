@@ -68,4 +68,9 @@ public class GenericSolrNode implements SolrNode {
 	  return host + ":" + port;
   }
 
+  @Override
+  public int pause(int seconds) throws Exception {
+	  throw new UnsupportedOperationException();
+  }
+
 }
