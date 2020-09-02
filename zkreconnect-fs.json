@@ -5,7 +5,7 @@
 			      "name": "CLOUD_INDEXING",
 			      "description": "Wikipedia dataset on SolrCloud",
 			      "replication-type": "cloud",
-			      "dataset-file": "small-data/small-enwiki.tsv.gz",
+			      "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
 			      "file-format": "tsv",
 			      "id-field": "id",
 			      "setups": [
@@ -58,8 +58,8 @@
     "execution-plan": {
         "task1": {
             "type": "indexing",
-            "instances": 15,
-            "concurrency": 1,
+            "instances": 500,
+            "concurrency": 10,
             "mode": "sync",
             "parameters": {
                 "INDEX": "${collection-counter}",
@@ -72,7 +72,7 @@
         
         "task2": {
             "description": "Pause Solr nodes",
-            "instances": 2,
+            "instances": 3,
             "concurrency": 1,
             "type": "pause-solr-node",
             "parameters": {
@@ -90,12 +90,12 @@
     },
 
   "cluster": {
-    "num-solr-nodes": 5,
-    "startup-params": "-m 1g -V",
+    "num-solr-nodes": 4,
+    "startup-params": "-m 2g -V",
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "2a403dd0806fd9726118b326669bbf3b251bb7b7",
+    "commit-id": "307569f583a13d2c237e8b3a60cbae11c500aede",
     "description": "Solr 8.6",
     "name": "fs-repository",
     "package-subdir": "/solr/package/",

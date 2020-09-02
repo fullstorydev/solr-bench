@@ -5,7 +5,7 @@
 			      "name": "CLOUD_INDEXING",
 			      "description": "Wikipedia dataset on SolrCloud",
 			      "replication-type": "cloud",
-			      "dataset-file": "small-data/small-enwiki.tsv.gz",
+			      "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
 			      "file-format": "tsv",
 			      "id-field": "id",
 			      "setups": [
@@ -57,8 +57,8 @@
     "execution-plan": {
         "task1": {
             "type": "indexing",
-            "instances": 15,
-            "concurrency": 1,
+            "instances": 2000,
+            "concurrency": 15,
             "mode": "sync",
             "parameters": {
                 "INDEX": "${collection-counter}",
@@ -71,7 +71,7 @@
         
         "task2": {
             "description": "Pause Solr nodes",
-            "instances": 2,
+            "instances": 39,
             "concurrency": 1,
             "type": "pause-solr-node",
             "parameters": {
@@ -89,8 +89,8 @@
     },
 
   "cluster": {
-    "num-solr-nodes": 5,
-    "startup-params": "-m 1g -V",
+    "num-solr-nodes": 40,
+    "startup-params": "-m 2g -V",
     "provisioning-method": "local"
   },
   "repository": {
