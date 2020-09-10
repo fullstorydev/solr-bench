@@ -225,7 +225,7 @@ public class BenchmarksMain {
         } else if (errorout.contains("rainbow::")) {
             log.error("error: {}" + errorout);
         } else {
-            log.info("query ok");
+            log.info("query okkk");
         }
     }
 
@@ -312,6 +312,7 @@ public class BenchmarksMain {
                 if (count > benchmark.maxDocs) break;
                 docs.add(line);
                 if (docs.size() >= benchmark.batchSize) {
+                    log.info("1 batch");
                     shardVsDocs.remove(targetSlice.getName());
                     executor.submit(new UploadDocs(docs, httpClient,
                             shardVsLeader.get(targetSlice.getName()),
