@@ -221,13 +221,11 @@ public class BenchmarksMain {
         String errorout = new String(baos.toByteArray());
         if (!errorout.trim().startsWith("{")) {
             // it's not a JSON output, something must be wrong
-            System.out.println("########### A query failed ");
-            System.out.println("failed query " + qr.toString());
-            System.out.println("Error response " + errorout);
+            log.error("not json: {}", errorout);
         } else if (errorout.contains("rainbow::")) {
-            System.out.println("Error response: " + errorout);
+            log.error("error: {}" + errorout);
         } else {
-            System.out.println("query ok");
+            log.info("query ok");
         }
     }
 
@@ -330,7 +328,7 @@ public class BenchmarksMain {
                 if (tasks.get() <= 0) break;
                 Thread.sleep(10);
                 if (i > 500) {
-                    System.out.println(".");
+                    log.info(".");
                     i = 0;
                 }
             }
