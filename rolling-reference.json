@@ -5,7 +5,7 @@
 			      "name": "CLOUD_INDEXING",
 			      "description": "Wikipedia dataset on SolrCloud",
 			      "replication-type": "cloud",
-			      "dataset-file": "small-data/small-enwiki.tsv.gz",
+			      "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
 			      "file-format": "tsv",
 			      "id-field": "id",
 			      "setups": [
@@ -52,7 +52,7 @@
     "execution-plan": {
         "task1": {
             "type": "indexing",
-            "instances": 40,
+            "instances": 15,
             "concurrency": 1,
             "mode": "sync",
             "parameters": {
@@ -66,7 +66,7 @@
         
         "task2": {
             "description": "Restart Solr node",
-            "instances": 9,
+            "instances": 3,
             "concurrency": 1,
             "type": "restart-solr-node",
             "parameters": {
@@ -84,13 +84,13 @@
     },
 
   "cluster": {
-    "num-solr-nodes": 10,
+    "num-solr-nodes": 4,
     "startup-params": "-m 1g -V -Dsolr.jetty.host=0.0.0.0",
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "215e605ce08fd451935d3740259f9624b75aefb4",
-    "description": "Solr Reference Branch",
+    "commit-id": "e77f75042ef820d27c687a8eac82bb34eeef28f6",
+    "description": "Solr Reference Dev Branch",
     "name": "git-repository",
     "package-subdir": "/solr/package/",
     "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
