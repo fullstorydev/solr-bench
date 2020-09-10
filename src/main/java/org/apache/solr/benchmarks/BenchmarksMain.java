@@ -224,6 +224,10 @@ public class BenchmarksMain {
             System.out.println("########### A query failed ");
             System.out.println("failed query " + qr.toString());
             System.out.println("Error response " + errorout);
+        } else if (errorout.contains("rainbow::")) {
+            System.out.println("Error response: " + errorout);
+        } else {
+            System.out.println("query ok");
         }
     }
 
@@ -322,9 +326,13 @@ public class BenchmarksMain {
                     httpClient,
                     shardVsLeader.get(shard), tasks)));
         } finally {
-            for (; ; ) {
+            for (int i = 0; ; ++i) {
                 if (tasks.get() <= 0) break;
                 Thread.sleep(10);
+                if (i > 500) {
+                    System.out.println(".");
+                    i = 0;
+                }
             }
             executor.shutdown();
             httpClient.close();
