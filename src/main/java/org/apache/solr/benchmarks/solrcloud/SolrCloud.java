@@ -24,10 +24,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -51,13 +56,14 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class SolrCloud {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   Zookeeper zookeeper;
-  public List<SolrNode> nodes = new ArrayList<>();
+  public List<SolrNode> nodes = Collections.synchronizedList(new ArrayList());
 
   private Set<String> configsets = new HashSet<>();
 
@@ -86,12 +92,23 @@ public class SolrCloud {
         throw new RuntimeException("Failed to start Zookeeper!");
       }
 
+      ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
+
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
-        SolrNode node = new LocalSolrNode(solrPackagePath, cluster.startupParams, zookeeper);
-        node.init();
-        node.start();
-        nodes.add(node);
+    	  Callable c = () -> {
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, cluster.startupParams, zookeeper);
+    		  node.init();
+    		  node.start();
+    		  nodes.add(node);
+    		  log.info("Nodes started: "+nodes.size());
+    		  return node;
+    	  };
+    	  executor.submit(c);
       }
+      
+      executor.shutdown();
+      executor.awaitTermination(1, TimeUnit.HOURS);
+
     } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
     	System.out.println("ZK node: "+getZkNodeFromTFState());
