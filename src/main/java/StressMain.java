@@ -265,36 +265,50 @@ public class StressMain {
 				            log.info("Node mapping: "+nodeMap);
 				            log.info("Summary: "+status.getCluster().getCollections().size()+" collections loaded, to be executed across "+status.getCluster().getLiveNodes().size()+" nodes. Total shards: "+shards);
 				            
-				            int collectionCounter = 0;
-				            int shardCounter = 0;
+				            AtomicInteger collectionCounter = new AtomicInteger(0);
+				            AtomicInteger shardCounter = new AtomicInteger(0);
+				            
+				            ExecutorService clusterStateExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("clusterstate-task-threadpool").build()); 
+
 				            for (String name: status.getCluster().getCollections().keySet()) {
-				            	collectionCounter++;
-				            	Collection coll = status.getCluster().getCollections().get(name);
-				            	Set<Integer> nodes = new HashSet<>();
-				            	for (Shard sh: coll.getShards().values()) {
-				            		nodes.add(nodeMap.get(sh.getReplicas().values().iterator().next().getNodeName()));
-				            	}
-				            	
-				            	String nodeSet = "";
-				            	for (int n: nodes) {
-				            		nodeSet += cloud.nodes.get(n).getNodeName() + "_solr,";
-				            	}
-				            	nodeSet = nodeSet.substring(0, nodeSet.length()-1);
-				            	shardCounter += coll.getShards().size();
-				            	//log.info(collectionCounter+": "+name+" has shards: "+coll.getShards().size() + ", nodeSet: "+nodeSet);
-				            	if (collectionCounter %10 == 0) {
-				            		log.info(collectionCounter+": Time elapsed for this task: "+(System.currentTimeMillis()-taskStart)/1000+" seconds (approx), total shards: "+shardCounter);
-				            	}
-						        try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
-						        	Create create = Create.createCollection(name, coll.getShards().size(), 1).
-						        		setMaxShardsPerNode(coll.getShards().size()).
-						        		setCreateNodeSet(nodeSet);
-						        	Map<String, String> additional = Map.of("perReplicaState", "true");
-						        	new CreateWithAdditionalParameters(create, name, additional).process(client);
-						        }
+
+				            	Callable callable = () -> {
+				            		Collection coll = status.getCluster().getCollections().get(name);
+				            		Set<Integer> nodes = new HashSet<>();
+				            		for (Shard sh: coll.getShards().values()) {
+				            			nodes.add(nodeMap.get(sh.getReplicas().values().iterator().next().getNodeName()));
+				            		}
+
+				            		String nodeSet = "";
+				            		for (int n: nodes) {
+				            			nodeSet += cloud.nodes.get(n).getNodeName() + "_solr,";
+				            		}
+				            		nodeSet = nodeSet.substring(0, nodeSet.length()-1);
+				            		shardCounter.addAndGet(coll.getShards().size());
+
+
+				            		try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+				            			Create create = Create.createCollection(name, coll.getShards().size(), 1).
+				            					setMaxShardsPerNode(coll.getShards().size()).
+				            					setCreateNodeSet(nodeSet);
+				            			Map<String, String> additional = Map.of("perReplicaState", "true");
+				            			new CreateWithAdditionalParameters(create, name, additional).process(client);
+				            		}
+
+				            		int currentCounter = collectionCounter.incrementAndGet();
+				            		if (currentCounter % 10 == 0) {
+				            			log.info(collectionCounter+": Time elapsed for this task: "+(System.currentTimeMillis()-taskStart)/1000+" seconds (approx), total shards: "+shardCounter);
+				            		}
+
+				            		return true;
+				            	};
 						        
-						        //if ((++collectionCounter) == 3) break;
+						        clusterStateExecutor.submit(callable);
 				            }
+				            
+				            clusterStateExecutor.shutdown();
+				            clusterStateExecutor.awaitTermination(24, TimeUnit.HOURS);
+				            
 				            long taskEnd = System.currentTimeMillis();
 				            log.info("Task took time: "+(taskEnd-taskStart)/1000.0+" seconds.");
 							finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
