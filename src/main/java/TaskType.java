@@ -11,6 +11,14 @@ public class TaskType {
 	@JsonProperty("index-benchmark")
 	IndexBenchmark indexBenchmark;
 
+	@JsonProperty("cluster-state-benchmark")
+	ClusterStateBenchmark clusterStateBenchmark;
+	
+	static class ClusterStateBenchmark {
+		@JsonProperty("filename")
+		String filename; // File containing the /solr/admin/collections?action=CLUSTERSTATUS output
+	}
+
 	@JsonProperty("restart-solr-node")
 	String restartSolrNode;
 
