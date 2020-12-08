@@ -102,12 +102,15 @@ public class SolrCloud {
     		  node.init();
     		  node.start();
     		  nodes.add(node);
-    		  try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
-    			  log.info("Health check: "+ new HealthCheckRequest().process(client) + ", Nodes started: "+nodes.size());
-    		  } catch (Exception ex) {
-    			  log.error("Problem starting node: "+node.getBaseUrl());
-    			  throw new RuntimeException("Problem starting node: "+node.getBaseUrl());
-    		  }
+    		  
+    		  log.info("Nodes started: "+nodes.size());
+    		  
+    		  //try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
+    			  //log.info("Health check: "+ new HealthCheckRequest().process(client) + ", Nodes started: "+nodes.size());
+    		  //} catch (Exception ex) {
+    			//  log.error("Problem starting node: "+node.getBaseUrl());
+    			  //throw new RuntimeException("Problem starting node: "+node.getBaseUrl());
+    		  //}
     		  return node;
     	  };
     	  executor.submit(c);
@@ -116,6 +119,7 @@ public class SolrCloud {
       executor.shutdown();
       executor.awaitTermination(1, TimeUnit.HOURS);
 
+      List<SolrNode> healthyNodes = new ArrayList<>();
       for (SolrNode node: nodes) {
   		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
   			HealthCheckRequest req = new HealthCheckRequest();
@@ -129,9 +133,14 @@ public class SolrCloud {
   			if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
   				log.error("Couldn't start node: "+node.getBaseUrl());
   				throw new RuntimeException("Couldn't start node: "+node.getBaseUrl());
+  			} else {
+  				healthyNodes.add(node);
   			}
   		}
       }
+      
+      this.nodes = healthyNodes;
+      log.info("Healthy nodes: "+healthyNodes.size());
       
     } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
