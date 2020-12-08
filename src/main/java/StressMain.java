@@ -269,10 +269,12 @@ public class StressMain {
 				            
 				            AtomicInteger collectionCounter = new AtomicInteger(0);
 				            AtomicInteger shardCounter = new AtomicInteger(0);
+					    int simpleCounter = 0;
 				            
-				            ExecutorService clusterStateExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("clusterstate-task-threadpool").build()); 
+				            ExecutorService clusterStateExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/4+1, new ThreadFactoryBuilder().setNameFormat("clusterstate-task-threadpool").build()); 
 
 				            for (String name: status.getCluster().getCollections().keySet()) {
+						    if ((++simpleCounter) > 2750) { log.info("Breaking the loop, reached 2750 collections"); break;}
 
 				            	Callable callable = () -> {
 				            		Collection coll = status.getCluster().getCollections().get(name);
@@ -299,7 +301,7 @@ public class StressMain {
 
 				            		int currentCounter = collectionCounter.incrementAndGet();
 				            		if (currentCounter % 10 == 0) {
-				            			log.info(collectionCounter+": Time elapsed for this task: "+(System.currentTimeMillis()-taskStart)/1000+" seconds (approx), total shards: "+shardCounter);
+				            			log.info(collectionCounter+": Time elapsed for this task: "+(System.currentTimeMillis()-taskStart)/1000+" seconds (approx), total shards: "+shardCounter+", per node: "+(shardCounter.get() / cloud.nodes.size()));
 				            		}
 
 				            		return true;
