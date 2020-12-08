@@ -67,10 +67,12 @@ public class StressMain {
         String solrPackagePath = BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
         SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
         solrCloud.init();
-
-		executeWorkflow(workflow, solrCloud);
-		
-		solrCloud.shutdown(true);
+        try {
+        	executeWorkflow(workflow, solrCloud);
+        } finally {
+        	log.info("Shutting down...");
+        	solrCloud.shutdown(true);
+        }
 	}
 
 	private static void executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException {

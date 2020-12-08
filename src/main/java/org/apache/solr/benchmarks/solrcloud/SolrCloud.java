@@ -44,8 +44,10 @@ import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Delete;
 import org.apache.solr.client.solrj.request.ConfigSetAdminRequest;
+import org.apache.solr.client.solrj.request.HealthCheckRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
+import org.apache.solr.client.solrj.response.HealthCheckResponse;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkConfigManager;
 import org.apache.solr.common.params.ConfigSetParams;
@@ -109,6 +111,17 @@ public class SolrCloud {
       executor.shutdown();
       executor.awaitTermination(1, TimeUnit.HOURS);
 
+      for (SolrNode node: nodes) {
+  		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
+  			HealthCheckRequest req = new HealthCheckRequest();
+  			HealthCheckResponse rsp = req.process(client);
+  			if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
+  				log.error("Couldn't start node: "+node.getBaseUrl());
+  				throw new RuntimeException("Couldn't start node: "+node.getBaseUrl());
+  			}
+  		}
+      }
+      
     } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
     	System.out.println("ZK node: "+getZkNodeFromTFState());
