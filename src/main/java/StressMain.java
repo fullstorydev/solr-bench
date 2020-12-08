@@ -287,7 +287,7 @@ public class StressMain {
 				            		shardCounter.addAndGet(coll.getShards().size());
 
 
-				            		try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+				            		try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(nodes.iterator().next()).getBaseUrl()).build();) {
 				            			Create create = Create.createCollection(name, coll.getShards().size(), 1).
 				            					setMaxShardsPerNode(coll.getShards().size()).
 				            					setCreateNodeSet(nodeSet);
