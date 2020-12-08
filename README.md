@@ -19,7 +19,7 @@ The VM should have the following:
 In the coordinator VM, check out this solr-bench repository.
 
      1. mvn clean compile assembly:single
-     2. ./start.sh <config-file>
+     2. ./stress.sh <config-file>
 
 Example: config.json (GCP), config-local.json (Local mode). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id".
 
