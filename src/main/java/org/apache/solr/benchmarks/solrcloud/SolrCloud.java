@@ -39,6 +39,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
@@ -128,7 +129,7 @@ public class SolrCloud {
       log.info("Looking for healthy nodes...");
       List<SolrNode> healthyNodes = new ArrayList<>();
       for (SolrNode node: nodes) {
-  		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
+  		try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
   			HealthCheckRequest req = new HealthCheckRequest();
   			HealthCheckResponse rsp;
   			try {
