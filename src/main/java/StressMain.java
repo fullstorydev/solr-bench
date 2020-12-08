@@ -162,15 +162,15 @@ public class StressMain {
 					        					if (replica.getState() != Replica.State.ACTIVE) {
 					        						if (replica.getNodeName().contains(node.port)) {
 					        							numInactive++;
-					        							inactive.add(replica.getName());
+					        							inactive.add(coll+"_"+shard.getName());
 					        							//System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName());
 					        						}
 					        					}
 					        				}
 					        			}
 					        		}
-					        		System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
-					        		if (numInactive != 0) Thread.sleep(1000);
+					        		System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+numInactive);
+					        		if (numInactive != 0) Thread.sleep(2000);
 					        	} while (numInactive > 0);
 					        }				        
 
@@ -210,7 +210,7 @@ public class StressMain {
 					        				}
 					        			}
 					        		}
-					        		System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
+					        		System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+numInactive);
 					        		if (numInactive != 0) Thread.sleep(1000);
 					        	} while (numInactive > 0);
 					        }				        
