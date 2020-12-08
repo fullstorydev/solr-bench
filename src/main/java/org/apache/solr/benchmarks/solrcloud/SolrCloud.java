@@ -99,19 +99,25 @@ public class SolrCloud {
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
     	  Callable c = () -> {
     		  SolrNode node = new LocalSolrNode(solrPackagePath, cluster.startupParams, zookeeper);
-    		  node.init();
-    		  node.start();
-    		  nodes.add(node);
     		  
-    		  log.info("Nodes started: "+nodes.size());
-    		  
-    		  //try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
-    			  //log.info("Health check: "+ new HealthCheckRequest().process(client) + ", Nodes started: "+nodes.size());
-    		  //} catch (Exception ex) {
-    			//  log.error("Problem starting node: "+node.getBaseUrl());
-    			  //throw new RuntimeException("Problem starting node: "+node.getBaseUrl());
-    		  //}
-    		  return node;
+    		  try {
+	    		  node.init();
+	    		  node.start();
+	    		  nodes.add(node);
+	    		  
+	    		  log.info("Nodes started: "+nodes.size());
+	    		  
+	    		  //try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
+	    			  //log.info("Health check: "+ new HealthCheckRequest().process(client) + ", Nodes started: "+nodes.size());
+	    		  //} catch (Exception ex) {
+	    			//  log.error("Problem starting node: "+node.getBaseUrl());
+	    			  //throw new RuntimeException("Problem starting node: "+node.getBaseUrl());
+	    		  //}
+	    		  return node;
+    		  } catch (Exception ex) {
+    			  log.error("Problem starting node: "+node.getBaseUrl());
+    			  return null;
+    		  }
     	  };
     	  executor.submit(c);
       }
@@ -119,6 +125,7 @@ public class SolrCloud {
       executor.shutdown();
       executor.awaitTermination(1, TimeUnit.HOURS);
 
+      log.info("Looking for healthy nodes...");
       List<SolrNode> healthyNodes = new ArrayList<>();
       for (SolrNode node: nodes) {
   		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
