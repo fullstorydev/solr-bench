@@ -143,6 +143,8 @@ public class SolrCloud {
   			} else {
   				healthyNodes.add(node);
   			}
+  		} catch (Exception ex) {
+  			log.error("Problem starting node: "+node.getBaseUrl());
   		}
       }
       
