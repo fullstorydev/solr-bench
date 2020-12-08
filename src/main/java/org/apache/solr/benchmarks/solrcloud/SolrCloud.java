@@ -134,7 +134,7 @@ public class SolrCloud {
   			try {
   				rsp = req.process(client);
   			} catch (Exception ex) {
-  				Thread.sleep(2000);
+  				Thread.sleep(100);
   				rsp = req.process(client);
   			}
   			if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
@@ -144,7 +144,7 @@ public class SolrCloud {
   				healthyNodes.add(node);
   			}
   		} catch (Exception ex) {
-  			log.error("Problem starting node: "+node.getBaseUrl());
+  			log.error("Problem starting node: "+node.getBaseUrl()+", "+ex);
   		}
       }
       
