@@ -102,7 +102,12 @@ public class SolrCloud {
     		  node.init();
     		  node.start();
     		  nodes.add(node);
-    		  log.info("Nodes started: "+nodes.size());
+    		  try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
+    			  log.info("Health check: "+ new HealthCheckRequest().process(client) + ", Nodes started: "+nodes.size());
+    		  } catch (Exception ex) {
+    			  log.error("Problem starting node: "+node.getBaseUrl());
+    			  throw new RuntimeException("Problem starting node: "+node.getBaseUrl());
+    		  }
     		  return node;
     	  };
     	  executor.submit(c);
