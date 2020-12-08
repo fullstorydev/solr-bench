@@ -133,7 +133,7 @@ public class BenchmarksMain {
                             log.warn("Error trying to delete collection: " + ex);
                         }
                         solrCloud.uploadConfigSet(setup.configset);
-                        solrCloud.createCollection(setup.collection, setup.configset, setup.shards, setup.replicationFactor);
+                        solrCloud.createCollection(setup);
                         long start = System.nanoTime();
                         index(solrCloud.nodes.get(0).getBaseUrl(), setup.collection, i, benchmark);
                         long end = System.nanoTime();

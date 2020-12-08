@@ -32,6 +32,7 @@ import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.beans.Cluster;
+import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
@@ -128,14 +129,19 @@ public class SolrCloud {
    * @param replicas
    * @throws Exception 
    */
-  public void createCollection(String collectionName, String configName, int shards, int replicas) throws Exception {
+  public void createCollection(IndexBenchmark.Setup setup) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
-		  Create create = Create.createCollection(collectionName, configName, shards, replicas);
+		  Create create;
+		  if (setup.replicationFactor != null) {
+			  create = Create.createCollection(setup.collection, setup.configset, setup.shards, setup.replicationFactor);
+		  } else {
+			  create = Create.createCollection(setup.collection, setup.configset, setup.shards,
+					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
+		  }
 		  CollectionAdminResponse resp = create.process(hsc);
-		  log.info("");
 		  log.info("Collection created: "+ resp.jsonStr());
       }
-	  colls.add(collectionName);
+	  colls.add(setup.collection);
   }
 
   HttpSolrClient createClient() {

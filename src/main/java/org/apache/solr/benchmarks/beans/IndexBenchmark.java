@@ -53,7 +53,16 @@ public class IndexBenchmark {
     public String configset;
 
     @JsonProperty("replication-factor")
-    public int replicationFactor;
+    public Integer replicationFactor;
+
+    @JsonProperty("nrt-replicas")
+    public Integer nrtReplicas;
+
+    @JsonProperty("tlog-replicas")
+    public Integer tlogReplicas;
+    
+    @JsonProperty("pull-replicas")
+    public Integer pullReplicas;
 
     @JsonProperty("shards")
     public int shards;
