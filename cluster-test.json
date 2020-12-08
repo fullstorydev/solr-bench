@@ -22,7 +22,12 @@
 		    }		
         },
         "cluster-state-benchmark": {
-        	"cluster-state-benchmark": {"filename": "clusterstatus_clusterstatus.json"}
+            "cluster-state-benchmark": {
+               "filename": "clusterstatus_clusterstatus.json",
+               "collection-creation-params": {"perReplicaState": "true"},
+               "collections-limit": 2750,
+               "simulation-concurrency-fraction": 0.25
+             }
         },
         "collection-creation": {
             "command": "${SOLRURL}admin/collections?action=CREATE&name=collection${INDEX}&numShards=${SHARDS}",
