@@ -268,7 +268,7 @@ public class StressMain {
 				            AtomicInteger collectionCounter = new AtomicInteger(0);
 				            AtomicInteger shardCounter = new AtomicInteger(0);
 				            
-				            ExecutorService clusterStateExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()*2/3+1, new ThreadFactoryBuilder().setNameFormat("clusterstate-task-threadpool").build()); 
+				            ExecutorService clusterStateExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("clusterstate-task-threadpool").build()); 
 
 				            for (String name: status.getCluster().getCollections().keySet()) {
 
