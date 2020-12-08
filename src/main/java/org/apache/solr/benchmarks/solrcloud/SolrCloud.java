@@ -114,7 +114,13 @@ public class SolrCloud {
       for (SolrNode node: nodes) {
   		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
   			HealthCheckRequest req = new HealthCheckRequest();
-  			HealthCheckResponse rsp = req.process(client);
+  			HealthCheckResponse rsp;
+  			try {
+  				rsp = req.process(client);
+  			} catch (Exception ex) {
+  				Thread.sleep(2000);
+  				rsp = req.process(client);
+  			}
   			if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
   				log.error("Couldn't start node: "+node.getBaseUrl());
   				throw new RuntimeException("Couldn't start node: "+node.getBaseUrl());
