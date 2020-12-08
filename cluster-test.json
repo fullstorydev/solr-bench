@@ -83,7 +83,7 @@
 
   "cluster": {
     "num-solr-nodes": 16,
-    "startup-params": "-m 8g",
+    "startup-params": "-m 6g",
     "provisioning-method": "local"
   },
   "repository": {
