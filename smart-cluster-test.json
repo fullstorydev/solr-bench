@@ -25,8 +25,8 @@
             "cluster-state-benchmark": {
                "filename": "clusterstatus_clusterstatus.json",
                "collection-creation-params": {"perReplicaState": "true"},
-               "collections-limit": 1000,
-               "simulation-concurrency-fraction": 0.5
+               "collections-limit": 600,
+               "simulation-concurrency-fraction": 0.25
              }
         },
         "collection-creation": {
@@ -83,11 +83,11 @@
 
   "cluster": {
     "num-solr-nodes": 16,
-    "startup-params": "-m 750m",
+    "startup-params": "-m 1g",
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "412ac6c09b24700504fa0f6a034dd9564cafb1eb",
+    "commit-id": "ba6fbb1aa7be028a09cb3f1040560a9debb05ff3",
     "description": "Solr 8.7",
     "name": "fs-repository",
     "package-subdir": "/solr/package/",
