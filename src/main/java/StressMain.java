@@ -31,7 +31,10 @@ import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
+import org.apache.solr.client.solrj.response.CollectionAdminResponse;
+import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,31 +189,30 @@ public class StressMain {
 
 						if (type.awaitRecoveries) {
 							try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
-
 								int numInactive = 0;
 								do {
 									numInactive = 0;
 									Map<String, String> inactive = new HashMap<>();
 									ClusterState state = client.getClusterStateProvider().getClusterState();
 									for (String coll: state.getCollectionsMap().keySet()) {
-										PRS prs = new PRS(ZkStateReader.getCollectionPath(coll),client.getZkStateReader().getZkClient());
 										for (Slice shard: state.getCollection(coll).getActiveSlices()) {
 											for (Replica replica: shard.getReplicas()) {
 												if (replica.getState() != Replica.State.ACTIVE) {
 													if (replica.getNodeName().contains(node.port)) {
 														numInactive++;
-														inactive.put(replica.getName(), prs.getState(replica.getName()));
+														inactive.put(replica.getName(), replica.getState().toString()); //prs.getState(replica.getName()));
 														//System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName());
 													}
 												}
 											}
 										}
 									}
-									System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive );
+									System.out.println("\tInactive replicas on restarted node ("+node.port+"): " + numInactive );
 									if (numInactive != 0) Thread.sleep(1000);
 								} while (numInactive > 0);
-							}				        
-
+							} catch (Exception ex) {
+								ex.printStackTrace();
+							}
 						}
 						long taskEnd = System.currentTimeMillis();
 
@@ -268,6 +270,7 @@ public class StressMain {
 							// Start the simulation
 							AtomicInteger collectionCounter = new AtomicInteger(0);
 							AtomicInteger shardCounter = new AtomicInteger(0);
+							ConcurrentHashMap<String, Integer> failedCollections = new ConcurrentHashMap<String, Integer>();
 							int simpleCounter = 0;
 
 							int threadPoolSize = (int)((double)Runtime.getRuntime().availableProcessors() * clusterStateBenchmark.simulationConcurrencyFraction) + 1;
@@ -275,7 +278,7 @@ public class StressMain {
 
 							for (String name: status.getCluster().getCollections().keySet()) {
 								if ((++simpleCounter) > clusterStateBenchmark.collectionsLimit && type.clusterStateBenchmark.collectionsLimit > 0) {
-									log.info("Finished setting up " + clusterStateBenchmark.collectionsLimit+" collections.");
+									log.info("Setting up tasks for " + clusterStateBenchmark.collectionsLimit+" collections...");
 									break;
 								}
 
@@ -293,13 +296,28 @@ public class StressMain {
 									nodeSet = nodeSet.substring(0, nodeSet.length()-1);
 									shardCounter.addAndGet(coll.getShards().size());
 
+									final int COLLECTION_TIMEOUT_SECS = 200;
 
 									try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(nodes.iterator().next()).getBaseUrl()).build();) {
 										Create create = Create.createCollection(name, coll.getShards().size(), 1).
 												setMaxShardsPerNode(coll.getShards().size()).
 												setCreateNodeSet(nodeSet);
+										create.setAsyncId(name);
+										
 										Map<String, String> additional = clusterStateBenchmark.collectionCreationParams==null? new HashMap<>(): clusterStateBenchmark.collectionCreationParams;
-										new CreateWithAdditionalParameters(create, name, additional).process(client);
+										CreateWithAdditionalParameters newCreate = new CreateWithAdditionalParameters(create, name, additional);
+										String asyncId = newCreate.processAsync(name, client);
+								        RequestStatusState state = CollectionAdminRequest.requestStatus(asyncId).waitFor(client, COLLECTION_TIMEOUT_SECS);
+								        if (state != RequestStatusState.COMPLETED) { // timeout
+								        	log.error("Waited "+COLLECTION_TIMEOUT_SECS+" seconds, but collection "+name+" failed: "+name+", shards: "+coll.getShards().size());
+											log.error("Collection creation failed, last status on the async task: "
+														+ CollectionAdminRequest.requestStatus(asyncId).process(client).toString());
+											failedCollections.put(name, coll.getShards().size());
+								        }
+									} catch (Exception ex) {
+										log.error("Collection creation failed: "+name+", shards: "+coll.getShards().size());
+										failedCollections.put(name, coll.getShards().size());
+										new RuntimeException("Collection creation failed: ", ex).printStackTrace();
 									}
 
 									int currentCounter = collectionCounter.incrementAndGet();
@@ -317,6 +335,9 @@ public class StressMain {
 							clusterStateExecutor.shutdown();
 							clusterStateExecutor.awaitTermination(24, TimeUnit.HOURS);
 
+							log.info("Number of failed collections: "+failedCollections.size());
+							log.info("Failed collections: "+failedCollections);
+							
 							long taskEnd = System.currentTimeMillis();
 							log.info("Task took time: "+(taskEnd-taskStart)/1000.0+" seconds.");
 							finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
