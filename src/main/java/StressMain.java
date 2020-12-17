@@ -32,9 +32,7 @@ import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
-import org.apache.solr.common.cloud.ClusterState;
-import org.apache.solr.common.cloud.Replica;
-import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.cloud.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,19 +149,22 @@ public class StressMain {
 									Set<String> inactive = new HashSet<>();
 									ClusterState state = client.getClusterStateProvider().getClusterState();
 									for (String coll: state.getCollectionsMap().keySet()) {
+										PRS prs = new PRS(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient());
 										for (Slice shard: state.getCollection(coll).getActiveSlices()) {
 											for (Replica replica: shard.getReplicas()) {
 												if (replica.getState() != Replica.State.ACTIVE) {
 													if (replica.getNodeName().contains(node.port)) {
 														numInactive++;
 														inactive.add(coll+"_"+shard.getName());
-														//System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName());
+														System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.getState(replica.getName()));
 													}
 												}
 											}
 										}
+
 									}
-									System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+numInactive);
+
+									System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
 									if (numInactive != 0) Thread.sleep(2000);
 								} while (numInactive > 0);
 							}				        
@@ -189,22 +190,23 @@ public class StressMain {
 								int numInactive = 0;
 								do {
 									numInactive = 0;
-									Set<String> inactive = new HashSet<>();
+									Map<String, String> inactive = new HashMap<>();
 									ClusterState state = client.getClusterStateProvider().getClusterState();
 									for (String coll: state.getCollectionsMap().keySet()) {
+										PRS prs = new PRS(ZkStateReader.getCollectionPath(coll),client.getZkStateReader().getZkClient());
 										for (Slice shard: state.getCollection(coll).getActiveSlices()) {
 											for (Replica replica: shard.getReplicas()) {
 												if (replica.getState() != Replica.State.ACTIVE) {
 													if (replica.getNodeName().contains(node.port)) {
 														numInactive++;
-														inactive.add(replica.getName());
+														inactive.put(replica.getName(), prs.getState(replica.getName()));
 														//System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName());
 													}
 												}
 											}
 										}
 									}
-									System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+numInactive);
+									System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive );
 									if (numInactive != 0) Thread.sleep(1000);
 								} while (numInactive > 0);
 							}				        
@@ -359,6 +361,37 @@ public class StressMain {
 		new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
 		if (metricsCollector != null) {
 			new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
+		}
+	}
+
+	private static class PRS {
+
+		private final String path;
+		private final SolrZkClient zkClient;
+		private List<String> children;
+
+
+		private PRS(String path, SolrZkClient zkClient) {
+			this.path = path;
+			this.zkClient = zkClient;
+		}
+
+		public String getState(String replica) throws Exception{
+			if(children == null) {
+				children = zkClient.getChildren(path, null, true);
+			}
+			for (String child : children) {
+				if(child.startsWith(replica)) {
+					return child;
+				}
+			}
+			return null;
+
+		}
+
+		public boolean isActive(String replica) throws Exception {
+			String st = getState(replica);
+			return st != null && st.contains(":A");
 		}
 	}
 
