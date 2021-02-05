@@ -24,7 +24,7 @@
         "cluster-state-benchmark": {
             "cluster-state-benchmark": {
                "filename": "sample_cluster.json",
-               "collection-creation-params": {"perReplicaState": "false"},
+               "collection-creation-params": {"perReplicaState": "true"},
                "collections-limit": 600,
                "simulation-concurrency-fraction": 0.25
              }
@@ -87,13 +87,13 @@
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "2e7cfbd8e60cf8ccb23619db8b20f193546fd1c8",
-    "description": "Apache Solr 8.8",
-    "name": "git-repository",
+    "commit-id": "c5c532a7823eb4ebffd77c482d15552a36aad537",
+    "description": "Noble Solr 8.8",
+    "name": "noble-repository",
     "package-subdir": "/solr/package/",
     "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
     "submodules": false,
-    "url": "https://github.com/apache/lucene-solr",
+    "url": "https://github.com/noblepaul/lucene-solr",
     "user"  : "ishan"
   },
   "metrics": ["solr.node/solr.node/overseer.totalMessages", "solr.node/solr.node/overseer.stateMessages", "solr.node/solr.node/overseer.leaderMessages"]
