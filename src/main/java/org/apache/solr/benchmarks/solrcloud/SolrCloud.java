@@ -116,6 +116,7 @@ public class SolrCloud {
 	    		  //}
 	    		  return node;
     		  } catch (Exception ex) {
+    			  ex.printStackTrace();
     			  log.error("Problem starting node: "+node.getBaseUrl());
     			  return null;
     		  }
@@ -129,7 +130,7 @@ public class SolrCloud {
       log.info("Looking for healthy nodes...");
       List<SolrNode> healthyNodes = new ArrayList<>();
       for (SolrNode node: nodes) {
-  		try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
+  		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
   			HealthCheckRequest req = new HealthCheckRequest();
   			HealthCheckResponse rsp;
   			try {
@@ -145,7 +146,8 @@ public class SolrCloud {
   				healthyNodes.add(node);
   			}
   		} catch (Exception ex) {
-  			log.error("Problem starting node: "+node.getBaseUrl()+", "+ex);
+  			ex.printStackTrace();
+  			log.error("Problem starting node: "+node.getBaseUrl());
   		}
       }
       

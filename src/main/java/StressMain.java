@@ -144,7 +144,7 @@ public class StressMain {
 						}
 
 						if (type.awaitRecoveries) {
-							try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+							try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
 
 								int numInactive = 0;
 								do {
@@ -168,7 +168,10 @@ public class StressMain {
 									}
 
 									System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
-									if (numInactive != 0) Thread.sleep(2000);
+									if (numInactive != 0) {
+										Thread.sleep(2000);
+										client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+									}
 								} while (numInactive > 0);
 							}				        
 
@@ -188,7 +191,7 @@ public class StressMain {
 						}
 
 						if (type.awaitRecoveries) {
-							try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+							try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
 								int numInactive = 0;
 								do {
 									numInactive = 0;
@@ -208,7 +211,10 @@ public class StressMain {
 										}
 									}
 									System.out.println("\tInactive replicas on restarted node ("+node.port+"): " + numInactive );
-									if (numInactive != 0) Thread.sleep(1000);
+									if (numInactive != 0) {
+										Thread.sleep(1000);
+										client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+									}
 								} while (numInactive > 0);
 							} catch (Exception ex) {
 								ex.printStackTrace();
