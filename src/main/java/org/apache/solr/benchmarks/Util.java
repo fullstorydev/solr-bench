@@ -70,9 +70,6 @@ public class Util {
   public static final String BASE_DIR = WORK_DIRECTORY + DNAME + File.separator;
   public static final String RUN_DIR = BASE_DIR + "RunDirectory" + File.separator;
   public static final String DOWNLOAD_DIR = BASE_DIR + "Download" + File.separator;
-  public static final String ZOOKEEPER_DOWNLOAD_URL = "https://downloads.apache.org/zookeeper/";
-  public static final String ZOOKEEPER_RELEASE = "3.6.2";
-  public static final String ZOOKEEPER_DIR = RUN_DIR;
   public static final String SOLR_DIR = RUN_DIR;
 
   /**

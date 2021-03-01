@@ -17,28 +17,23 @@
 
 package org.apache.solr.benchmarks.solrcloud;
 
-import org.apache.commons.io.FileUtils;
+import java.io.File;
+
 import org.apache.log4j.Logger;
 import org.apache.solr.benchmarks.Util;
-
-import java.io.File;
-import java.io.FilenameFilter;
-import java.net.URL;
 
 /**
  * This class provides blueprint for Zookeeper Node.
  */
 public class LocalZookeeper implements Zookeeper {
 
-  public final static Logger logger = Logger.getLogger(LocalZookeeper.class);
+  public final static Logger log = Logger.getLogger(LocalZookeeper.class);
 
-  public static String zooCommand;
-  public static String zooCleanCommand;
-  private String releaseName;
+  //public static String zooCleanCommand;
 
-  static {
-    zooCommand = "bin" + File.separator + "zkServer.sh ";
-  }
+  public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.6.2-bin.tar.gz";
+  public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.2-bin";
+  public static final String ZK_COMMAND = "bin/zkServer.sh";
 
   /**
    * Constructor.
@@ -56,78 +51,29 @@ public class LocalZookeeper implements Zookeeper {
    * @throws Exception
    */
   private void init() throws Exception {
+    log.info("Installing Zookeeper Node ...");
 
-    logger.info("Installing Zookeeper Node ...");
-
-    File base = new File(Util.ZOOKEEPER_DIR);
-    if (!base.exists()) {
-      base.mkdir();
-      base.setExecutable(true);
-    }
-    String[] fName = new String[1];
-    new File(Util.DOWNLOAD_DIR).list(new FilenameFilter() {
-      @Override
-      public boolean accept(File dir, String name) {
-        if(name.startsWith("apache-zookeeper") && name.endsWith(".tar.gz"))
-          fName[0] = name;
-        return false;
-      }
-    });
-    File release = null;
-      if (fName[0] != null) {
-          release = new File(Util.DOWNLOAD_DIR, fName[0]);
-      } else {
-          release = new File(Util.DOWNLOAD_DIR + "zookeeper-" + Util.ZOOKEEPER_RELEASE + ".tar.gz");
-      }
-
-    if (!release.exists()) {
-      logger.info("Attempting to download zookeeper release ..." + " : " + Util.ZOOKEEPER_RELEASE);
-
-      String fileName = "apache-zookeeper-" + Util.ZOOKEEPER_RELEASE + "-bin.tar.gz";
-
-      FileUtils.copyURLToFile(
-          new URL(Util.ZOOKEEPER_DOWNLOAD_URL + "zookeeper-" + Util.ZOOKEEPER_RELEASE + File.separator + fileName),
-          new File(Util.DOWNLOAD_DIR + fileName));
+    log.info("ZK Tarball is here: " + ZK_TARBALL);
+    
+    if (new File(ZK_TARBALL).exists()) {
+        Util.execute("tar -xf " + ZK_TARBALL + " -C "
+                + Util.RUN_DIR, Util.RUN_DIR);
+        log.info("After untarring, ZK dir is here: " + ZK_DIR);
     } else {
-      logger.info("Release " +release.getName()+
-              " present nothing to download ..." );
-    }
-
-    releaseName = release.getName().replace(".tar.gz", "");
-    File urelease = new File(Util.DOWNLOAD_DIR , releaseName);
-    if (!urelease.exists()) {
-
-      Util.execute("tar -xf " + release.getAbsolutePath() + " -C "
-          + Util.ZOOKEEPER_DIR, Util.ZOOKEEPER_DIR);
-
-      Util.execute(
-          "mv " + Util.ZOOKEEPER_DIR + releaseName  + File.separator + "conf"
-              + File.separator + "zoo_sample.cfg " + Util.ZOOKEEPER_DIR + releaseName +
-                  File.separator + "conf" + File.separator + "zoo.cfg",
-              Util.ZOOKEEPER_DIR);
-
-    } else {
-      logger.info("Release extracted already nothing to do ..." + " : " + Util.ZOOKEEPER_RELEASE);
+    	throw new RuntimeException("ZK tarball not found at: " + ZK_TARBALL);
     }
   }
 
   public int start() throws Exception {
-    new File(Util.ZOOKEEPER_DIR + releaseName + File.separator + zooCommand).setExecutable(true);
-    return Util.execute(
-        Util.ZOOKEEPER_DIR + releaseName + "/" + zooCommand + " start",
-        Util.ZOOKEEPER_DIR + releaseName + File.separator);
+    return Util.execute(ZK_DIR + "/" + ZK_COMMAND + " start", ZK_DIR);
   }
 
   public int stop() throws Exception {
-    new File(Util.ZOOKEEPER_DIR + releaseName + File.separator + zooCommand).setExecutable(true);
-    return Util.execute(
-        Util.ZOOKEEPER_DIR + releaseName + File.separator + zooCommand + " stop",
-        Util.ZOOKEEPER_DIR + releaseName + File.separator);
+	  return Util.execute(ZK_DIR + "/" + ZK_COMMAND + " stop", ZK_DIR);
   }
 
   public void cleanup() throws Exception {
-    new File(Util.ZOOKEEPER_DIR + releaseName + File.separator + zooCommand).setExecutable(true);
-    Util.execute("rm -r -f " + Util.ZOOKEEPER_DIR, Util.ZOOKEEPER_DIR);
+    Util.execute("rm -r -f " + ZK_DIR, Util.RUN_DIR);
     try {
       Util.execute("rm -r -f /tmp/zookeeper/", "/tmp/zookeeper/");
     } catch (Exception e) {
