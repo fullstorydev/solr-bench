@@ -37,8 +37,7 @@ public class LocalZookeeper implements Zookeeper {
   private String releaseName;
 
   static {
-    zooCommand = System.getProperty("os.name") != null && System.getProperty("os.name").startsWith("Windows")
-        ? "bin" + File.separator + "zkServer.cmd " : "bin" + File.separator + "zkServer.sh ";
+    zooCommand = "bin" + File.separator + "zkServer.sh ";
   }
 
   /**
@@ -84,7 +83,7 @@ public class LocalZookeeper implements Zookeeper {
     if (!release.exists()) {
       logger.info("Attempting to download zookeeper release ..." + " : " + Util.ZOOKEEPER_RELEASE);
 
-      String fileName = "zookeeper-" + Util.ZOOKEEPER_RELEASE + ".tar.gz";
+      String fileName = "apache-zookeeper-" + Util.ZOOKEEPER_RELEASE + "-bin.tar.gz";
 
       FileUtils.copyURLToFile(
           new URL(Util.ZOOKEEPER_DOWNLOAD_URL + "zookeeper-" + Util.ZOOKEEPER_RELEASE + File.separator + fileName),
@@ -115,7 +114,7 @@ public class LocalZookeeper implements Zookeeper {
   public int start() throws Exception {
     new File(Util.ZOOKEEPER_DIR + releaseName + File.separator + zooCommand).setExecutable(true);
     return Util.execute(
-        Util.ZOOKEEPER_DIR + releaseName + File.separator + zooCommand + " start",
+        Util.ZOOKEEPER_DIR + releaseName + "/" + zooCommand + " start",
         Util.ZOOKEEPER_DIR + releaseName + File.separator);
   }
 
