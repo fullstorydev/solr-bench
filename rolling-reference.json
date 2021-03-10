@@ -89,7 +89,7 @@
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "2b53d6727f951ec012473eb99b9393522df29c58",
+    "commit-id": "3fb35b9cbdc7877ef48a48d2e727f1fda465325c",
     "description": "Solr Reference Dev Branch",
     "name": "git-repository",
     "package-subdir": "/solr/packaging/",

@@ -21,7 +21,7 @@
       <dependency>
          <groupId>org.apache.solr</groupId>
          <artifactId>solr-solrj</artifactId>
-         <version>8.8.0</version>
+         <version>reference_impl</version>
          <exclusions>
             <exclusion>
                <groupId>org.mortbay</groupId>
@@ -174,7 +174,187 @@
          <groupId>org.apache.commons</groupId>
          <artifactId>commons-compress</artifactId>
          <version>1.9</version>
-      </dependency>
+ </dependency>
+
+<!-- dependencies that should ideally come from solrj's pom -->
+
+            <dependency>
+         <groupId>org.apache.httpcomponents</groupId>
+         <artifactId>httpclient</artifactId>
+         <version>4.5.12</version>
+ </dependency>
+            <dependency>
+         <groupId>org.apache.httpcomponents</groupId>
+         <artifactId>httpcore</artifactId>
+         <version>4.4.13</version>
+ </dependency>
+            <dependency>
+         <groupId>org.apache.httpcomponents</groupId>
+         <artifactId>httpmime</artifactId>
+         <version>4.5.12</version>
+ </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.24</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.8.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math3</artifactId>
+      <version>3.6.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.http2</groupId>
+      <artifactId>http2-client</artifactId>
+      <version>9.4.34.v20201102</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.http2</groupId>
+      <artifactId>http2-http-client-transport</artifactId>
+      <version>9.4.34.v20201102</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util</artifactId>
+      <version>9.4.34.v20201102</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-http</artifactId>
+      <version>9.4.34.v20201102</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-alpn-java-client</artifactId>
+      <version>9.4.34.v20201102</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-alpn-client</artifactId>
+      <version>9.4.34.v20201102</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpmime</artifactId>
+      <version>4.5.10</version>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>commons-codec</artifactId>
+          <groupId>commons-codec</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>commons-logging</artifactId>
+          <groupId>commons-logging</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!--dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-buffer</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-codec</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-common</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-handler</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-resolver</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-unix-common</artifactId>
+      <version>4.1.50.Final</version>
+      <scope>compile</scope>
+    </dependency-->
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper</artifactId>
+      <version>3.6.2</version>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>slf4j-log4j12</artifactId>
+          <groupId>org.slf4j</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>audience-annotations</artifactId>
+          <groupId>org.apache.yetus</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>netty-all</artifactId>
+          <groupId>io.netty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>log4j</artifactId>
+          <groupId>log4j</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>woodstox-core-asl</artifactId>
+      <version>4.4.1</version>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>stax-api</artifactId>
+          <groupId>javax.xml.stream</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
+      <version>1.7.24</version>
+      <scope>runtime</scope>
+    </dependency>
+
    </dependencies>
 
    <build>

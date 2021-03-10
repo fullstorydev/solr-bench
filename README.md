@@ -16,9 +16,26 @@ The VM should have the following:
 
 ### Running the suite
 
+#### Using a standard release of SolrJ client (8.8.0)
+
 In the coordinator VM, check out this solr-bench repository.
 
      1. mvn clean compile assembly:single
+     2. ./stress.sh <config-file>
+
+Example: config.json (GCP), config-local.json (Local mode). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id".
+
+#### Using a compiled version of SolrJ client (Example: reference_impl branch)
+
+Compile the SolrJ and publish to local Maven:
+
+    1. cd solr/solrj
+    2. ../../gradlew publishJarsPublicationToBuildRepository
+    3. mvn install:install-file -Dfile=./build/libs/solr-solrj-9.0.0-SNAPSHOT.jar -DgroupId=org.apache.solr -DartifactId=solr-solrj -Dversion=reference_impl -Dpackaging=jar -DgeneratePom=true
+
+In the coordinator VM, check out this solr-bench repository.
+
+     1. mvn -f pom-reference-branch.xml clean compile assembly:single
      2. ./stress.sh <config-file>
 
 Example: config.json (GCP), config-local.json (Local mode). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id".
