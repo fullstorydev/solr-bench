@@ -87,13 +87,13 @@
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "c5c532a7823eb4ebffd77c482d15552a36aad537",
-    "description": "Noble Solr 8.8",
-    "name": "noble-repository",
+    "commit-id": "6402ba0aacc8db35743636d2a2d008354f40f551",
+    "description": "Apache Solr 8.8",
+    "name": "git-repository",
     "package-subdir": "/solr/package/",
     "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
     "submodules": false,
-    "url": "https://github.com/noblepaul/lucene-solr",
+    "url": "https://github.com/apache/lucene-solr",
     "user"  : "ishan"
   },
   "metrics": ["solr.node/solr.node/overseer.totalMessages", "solr.node/solr.node/overseer.stateMessages", "solr.node/solr.node/overseer.leaderMessages"]
