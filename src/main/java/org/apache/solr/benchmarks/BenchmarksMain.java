@@ -49,6 +49,7 @@ import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
@@ -311,7 +312,7 @@ public class BenchmarksMain {
 
             for (Slice slice : coll.getSlices()) {
                 Replica leader = slice.getLeader();
-                shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getName() + "/update/json/docs");
+                shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getCoreName() + "/update/json/docs");
             }
             JsonRecordReader rdr = JsonRecordReader.getInst("/", Collections.singletonList(benchmark.idField+":/"+benchmark.idField));
             Map<String, List<String>> shardVsDocs = new HashMap<>();
