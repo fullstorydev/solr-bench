@@ -22,6 +22,7 @@ ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE sudo mv l
 scp -i terraform/id_rsa -oStrictHostKeyChecking=no ${JDK_TARBALL} solruser@$SOLR_NODE:
 
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE "
+        sudo mkdir -p /mnt/scratch; sudo mkfs.ext4 /dev/nvme0n1; sudo mount /dev/nvme0n1 /mnt/scratch; sudo chmod 777 /mnt/scratch;
 	export JDK_TARBALL=$JDK_TARBALL;
 	tar -xf $JDK_TARBALL; 
 	export JDK_DIR=\`tar tf $JDK_TARBALL | head -1| cut -d '/' -f 1\`;
