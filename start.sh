@@ -90,7 +90,7 @@ terraform-gcp-provisioner() {
 }
 
 # Download the pre-requisites
-wget -c `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
+download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
 wget -c https://archive.apache.org/dist/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
