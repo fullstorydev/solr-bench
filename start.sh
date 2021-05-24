@@ -176,6 +176,5 @@ if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE
 then
      cd $ORIG_WORKING_DIR/terraform
      terraform destroy --auto-approve
-     rm id_rsa*
 fi
 

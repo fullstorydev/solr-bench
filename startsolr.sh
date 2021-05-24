@@ -13,7 +13,7 @@ echo_blue "Starting Solr from $SOLR_TARBALL_NAME in $SOLR_TARBALL_PATH..."
 ./wait-for-it.sh -t 0 $SOLR_NODE:22
 ./wait-for-it.sh -t 0 $ZK_NODE:2181
 
-ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE uptime
+ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE uname -a
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE rm -rf solr* 
 ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE sudo pkill -9 java
 scp -i terraform/id_rsa -oStrictHostKeyChecking=no ${SOLR_TARBALL_PATH} solruser@$SOLR_NODE:
