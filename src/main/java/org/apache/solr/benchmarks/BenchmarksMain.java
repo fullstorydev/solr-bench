@@ -49,7 +49,10 @@ import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException;
 import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.DocRouter;
@@ -66,7 +69,8 @@ public class BenchmarksMain {
 
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private static String getSolrPackagePath(Repository repo, String solrPackageUrl) {
+    // nocommit: this should goto Utils
+    public static String getSolrPackagePath(Repository repo, String solrPackageUrl) {
     	if (solrPackageUrl != null) {
     		String filename = solrPackageUrl.split("/")[solrPackageUrl.split("/").length-1];
     		if (new File(filename).exists() == false) {
@@ -118,70 +122,11 @@ public class BenchmarksMain {
             // Indexing benchmarks
             log.info("Starting indexing benchmarks...");
 
-            for (IndexBenchmark benchmark : config.indexBenchmarks) {
-            	results.get("indexing-benchmarks").put(benchmark.name, new LinkedHashMap());
-            	
-                for (IndexBenchmark.Setup setup : benchmark.setups) {
-                	List setupMetrics = new ArrayList();
-                	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
-
-                    for (int i = setup.minThreads; i <= setup.maxThreads; i += setup.threadStep) {
-                        log.info("Creating collection: " + setup.collection);
-                        try {
-                            solrCloud.deleteCollection(setup.collection);
-                        } catch (Exception ex) {
-                            log.warn("Error trying to delete collection: " + ex);
-                        }
-                        solrCloud.uploadConfigSet(setup.configset);
-                        solrCloud.createCollection(setup.collection, setup.configset, setup.shards, setup.replicationFactor);
-                        long start = System.nanoTime();
-                        index(solrCloud.nodes.get(0).getBaseUrl(), setup.collection, i, benchmark);
-                        long end = System.nanoTime();
-
-                        if (i != setup.maxThreads || config.queryBenchmarks.isEmpty()) {
-                            solrCloud.deleteCollection(setup.collection);
-                        }
-                        
-                        setupMetrics.add(Util.map("threads", i, "total-time", String.valueOf((end - start) / 1_000_000_000.0)));
-                    }
-                }
-            }
+            runIndexingBenchmarks(config.indexBenchmarks, solrCloud, results);
 
             // Query benchmarks
-            if (config.queryBenchmarks != null && config.queryBenchmarks.size() > 0)
-                log.info("Starting querying benchmarks...");
-            for (QueryBenchmark benchmark : config.queryBenchmarks) {
-            	results.get("query-benchmarks").put(benchmark.name, new ArrayList());
+            runQueryBenchmarks(config.queryBenchmarks, solrCloud, results);
 
-
-                for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-                    QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-
-                    HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(0).getBaseUrl()).build();
-                    ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
-                            benchmark.duration,
-                            benchmark.rpm,
-                            benchmark.totalCount,
-                            benchmark.warmCount,
-                            getQuerySupplier(queryGenerator, client, benchmark.collection));
-                    long start = System.currentTimeMillis();
-                    try {
-                        controlledExecutor.run();
-                    } finally {
-                        client.close();
-                    }
-
-                    long time = System.currentTimeMillis() - start;
-                    System.out.println("Took time: " + time);
-                    if (time > 0) {
-                        System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
-                                ", 95th latency: " + controlledExecutor.stats.getPercentile(95));
-                        ((List)results.get("query-benchmarks").get(benchmark.name)).add(
-                        		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
-                        				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN()));
-                    }
-                }
-            }
             // Stop metrics collection
             if (config.metrics != null) {
             	metricsCollector.stop();
@@ -196,6 +141,86 @@ public class BenchmarksMain {
             solrCloud.shutdown(true);
         }
     }
+
+	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, SolrCloud solrCloud, Map<String, Map> results)
+			throws IOException, InterruptedException {
+		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
+		    log.info("Starting querying benchmarks...");
+		for (QueryBenchmark benchmark : queryBenchmarks) {
+			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
+
+
+		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
+		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
+
+		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(0).getBaseUrl()).build();
+		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
+		                benchmark.duration,
+		                benchmark.rpm,
+		                benchmark.totalCount,
+		                benchmark.warmCount,
+		                getQuerySupplier(queryGenerator, client, benchmark.collection));
+		        long start = System.currentTimeMillis();
+		        try {
+		            controlledExecutor.run();
+		        } finally {
+		            client.close();
+		        }
+
+		        long time = System.currentTimeMillis() - start;
+		        System.out.println("Took time: " + time);
+		        if (time > 0) {
+		            System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
+		                    ", 95th latency: " + controlledExecutor.stats.getPercentile(95));
+		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(
+		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
+		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN()));
+		        }
+		    }
+		}
+	}
+
+	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results) throws Exception {
+		runIndexingBenchmarks(indexBenchmarks, null, true, solrCloud, results);
+	}
+	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, String collectionNameOverride, boolean deleteAfter, SolrCloud solrCloud, Map<String, Map> results)
+			throws Exception {
+		for (IndexBenchmark benchmark : indexBenchmarks) {
+			results.get("indexing-benchmarks").put(benchmark.name, new LinkedHashMap());
+			
+		    for (IndexBenchmark.Setup setup : benchmark.setups) {
+		    	List setupMetrics = new ArrayList();
+		    	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
+
+		        for (int i = setup.minThreads; i <= setup.maxThreads; i += setup.threadStep) {
+		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
+		        	log.info("Creating collection: " + collectionName);
+		            try {
+		                solrCloud.deleteCollection(collectionName);
+		            } catch (Exception ex) {
+		            	if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
+		            		log.debug("Error trying to delete collection: " + ex);
+		            	} else {
+		            		log.warn("Error trying to delete collection: " + ex);
+		            	}
+		            }
+		            solrCloud.uploadConfigSet(setup.configset);
+		            solrCloud.createCollection(setup, collectionName);
+		            long start = System.nanoTime();
+		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, benchmark);
+		            long end = System.nanoTime();
+
+		            if (i != setup.maxThreads) {
+		            	if (deleteAfter) {
+		            		solrCloud.deleteCollection(collectionName);
+		            	}
+		            }
+		            
+		            setupMetrics.add(Util.map("threads", i, "total-time", String.valueOf((end - start) / 1_000_000_000.0)));
+		        }
+		    }
+		}
+	}
 
     private static Supplier<Runnable> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
         return () -> {
