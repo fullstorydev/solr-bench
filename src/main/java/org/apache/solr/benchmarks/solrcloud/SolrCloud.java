@@ -24,22 +24,31 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.beans.Cluster;
+import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Delete;
 import org.apache.solr.client.solrj.request.ConfigSetAdminRequest;
+import org.apache.solr.client.solrj.request.HealthCheckRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
+import org.apache.solr.client.solrj.response.HealthCheckResponse;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkConfigManager;
 import org.apache.solr.common.params.ConfigSetParams;
@@ -50,13 +59,14 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class SolrCloud {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   Zookeeper zookeeper;
-  public List<SolrNode> nodes = new ArrayList<>();
+  public List<SolrNode> nodes = Collections.synchronizedList(new ArrayList());
 
   private Set<String> configsets = new HashSet<>();
 
@@ -85,12 +95,65 @@ public class SolrCloud {
         throw new RuntimeException("Failed to start Zookeeper!");
       }
 
+      ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
+
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
-        SolrNode node = new LocalSolrNode(solrPackagePath, zookeeper);
-        node.init();
-        node.start();
-        nodes.add(node);
+    	  Callable c = () -> {
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, cluster.startupParams, zookeeper);
+    		  
+    		  try {
+	    		  node.init();
+	    		  node.start();
+	    		  nodes.add(node);
+	    		  
+	    		  log.info("Nodes started: "+nodes.size());
+	    		  
+	    		  //try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
+	    			  //log.info("Health check: "+ new HealthCheckRequest().process(client) + ", Nodes started: "+nodes.size());
+	    		  //} catch (Exception ex) {
+	    			//  log.error("Problem starting node: "+node.getBaseUrl());
+	    			  //throw new RuntimeException("Problem starting node: "+node.getBaseUrl());
+	    		  //}
+	    		  return node;
+    		  } catch (Exception ex) {
+    			  ex.printStackTrace();
+    			  log.error("Problem starting node: "+node.getBaseUrl());
+    			  return null;
+    		  }
+    	  };
+    	  executor.submit(c);
       }
+      
+      executor.shutdown();
+      executor.awaitTermination(1, TimeUnit.HOURS);
+
+      log.info("Looking for healthy nodes...");
+      List<SolrNode> healthyNodes = new ArrayList<>();
+      for (SolrNode node: nodes) {
+  		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
+  			HealthCheckRequest req = new HealthCheckRequest();
+  			HealthCheckResponse rsp;
+  			try {
+  				rsp = req.process(client);
+  			} catch (Exception ex) {
+  				Thread.sleep(100);
+  				rsp = req.process(client);
+  			}
+  			if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
+  				log.error("Couldn't start node: "+node.getBaseUrl());
+  				throw new RuntimeException("Couldn't start node: "+node.getBaseUrl());
+  			} else {
+  				healthyNodes.add(node);
+  			}
+  		} catch (Exception ex) {
+  			ex.printStackTrace();
+  			log.error("Problem starting node: "+node.getBaseUrl());
+  		}
+      }
+      
+      this.nodes = healthyNodes;
+      log.info("Healthy nodes: "+healthyNodes.size());
+      
     } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
     	System.out.println("ZK node: "+getZkNodeFromTFState());
@@ -128,14 +191,24 @@ public class SolrCloud {
    * @param replicas
    * @throws Exception 
    */
-  public void createCollection(String collectionName, String configName, int shards, int replicas) throws Exception {
+  public void createCollection(IndexBenchmark.Setup setup, String collectionName) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
-		  Create create = Create.createCollection(collectionName, configName, shards, replicas);
-		  CollectionAdminResponse resp = create.process(hsc);
-		  log.info("");
+		  Create create;
+		  if (setup.replicationFactor != null) {
+			  create = Create.createCollection(collectionName, setup.configset, setup.shards, setup.replicationFactor);
+		  } else {
+			  create = Create.createCollection(collectionName, setup.configset, setup.shards,
+					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
+		  }
+		  CollectionAdminResponse resp;
+		  if (setup.collectionCreationParams != null && setup.collectionCreationParams.isEmpty()==false) {
+			  resp = new CreateWithAdditionalParameters(create, collectionName, setup.collectionCreationParams).process(hsc);
+		  } else {
+			  resp = create.process(hsc);
+		  }
 		  log.info("Collection created: "+ resp.jsonStr());
       }
-	  colls.add(collectionName);
+	  colls.add(setup.collection);
   }
 
   HttpSolrClient createClient() {

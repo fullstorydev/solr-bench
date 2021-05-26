@@ -19,13 +19,19 @@ The VM should have the following:
 In the coordinator VM, check out this solr-bench repository.
 
      1. mvn clean compile assembly:single
-     2. ./start.sh <config-file>
+     2. ./stress.sh <config-file>
 
 Example: config.json (GCP), config-local.json (Local mode). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id".
 
 ### Results
 
 * Results are available after the benchmark in results-\<timestamp\>.json file.
+
+### Datasets
+
+* One can use either TSV files or JSONL files for indexing. Use "tsv" or "json" for the "file-format" section.
+* The configset should be zipped, and "index-benchmarks" section should have the name of the file (without the .zip) as "configset".
+* The query file should have GET parameters that will be queried against /select.
 
 ### Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.

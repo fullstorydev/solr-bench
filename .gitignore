@@ -1,2 +1,5 @@
 /target/
 SolrNightlyBenchmarksWorkDirectory/
+metrics-stress.json
+results-stress.json
+results.json

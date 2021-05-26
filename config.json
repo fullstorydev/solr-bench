@@ -1,10 +1,10 @@
 {
   "cluster": {
     "num-solr-nodes": 1,
-    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u241-linux-x64.tar.gz",
-    "jdk-tarball": "jdk-8u241-linux-x64.tar.gz",
-    "jdk-directory": "jdk1.8.0_241",
-    "startup-params": "-m 1g",
+    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u291-linux-x64.tar.gz",
+    "jdk-tarball": "jdk-8u291-linux-x64.tar.gz",
+    "jdk-directory": "jdk1.8.0_291",
+    "startup-params": "-m 1g -t /mnt/scratch",
     "provisioning-method": "terraform-gcp",
     "terraform-gcp-config": {
         "project_id" : "bold-gadget-222718",

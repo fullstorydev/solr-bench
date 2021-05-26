@@ -9,6 +9,8 @@ public interface SolrNode {
   int start() throws Exception;
 
   int stop() throws Exception;
+  
+  int pause(int seconds) throws Exception;
 
   String getBaseUrl();
   

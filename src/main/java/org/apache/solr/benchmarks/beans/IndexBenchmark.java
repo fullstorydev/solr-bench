@@ -3,6 +3,7 @@ package org.apache.solr.benchmarks.beans;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Map;
 
 public class IndexBenchmark {
   @JsonProperty("name")
@@ -53,7 +54,19 @@ public class IndexBenchmark {
     public String configset;
 
     @JsonProperty("replication-factor")
-    public int replicationFactor;
+    public Integer replicationFactor;
+
+    @JsonProperty("nrt-replicas")
+    public Integer nrtReplicas;
+
+    @JsonProperty("tlog-replicas")
+    public Integer tlogReplicas;
+    
+    @JsonProperty("pull-replicas")
+    public Integer pullReplicas;
+
+    @JsonProperty("collection-creation-params")
+    public Map<String, String> collectionCreationParams;
 
     @JsonProperty("shards")
     public int shards;

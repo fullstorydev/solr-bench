@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script>
+window.onload = function() {
+
+	var lines = [];
+
+	var options =  {
+		animationEnabled: true,
+		theme: "light2",
+		title: {
+			text: "Daily Sales Data"
+		},
+		axisX: {
+			//valueFormatString: "DD MMM YYYY",
+		},
+		axisY: {
+			title: "USD",
+			titleFontSize: 24
+		},
+		data: [{
+			type: "spline", 
+			yValueFormatString: "$#,###.##",
+			dataPoints: lines
+		}]
+	};
+
+	function addData(data) {
+		var counter = 0;
+		for (var key in data["solr-metrics"]) {
+			//alert(data["solr-metrics"][key])
+
+			for (var i = 0; i < data["solr-metrics"][key]["jvm/solr.jvm/os.systemCpuLoad"].length; i++) {
+				lines.push({
+					x: i,
+					y: data["solr-metrics"][key]["jvm/solr.jvm/os.systemCpuLoad"][i]
+				});
+			}
+		}
+
+		$("#chartContainer").CanvasJSChart(options);
+
+	}
+	$.getJSON("results.json", addData);
+
+}
+</script>
+</head>
+<body>
+<div id="chartContainer" style="height: 370px; width: 100%;"></div>
+<script src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+<script src="https://canvasjs.com/assets/script/jquery.canvasjs.min.js"></script>
+</body>
+</html>

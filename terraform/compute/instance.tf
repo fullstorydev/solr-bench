@@ -27,6 +27,10 @@ resource "google_compute_instance" "instance" {
     }
   }
 
+  scratch_disk {
+    interface = "NVME"
+  }
+
   # metadata_startup_script   = var.startup_script
   allow_stopping_for_update = var.allow_stopping_for_update
 

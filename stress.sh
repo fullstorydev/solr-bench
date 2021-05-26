@@ -10,10 +10,6 @@ SOLR_BENCH_VERSION="0.0.1-SNAPSHOT"
 
 download() {
         file=$1
-        if [ -f "$(basename "$file")" ]; then
-		return
-        fi
-
         if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
         then
 		echo_blue "Downloading $file"
@@ -75,8 +71,8 @@ terraform-gcp-provisioner() {
      export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
-     export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
-     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.2-bin.tar.gz"
+     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.2-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
 
      ./startzk.sh
@@ -90,8 +86,8 @@ terraform-gcp-provisioner() {
 }
 
 # Download the pre-requisites
-download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://archive.apache.org/dist/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz
+wget -c `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
+wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.2/apache-zookeeper-3.6.2-bin.tar.gz 
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
 # Clone/checkout the git repository and build Solr
@@ -101,19 +97,15 @@ then
      echo_blue "Building Solr package for $COMMIT"
      if [ ! -d $LOCALREPO_VC_DIR ]
      then
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --config credential.helper=cache $REPOSRC $LOCALREPO
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $REPOSRC $LOCALREPO
           cd $LOCALREPO
      else
           cd $LOCALREPO
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
      fi
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
-     if [[ "$REPOSRC" == http* ]]
-     then
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git -c 'url.https://github.com/.insteadof=git@github.com:' submodule update --init --recursive
-     else
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update --init --recursive
-     fi
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
 
      # Build Solr package
      bash -c "$BUILDCOMMAND"
@@ -132,9 +124,9 @@ fi
 
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
-echo_blue "Running suite from working directory: $ORIG_WORKING_DIR"
+echo_blue "Running Stress suite from working directory: $ORIG_WORKING_DIR"
 java -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
-   org.apache.solr.benchmarks.BenchmarksMain $CONFIGFILE
+   StressMain $CONFIGFILE
 
 # Grab GC logs
 NOW=`date +"%Y-%d-%m_%H.%M.%S"`
@@ -162,19 +154,20 @@ then
 fi
 
 # Results upload (results.json), if needed
-cd $ORIG_WORKING_DIR
-if [[ "null" != `jq -r '.["results-upload-location"]' $CONFIGFILE` ]]
-then
-     # Results uploading only supported for GCS buckets for now
-     mv results.json results-${NOW}.json
-     gsutil cp results-${NOW}.json `jq -r '.["results-upload-location"]' $CONFIGFILE`
-     gsutil cp logs-${NOW}.zip `jq -r '.["results-upload-location"]' $CONFIGFILE`
-fi
+#cd $ORIG_WORKING_DIR
+#if [[ "null" != `jq -r '.["results-upload-location"]' $CONFIGFILE` ]]
+#then
+#     # Results uploading only supported for GCS buckets for now
+#     mv results.json results-${NOW}.json
+#     gsutil cp results-${NOW}.json `jq -r '.["results-upload-location"]' $CONFIGFILE`
+#     gsutil cp logs-${NOW}.zip `jq -r '.["results-upload-location"]' $CONFIGFILE`
+#fi
 
 # Cleanup
-if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
-then
-     cd $ORIG_WORKING_DIR/terraform
-     terraform destroy --auto-approve
-fi
+#if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+#then
+#     cd $ORIG_WORKING_DIR/terraform
+#     terraform destroy --auto-approve
+#     rm id_rsa*
+#fi
 

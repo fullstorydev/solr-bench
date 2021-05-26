@@ -20,7 +20,7 @@ public class MetricsCollector implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	// Key: Node name, Value: Map of metrics (key: metric name, value: list of metrics at various intervals of time) 
-	Map<String, Map<String, Vector<Double>>> metrics = new ConcurrentHashMap<String, Map<String, Vector<Double>>>();
+	public Map<String, Map<String, Vector<Double>>> metrics = new ConcurrentHashMap<String, Map<String, Vector<Double>>>();
 	private final List<String> metricsPaths;
 	private final List<SolrNode> nodes;
 	private final int collectionDurationSeconds;
@@ -53,7 +53,7 @@ public class MetricsCollector implements Runnable {
 							URL url = new URL(node.getBaseUrl()+"admin/metrics?group="+group);
 							resp.put(group, new JSONObject(IOUtils.toString(url, Charset.forName("UTF-8"))));
 						} catch (JSONException | IOException e1) {
-							log.error("Couldn't get metrics from "+node.getBaseUrl(), e1);
+							log.debug("Couldn't get metrics from "+node.getBaseUrl(), e1);
 						}
 					}
 					for (String path: metricsPaths) {
@@ -72,10 +72,12 @@ public class MetricsCollector implements Runnable {
 								metrics.get(node.getNodeName()).get(path).add(metric);
 							} catch (JSONException e) {
 								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
-								log.error("skipped metrics path {}:", path, e);
-								metrics.get(node.getNodeName()).get(path).add(Double.MIN_VALUE);
+								log.debug("skipped metrics path {}:", path, e);
+								metrics.get(node.getNodeName()).get(path).add(-1.0);
 							}
-						} // else this response wasn't fetched
+						} else { // else this response wasn't fetched
+							metrics.get(node.getNodeName()).get(path).add(-1.0);
+						}
 					}
 				}
 				Thread.sleep(collectionDurationSeconds*1000);
