@@ -29,6 +29,7 @@ download $CONFIGFILE # download this file from GCS/HTTP, if necessary
 CONFIGFILE="${CONFIGFILE##*/}"
 
 mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
+mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
 
 COMMIT=`jq -r '."repository"."commit-id"' $CONFIGFILE`
 REPOSRC=`jq -r '."repository"."url"' $CONFIGFILE`
@@ -71,8 +72,8 @@ terraform-gcp-provisioner() {
      export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
-     export ZK_TARBALL_NAME="apache-zookeeper-3.6.2-bin.tar.gz"
-     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.2-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
+     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
 
      ./startzk.sh
@@ -87,7 +88,7 @@ terraform-gcp-provisioner() {
 
 # Download the pre-requisites
 wget -c `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.2/apache-zookeeper-3.6.2-bin.tar.gz 
+wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz 
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
 # Clone/checkout the git repository and build Solr

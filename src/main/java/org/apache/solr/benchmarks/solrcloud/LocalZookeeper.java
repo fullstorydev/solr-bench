@@ -31,8 +31,8 @@ public class LocalZookeeper implements Zookeeper {
 
   //public static String zooCleanCommand;
 
-  public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.6.2-bin.tar.gz";
-  public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.2-bin";
+  public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.6.3-bin.tar.gz";
+  public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.3-bin";
   public static final String ZK_COMMAND = "bin/zkServer.sh";
 
   /**
@@ -59,6 +59,7 @@ public class LocalZookeeper implements Zookeeper {
         Util.execute("tar -xf " + ZK_TARBALL + " -C "
                 + Util.RUN_DIR, Util.RUN_DIR);
         log.info("After untarring, ZK dir is here: " + ZK_DIR);
+        Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
     } else {
     	throw new RuntimeException("ZK tarball not found at: " + ZK_TARBALL);
     }
