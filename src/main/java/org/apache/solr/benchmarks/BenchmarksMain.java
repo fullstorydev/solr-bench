@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
@@ -302,6 +303,7 @@ public class BenchmarksMain {
 
         long count;
         AtomicInteger tasks = new AtomicInteger();
+        AtomicInteger completed = new AtomicInteger();
 
         try {
             HttpClusterStateProvider stateProvider = new HttpClusterStateProvider(Collections.singletonList(baseUrl), httpClient);
@@ -323,7 +325,10 @@ public class BenchmarksMain {
 
             String line;
             String[] id = new String[1];
-            JsonRecordReader.Handler handler = (map, s) -> id[0] = (String) map.get(benchmark.idField);
+            JsonRecordReader.Handler handler = (map, s) -> id[0] = 
+            		map.get(benchmark.idField) instanceof String? 
+            				(String) map.get(benchmark.idField):
+            				map.get(benchmark.idField).toString();
             while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
@@ -332,20 +337,21 @@ public class BenchmarksMain {
                 List<String> docs = shardVsDocs.get(targetSlice.getName());
                 if (docs == null) shardVsDocs.put(targetSlice.getName(), docs = new ArrayList<>(benchmark.batchSize));
                 count++;
+                if (count % 1_000_000 == 0) System.out.println("\tDocs read: "+count+", indexed: "+(completed.get() * benchmark.batchSize)+", docs: "+docs.size());
                 if (count > benchmark.maxDocs) break;
                 docs.add(line);
                 if (docs.size() >= benchmark.batchSize) {
                     shardVsDocs.remove(targetSlice.getName());
                     executor.submit(new UploadDocs(docs, httpClient,
                             shardVsLeader.get(targetSlice.getName()),
-                            tasks
+                            tasks, completed
                     ));
                 }
             }
             br.close();
             shardVsDocs.forEach((shard, docs) -> executor.submit(new UploadDocs(docs,
                     httpClient,
-                    shardVsLeader.get(shard), tasks)));
+                    shardVsLeader.get(shard), tasks, completed)));
         } finally {
             for (; ; ) {
                 if (tasks.get() <= 0) break;
@@ -368,19 +374,22 @@ public class BenchmarksMain {
         final HttpClient client;
         final String leaderUrl;
         final AtomicInteger counter;
+        final AtomicInteger completed; // number of batches completed
 
-        UploadDocs(List<String> docs, HttpClient client, String leaderUrl, AtomicInteger counter) {
+        UploadDocs(List<String> docs, HttpClient client, String leaderUrl, AtomicInteger counter, AtomicInteger completed) {
             this.docs = docs;
             this.client = client;
             this.leaderUrl = leaderUrl;
             this.counter = counter;
             counter.incrementAndGet();
+            this.completed = completed;
         }
 
         @Override
         public void run() {
             HttpPost httpPost = new HttpPost(leaderUrl);
             httpPost.setHeader(new BasicHeader("Content-Type", "application/json; charset=UTF-8"));
+            httpPost.getParams().setParameter("overwrite", "false");
 
             httpPost.setEntity(new BasicHttpEntity() {
                 @Override
@@ -410,8 +419,11 @@ public class BenchmarksMain {
                 log.error("Error in request to url : " + leaderUrl, e);
             } finally {
                 counter.decrementAndGet();
+                completed.incrementAndGet();
             }
 
+
+            if (completed.get() % 100 == 0) System.out.println("\tBatches indexed: "+completed.get()+", currently queued: "+counter.get());
         }
     }
 }
