@@ -53,4 +53,7 @@ public class QueryBenchmark {
 
   @JsonProperty("params")
   public Map<String,String> params = new HashMap<>();
+
+  @JsonProperty("headers")
+  public Map<String,String> headers;
 }
