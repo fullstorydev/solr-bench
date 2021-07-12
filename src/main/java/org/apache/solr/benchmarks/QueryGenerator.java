@@ -1,5 +1,6 @@
 package org.apache.solr.benchmarks;
 
+import java.util.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.readers.TarGzFileReader;
@@ -16,10 +17,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class QueryGenerator {
@@ -90,6 +87,11 @@ public class QueryGenerator {
                 @Override
                 public SolrParams getParams() {
                     return new MapSolrParams(queryBenchmark.params);
+                }
+
+                @Override
+                public Map<String, String> getHeaders() {
+                    return queryBenchmark.headers;
                 }
             };
 
