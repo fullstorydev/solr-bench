@@ -33,5 +33,5 @@ ssh -i terraform/id_rsa -oStrictHostKeyChecking=no solruser@$SOLR_NODE "
 	tar -xf $SOLR_TARBALL_NAME;
 
 	cd \$SOLR_DIR;
-	bin/solr -V -c $SOLR_STARTUP_PARAMS -z $ZK_NODE:2181 -Dsolr.host=$SOLR_NODE
+	bin/solr -V -c $SOLR_STARTUP_PARAMS -z $ZK_NODE:2181 -h $SOLR_NODE
 "
