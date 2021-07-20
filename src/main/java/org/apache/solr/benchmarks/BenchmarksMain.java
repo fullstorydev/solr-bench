@@ -139,7 +139,7 @@ public class BenchmarksMain {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            solrCloud.shutdown(true);
+            //solrCloud.shutdown(true);
         }
     }
 
@@ -175,7 +175,7 @@ public class BenchmarksMain {
 		                    ", 95th latency: " + controlledExecutor.stats.getPercentile(95));
 		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(
 		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
-		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN()));
+		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
 		        }
 		    }
 		}
@@ -255,7 +255,7 @@ public class BenchmarksMain {
 
     static void index(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
     	if (benchmark.fileFormat.equalsIgnoreCase("json")) {
-    		indexJson(baseUrl, collection, threads, benchmark);
+    		indexJsonComplex(baseUrl, collection, threads, benchmark);
     	} else if (benchmark.fileFormat.equalsIgnoreCase("tsv")) {
     		indexTSV(baseUrl, collection, threads, benchmark);
     	}
@@ -294,7 +294,46 @@ public class BenchmarksMain {
         client.close();        
     }
     
-    static void indexJson(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
+    static void indexJsonSimple(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
+
+    	long start = System.currentTimeMillis();
+
+    	BufferedReader br = JsonlFileType.getBufferedReader(new File(benchmark.datasetFile));
+        ConcurrentUpdateSolrClient client = new ConcurrentUpdateSolrClient.Builder(baseUrl).withThreadCount(threads).build();
+
+    	String line;
+    	int count = 0;
+    	int errors = 0;
+    	
+    	ObjectMapper mapper = new ObjectMapper();
+    	while((line = br.readLine()) != null) {
+    		count++;
+            if (count % 1_000_000 == 0) System.out.println("\tDocs read: "+count+", Errors: "+errors+", time: "+((System.currentTimeMillis() - start) / 1000));
+            if (count > benchmark.maxDocs) break;
+    		
+            SolrInputDocument doc = null;
+            try {
+	            Map<String, Object> map = mapper.readValue(line, Map.class);
+	    		doc = new SolrInputDocument();
+	    		for (String key: map.keySet()) {
+	    			doc.addField(key, map.get(key));
+	    		}
+	    		client.add(collection, doc);
+            } catch (Exception ex) {
+            	errors++;
+            }
+    	}
+    	
+        client.blockUntilFinished();
+        client.commit(collection);
+        client.close();   
+        
+        br.close();
+
+    	log.info("Indexed " + (count - errors) + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
+    }
+    
+    static void indexJsonComplex(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
 
         long start = System.currentTimeMillis();
         CloseableHttpClient httpClient = HttpClientUtil.createClient(null);
@@ -337,7 +376,7 @@ public class BenchmarksMain {
                 List<String> docs = shardVsDocs.get(targetSlice.getName());
                 if (docs == null) shardVsDocs.put(targetSlice.getName(), docs = new ArrayList<>(benchmark.batchSize));
                 count++;
-                if (count % 1_000_000 == 0) System.out.println("\tDocs read: "+count+", indexed: "+(completed.get() * benchmark.batchSize)+", docs: "+docs.size());
+                if (count % 1_000_000 == 0) System.out.println("\tDocs read: "+count+", indexed: "+(completed.get() * benchmark.batchSize)+", time: "+((System.currentTimeMillis() - start) / 1000));
                 if (count > benchmark.maxDocs) break;
                 docs.add(line);
                 if (docs.size() >= benchmark.batchSize) {

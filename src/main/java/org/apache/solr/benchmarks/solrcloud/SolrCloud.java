@@ -196,9 +196,14 @@ public class SolrCloud {
 		  Create create;
 		  if (setup.replicationFactor != null) {
 			  create = Create.createCollection(collectionName, setup.configset, setup.shards, setup.replicationFactor);
+			  create.setMaxShardsPerNode(setup.shards*(setup.replicationFactor));
 		  } else {
 			  create = Create.createCollection(collectionName, setup.configset, setup.shards,
 					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
+			  create.setMaxShardsPerNode(setup.shards
+					  * ((setup.pullReplicas==null? 0: setup.pullReplicas)
+					   + (setup.nrtReplicas==null? 0: setup.nrtReplicas)
+					   + (setup.tlogReplicas==null? 0: setup.tlogReplicas)));
 		  }
 		  CollectionAdminResponse resp;
 		  if (setup.collectionCreationParams != null && setup.collectionCreationParams.isEmpty()==false) {

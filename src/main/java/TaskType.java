@@ -1,6 +1,7 @@
 import java.util.Map;
 
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
+import org.apache.solr.benchmarks.beans.QueryBenchmark;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -10,6 +11,9 @@ public class TaskType {
 
 	@JsonProperty("index-benchmark")
 	IndexBenchmark indexBenchmark;
+
+	@JsonProperty("query-benchmark")
+	QueryBenchmark queryBenchmark;
 
 	@JsonProperty("cluster-state-benchmark")
 	ClusterStateBenchmark clusterStateBenchmark;

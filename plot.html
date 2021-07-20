@@ -4,9 +4,9 @@
 <script>
 window.onload = function() {
 
-	var lines = [];
+	//var lines = [];
 
-	var options =  {
+/*	var options =  {
 		animationEnabled: true,
 		theme: "light2",
 		title: {
@@ -21,25 +21,54 @@ window.onload = function() {
 		},
 		data: [{
 			type: "spline", 
-			yValueFormatString: "$#,###.##",
+			yValueFormatString: "#.##",
 			dataPoints: lines
 		}]
-	};
+	};*/
 
 	function addData(data) {
 		var counter = 0;
+		var lines = [];
+
 		for (var key in data["solr-metrics"]) {
 			//alert(data["solr-metrics"][key])
 
-			for (var i = 0; i < data["solr-metrics"][key]["jvm/solr.jvm/os.systemCpuLoad"].length; i++) {
-				lines.push({
-					x: i,
-					y: data["solr-metrics"][key]["jvm/solr.jvm/os.systemCpuLoad"][i]
+			line = []
+			for (var i = 0; i < data["solr-metrics"][key]["jvm/solr.jvm/memory.heap.usage"].length; i++) {
+				line.push({
+					x: i*2,
+					y: data["solr-metrics"][key]["jvm/solr.jvm/memory.heap.usage"][i]
 				});
 			}
+			lines.push(line)
+		}
+
+		var options = {
+				animationEnabled: false,
+				theme: "light2",
+				title: {
+					text: "Memory consumption"
+				},
+				axisX: {
+					//valueFormatString: "DD MMM YYYY",
+				},
+				axisY: {
+					title: "Heap usage",
+					titleFontSize: 24
+				},
+				data: []
+			};
+		
+		for (i=0; i<lines.length; i++) {
+			options['data'].push({
+					type: "spline", 
+					yValueFormatString: "#.##",
+					dataPoints: lines[i]
+				});
 		}
 
 		$("#chartContainer").CanvasJSChart(options);
+
 
 	}
 	$.getJSON("results.json", addData);

@@ -1,0 +1,47 @@
+{
+  "cluster": {
+    "num-solr-nodes": 3,
+    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u241-linux-x64.tar.gz",
+    "jdk-tarball": "jdk-8u241-linux-x64.tar.gz",
+    "jdk-directory": "jdk1.8.0_241",
+    "startup-params": "-m 12g",
+    "provisioning-method": "local"
+  },
+  "repository": {
+    "commit-id": "01c4381d6f960429ccd02c674b94b9338c79c290",
+    "description": "Solr 8.10",
+    "name": "git-repository",
+    "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+    "url": "https://github.com/apache/lucene-solr",
+    "user"  : "ishan"
+  },
+  "index-benchmarks": [
+    {
+      "name": "AIRLINE_DELAY",
+      "description": "Airlines Delay timeseries dataset",
+      "replication-type": "cloud",
+      "dataset-file": "delay.json.gz",
+      "file-format": "json",
+      "max-docs": 20000000,
+      "batch-size": 50000,
+      "id-field": "id",
+      "setups": [
+        {
+          "setup-name": "cloud_3x1",
+          "collection": "airline-delay",
+          "replication-factor": 1,
+          "shards": 3,
+          "min-threads": 12,
+          "max-threads": 12,
+          "thread-step": 1
+        }
+      ]
+    }
+  ],
+  "query-benchmarks": [
+
+  ],
+  "metrics": ["jvm/solr.jvm/memory.heap.used"]
+}

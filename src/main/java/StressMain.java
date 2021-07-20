@@ -251,6 +251,35 @@ public class StressMain {
 						} catch (Exception ex) {
 							//ex.printStackTrace();
 						}
+					} else if (type.queryBenchmark != null) {
+						log.info("Running benchmarking task: "+type.queryBenchmark.queryFile);
+
+						// resolve the collection name using template
+						Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+						String collectionName = resolveString(type.queryBenchmark.collection, params);
+
+						log.info("Global variables: "+instance.parameters);
+						log.info("Query benchmarks for collection: "+collectionName);
+
+						Map<String, Map> results = new HashMap<String, Map>();
+						results.put("query-benchmarks", new LinkedHashMap<String, List<Map>>());
+						long taskStart = System.currentTimeMillis();
+						try {
+							BenchmarksMain.runQueryBenchmarks(Collections.singletonList(type.queryBenchmark), cloud, results);
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
+						long taskEnd = System.currentTimeMillis();
+						log.info("Results: "+results.get("query-benchmarks"));
+						try {
+							//String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
+							String totalTime = String.valueOf(taskEnd - taskStart);
+							
+							finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart-executionStart)/1000.0,
+									"end-time", (taskEnd-executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()));
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
 					} else if (type.clusterStateBenchmark!=null) {
 						TaskType.ClusterStateBenchmark clusterStateBenchmark = type.clusterStateBenchmark;
 						log.info("starting cluster state task...");
