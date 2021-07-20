@@ -28,16 +28,17 @@
       "querying": {
           "query-benchmark": {
             "name": "Facet queries",
-              "collection": "ecommerce-events",
-                "query-file": "queries-ecommerce.json",
-                      "min-threads": 1,
-                        "max-threads": 1,
-                          "json-query" : true,
-                "shuffle": false,
-                            "rpm": 3000,
-                                  "total-count" : 10000,
-                                    "warm-count": 20
-                               }
+            "collection": "ecommerce-events",
+            "query-file": "queries-ecommerce.json",
+            "min-threads": 1,
+            "max-threads": 1,
+            "json-query" : true,
+            "shuffle": false,
+            "params": {"shards.preference": "replica.type:NRT"},
+            "rpm": 3000,
+            "total-count" : 10000,
+            "warm-count": 20
+          }
       },
       "restart-solr-node": {
         	"restart-solr-node": "${NODE_INDEX}",
