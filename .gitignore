@@ -1,5 +1,8 @@
 /target/
 SolrNightlyBenchmarksWorkDirectory/
+metrics-stress.json
+results-stress.json
+results.json
 vagrant/solr-servers.json
 vagrant/zk-servers.json
 vagrant/files/*

@@ -3,8 +3,8 @@
 A comprehensive Solr performance benchmark and stress test framework.
 
 Benchmarking & stress test for standard operations (indexing, querying) for a specified Solr build.
- 
-## Running
+
+## Benchmarking
 
 ### Prerequisites
 
@@ -20,7 +20,7 @@ The VM should have the following:
 In the coordinator VM, check out this solr-bench repository.
 
      1. mvn clean compile assembly:single
-     2. ./start.sh <config-file>
+     2. ./cleanup.sh && ./start.sh <config-file>
 
 Example: config.json (GCP), config-local.json (Local mode, it builds Solr from source), config-prebuilt (Local mode, uses provided tgz file). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id". For local, the JDK is downloaded but not used and instead the system installed JDK/JRE is used.
 
@@ -35,5 +35,24 @@ Example: config.json (GCP), config-local.json (Local mode, it builds Solr from s
 * The query file should have GET parameters that will be queried against /select.
 * Lucene's benchmarks dataset can be found here:  http://people.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
 
-### Acknowledgement
+## Stress tests
+
+In the coordinator VM (GCP) or local machine (local mode), check out this solr-bench repository.
+
+     1. mvn clean compile assembly:single
+     2. ./cleanup.sh && ./stress.sh <config-file>
+
+### Examples
+
+* rolling-83.json: Local mode, for test of rolling restarts
+* stress-ecommerce-local.json: Local mode, for time series events dataset. Please download the dataset from http://185.14.187.116/ecommerce-events.json.gz before running the test.
+* delay-local.json: Local mode, for Airlines delays dataset. Please download the dataset from http://185.14.187.116/delay.json.gz before running the test.
+
+### Visualization (WIP)
+
+* `python2.7 -m SimpleHTTPServer`
+* Open http://localhost:8000/plot-stress.html (to view the graph of the metrics of last performed test)
+
+
+## Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.

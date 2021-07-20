@@ -75,8 +75,13 @@ terraform-gcp-provisioner() {
      export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
+<<<<<<< HEAD
      export ZK_TARBALL_NAME="apache-zookeeper-3.6.1-bin.tar.gz"
      export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.1-bin.tar.gz"
+=======
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
+     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
+>>>>>>> stress-harness
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
      export BENCH_USER="solruser"
      export BENCH_KEY="terraform/id_rsa"
@@ -142,8 +147,8 @@ vagrant-provisioner() {
 
 
 # Download the pre-requisites
-wget -c `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.1/apache-zookeeper-3.6.1-bin.tar.gz
+download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
+wget -c https://archive.apache.org/dist/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
 # Clone/checkout the git repository and build Solr
@@ -188,7 +193,7 @@ fi
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
 echo_blue "Running suite from working directory: $ORIG_WORKING_DIR"
-java -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    org.apache.solr.benchmarks.BenchmarksMain $CONFIGFILE
 
 # Grab GC logs
@@ -231,7 +236,6 @@ if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE
 then
      cd $ORIG_WORKING_DIR/terraform
      terraform destroy --auto-approve
-     rm id_rsa*
 fi
 if [ "vagrant" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
@@ -239,3 +243,12 @@ then
      vagrant destroy -f
      rm id_rsa*
 fi
+<<<<<<< HEAD
+if [ "vagrant" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     cd $ORIG_WORKING_DIR/vagrant
+     vagrant destroy -f
+     rm id_rsa*
+fi
+=======
+>>>>>>> stress-harness
