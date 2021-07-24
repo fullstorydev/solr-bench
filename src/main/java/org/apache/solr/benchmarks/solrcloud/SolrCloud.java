@@ -216,14 +216,14 @@ public class SolrCloud {
    * @param replicas
    * @throws Exception 
    */
-  public void createCollection(IndexBenchmark.Setup setup, String collectionName) throws Exception {
+  public void createCollection(IndexBenchmark.Setup setup, String collectionName, String configsetName) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
 		  Create create;
 		  if (setup.replicationFactor != null) {
-			  create = Create.createCollection(collectionName, setup.configset, setup.shards, setup.replicationFactor);
+			  create = Create.createCollection(collectionName, configsetName, setup.shards, setup.replicationFactor);
 			  create.setMaxShardsPerNode(setup.shards*(setup.replicationFactor));
 		  } else {
-			  create = Create.createCollection(collectionName, setup.configset, setup.shards,
+			  create = Create.createCollection(collectionName, configsetName, setup.shards,
 					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
 			  create.setMaxShardsPerNode(setup.shards
 					  * ((setup.pullReplicas==null? 0: setup.pullReplicas)
@@ -286,7 +286,7 @@ public class SolrCloud {
       }
 
       //cleanup configsets created , if any
-      for (String configset : configsets) {
+      /*for (String configset : configsets) {
         try (HttpSolrClient hsc = createClient()) {
           try {
             new ConfigSetAdminRequest.Delete().setConfigSetName(configset).process(hsc);
@@ -295,7 +295,7 @@ public class SolrCloud {
             e.printStackTrace();
           }
         }
-      }
+      }*/
 
       for (SolrNode node : nodes) {
        node.stop();
@@ -310,16 +310,16 @@ public class SolrCloud {
     }
   }
 
-  public void uploadConfigSet(String configset) throws Exception {
-    if(configset==null || configsets.contains(configset)) return;
+  public void uploadConfigSet(String configsetFile, String configsetZkName) throws Exception {
+    if(configsetFile==null || configsets.contains(configsetZkName)) return;
 
-    log.info("Configset: " +configset+
+    log.info("Configset: " +configsetZkName+
             " does not exist. creating... ");
 
-    File f = new File(configset + ".zip");
+    File f = new File(configsetFile + ".zip");
 
     if (!f.exists()) {
-      throw new RuntimeException("Could not find configset file: " + configset);
+      throw new RuntimeException("Could not find configset file: " + configsetFile);
     }
 
     try (HttpSolrClient hsc = createClient()) {
@@ -353,21 +353,21 @@ public class SolrCloud {
       
       try {
 	      ConfigSetAdminRequest.Delete delete = new ConfigSetAdminRequest.Delete();
-	      delete.setConfigSetName(configset);
+	      delete.setConfigSetName(configsetZkName);
 	      delete.process(hsc);
       } catch (Exception ex) {
-    	  log.warn("Exception trying to delete configset", ex);
+    	  //log.warn("Exception trying to delete configset", ex);
       }
       create.setMethod(SolrRequest.METHOD.POST);
-      create.setConfigSetName(configset);
+      create.setConfigSetName(configsetZkName);
       create.process(hsc);
-      configsets.add(configset);
+      configsets.add(configsetZkName);
 
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
       try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
-        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configset, (byte[]) null, true);
+        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
       }
-      log.info("Configset: " + configset +
+      log.info("Configset: " + configsetZkName +
               " created successfully ");
 
 

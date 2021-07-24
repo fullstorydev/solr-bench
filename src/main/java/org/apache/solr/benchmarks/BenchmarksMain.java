@@ -126,7 +126,7 @@ public class BenchmarksMain {
             runIndexingBenchmarks(config.indexBenchmarks, solrCloud, results);
 
             // Query benchmarks
-            runQueryBenchmarks(config.queryBenchmarks, solrCloud, results);
+            runQueryBenchmarks(config.queryBenchmarks, null, solrCloud, results);
 
             // Stop metrics collection
             if (config.metrics != null) {
@@ -143,7 +143,7 @@ public class BenchmarksMain {
         }
     }
 
-	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, SolrCloud solrCloud, Map<String, Map> results)
+	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
 			throws IOException, InterruptedException {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
@@ -160,7 +160,7 @@ public class BenchmarksMain {
 		                benchmark.rpm,
 		                benchmark.totalCount,
 		                benchmark.warmCount,
-		                getQuerySupplier(queryGenerator, client, benchmark.collection));
+		                getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride));
 		        long start = System.currentTimeMillis();
 		        try {
 		            controlledExecutor.run();
@@ -195,18 +195,20 @@ public class BenchmarksMain {
 
 		        for (int i = setup.minThreads; i <= setup.maxThreads; i += setup.threadStep) {
 		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
+		            String configsetName = collectionName+".SOLRBENCH";
+
 		        	log.info("Creating collection: " + collectionName);
 		            try {
-		                solrCloud.deleteCollection(collectionName);
+		                solrCloud.deleteCollection(configsetName);
 		            } catch (Exception ex) {
 		            	if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
-		            		log.debug("Error trying to delete collection: " + ex);
+		            		//log.debug("Error trying to delete collection: " + ex);
 		            	} else {
-		            		log.warn("Error trying to delete collection: " + ex);
+		            		//log.warn("Error trying to delete collection: " + ex);
 		            	}
 		            }
-		            solrCloud.uploadConfigSet(setup.configset);
-		            solrCloud.createCollection(setup, collectionName);
+		            solrCloud.uploadConfigSet(setup.configset, configsetName);
+		            solrCloud.createCollection(setup, collectionName, configsetName);
 		            long start = System.nanoTime();
 		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, benchmark);
 		            long end = System.nanoTime();
