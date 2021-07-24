@@ -373,11 +373,14 @@ public class BenchmarksMain {
             while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
+                count++;
+
+                if (count<benchmark.offset) continue;
+                
                 rdr.streamRecords(new StringReader(line), handler);
                 Slice targetSlice = docRouter.getTargetSlice(id[0], null, null, null, coll);
                 List<String> docs = shardVsDocs.get(targetSlice.getName());
                 if (docs == null) shardVsDocs.put(targetSlice.getName(), docs = new ArrayList<>(benchmark.batchSize));
-                count++;
                 if (count % 1_000_000 == 0) System.out.println("\tDocs read: "+count+", indexed: "+(completed.get() * benchmark.batchSize)+", time: "+((System.currentTimeMillis() - start) / 1000));
                 if (count > benchmark.maxDocs) break;
                 docs.add(line);

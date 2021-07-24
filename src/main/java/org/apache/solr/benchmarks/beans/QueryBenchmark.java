@@ -42,6 +42,9 @@ public class QueryBenchmark {
   @JsonProperty("duration-secs")
   public Integer duration;
 
+  @JsonProperty("offset")
+  public Integer offset = 0;
+  
   @JsonProperty("total-count")
   public Long totalCount;
 

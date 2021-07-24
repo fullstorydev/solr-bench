@@ -48,9 +48,17 @@ public class QueryGenerator {
 
 
     public QueryRequest nextRequest() {
-        long idx = random == null ? counter.get() : random.nextInt(queries.size());
-        counter.incrementAndGet();
+    	while (counter.get() < queryBenchmark.offset) {
+            long idx = random == null ? counter.get() : random.nextInt(queries.size());
+            String q = queries.get((int) (idx % queries.size()));
+            long c = counter.incrementAndGet();
+            System.err.println("Skipping query "+c+": "+q);
+    	}
+        
+    	long idx = random == null ? counter.get() : random.nextInt(queries.size());
         String q = queries.get((int) (idx % queries.size()));
+        counter.incrementAndGet();
+        
         QueryRequest request;
         if (queryBenchmark.templateValues != null && !queryBenchmark.templateValues.isEmpty()) {
             PropertiesUtil.substituteProperty(q, queryBenchmark.templateValues);

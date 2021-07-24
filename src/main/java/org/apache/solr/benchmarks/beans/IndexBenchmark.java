@@ -30,6 +30,9 @@ public class IndexBenchmark {
   @JsonProperty("run-count")
   public Integer runCount;
 
+  @JsonProperty("offset")
+  public Integer offset = 0;
+
   @JsonProperty("max-docs")
   public Integer maxDocs = Integer.MAX_VALUE;
 
@@ -49,6 +52,9 @@ public class IndexBenchmark {
 
     @JsonProperty("collection")
     public String collection;
+    
+    @JsonProperty("create-collection")
+    public boolean createCollection = true;    
 
     @JsonProperty("configset")
     public String configset;
