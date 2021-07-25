@@ -36,9 +36,6 @@ public class IndexBenchmark {
   @JsonProperty("max-docs")
   public Integer maxDocs = Integer.MAX_VALUE;
 
-  @JsonProperty ("rpm")
-  public Integer rpm;
-
   @JsonProperty("batch-size")
   public Integer batchSize = 1000;
   
@@ -76,6 +73,9 @@ public class IndexBenchmark {
 
     @JsonProperty("shards")
     public int shards;
+
+    @JsonProperty ("rpm")
+    public Integer rpm;
 
     @JsonProperty("min-threads")
     public int minThreads;

@@ -7,8 +7,8 @@
         "replication-type": "cloud",
         "dataset-file": "ecommerce-events.json.gz",
         "file-format": "json",
-        "max-docs": 100000,
-        "batch-size": 5000,
+        "max-docs": 50000,
+        "batch-size": 10000,
         "id-field": "id",
         "setups": [
           {
@@ -32,8 +32,8 @@
         "dataset-file": "ecommerce-events.json.gz",
         "file-format": "json",
         "offset": 100000,
-        "max-docs": 500000,
-        "batch-size": 100,
+        "max-docs": 110000,
+        "batch-size": 5,
         "id-field": "id",
         "setups": [
           {
@@ -57,7 +57,7 @@
         "json-query": true,
         "shuffle": false,
         "rpm": 3000,
-        "total-count": 1000,
+        "total-count": 800,
         "warm-count": 20
       }
     },
@@ -73,7 +73,7 @@
         "shuffle": false,
         "rpm": 300,
         "offset": 1000,
-        "total-count": 1000,
+        "total-count": 500,
         "warm-count": 0
       }
     },
@@ -153,7 +153,7 @@
     "task5a": {
       "type": "incremental-indexing",
       "instances": 200,
-      "concurrency": 2,
+      "concurrency": 50,
       "mode": "sync",
       "wait-for": "task4",
       "parameters": {
