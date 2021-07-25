@@ -197,23 +197,25 @@ public class BenchmarksMain {
 		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
 		            String configsetName = collectionName+".SOLRBENCH";
 
-		        	log.info("Creating collection: " + collectionName);
-		            try {
-		                solrCloud.deleteCollection(configsetName);
-		            } catch (Exception ex) {
-		            	if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
-		            		//log.debug("Error trying to delete collection: " + ex);
-		            	} else {
-		            		//log.warn("Error trying to delete collection: " + ex);
+		            if (setup.createCollection) {
+		            	log.info("Creating collection: " + collectionName);
+		            	try {
+		            		solrCloud.deleteCollection(configsetName);
+		            	} catch (Exception ex) {
+		            		if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
+		            			//log.debug("Error trying to delete collection: " + ex);
+		            		} else {
+		            			//log.warn("Error trying to delete collection: " + ex);
+		            		}
 		            	}
+		            	solrCloud.uploadConfigSet(setup.configset, configsetName);
+		            	solrCloud.createCollection(setup, collectionName, configsetName);
 		            }
-		            solrCloud.uploadConfigSet(setup.configset, configsetName);
-		            solrCloud.createCollection(setup, collectionName, configsetName);
 		            long start = System.nanoTime();
 		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, benchmark);
 		            long end = System.nanoTime();
 
-		            if (i != setup.maxThreads) {
+		            if (i != setup.maxThreads && setup.createCollection) {
 		            	if (deleteAfter) {
 		            		solrCloud.deleteCollection(collectionName);
 		            	}

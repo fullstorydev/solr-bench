@@ -33,15 +33,15 @@
         "file-format": "json",
         "offset": 100000,
         "max-docs": 500000,
-        "batch-size": 10,
+        "batch-size": 100,
         "id-field": "id",
         "setups": [
           {
             "setup-name": "slow_updates",
             "collection": "ecommerce-events-${INDEX}",
             "create-collection": false,
-            "min-threads": 2,
-            "max-threads": 2,
+            "min-threads": 1,
+            "max-threads": 1,
             "thread-step": 1
           }
         ]
@@ -57,7 +57,6 @@
         "json-query": true,
         "shuffle": false,
         "rpm": 3000,
-        "offset": 2,
         "total-count": 1000,
         "warm-count": 20
       }
@@ -86,8 +85,10 @@
   },
   "global-variables": {
     "collection-counter": 0,
+    "inc-indexing-counter": 0,
     "query-collection-counter": 0,
-    "restart-counter": 0
+    "restart-counter": 0,
+    "restart-second-counter": 0
   },
   "global-constants": {
     "HOST": "localhost",
@@ -132,7 +133,37 @@
       "pre-task-evals": [
         "inc(query-collection-counter,1)"
       ]
+    },
+
+    "task4": {
+      "description": "Restart Solr node",
+      "instances": 3,
+      "concurrency": 1,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-second-counter}"
+      },
+      "wait-for": "task3",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-second-counter,1)"
+      ]
+    },
+
+    "task5a": {
+      "type": "incremental-indexing",
+      "instances": 200,
+      "concurrency": 2,
+      "mode": "sync",
+      "wait-for": "task4",
+      "parameters": {
+        "INDEX": "${inc-indexing-counter}"
+      },
+      "pre-task-evals": [
+        "inc(inc-indexing-counter,1)"
+      ]
     }
+
   },
   "cluster": {
     "num-solr-nodes": 3,
