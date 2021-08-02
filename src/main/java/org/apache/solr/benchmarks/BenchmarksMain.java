@@ -212,7 +212,7 @@ public class BenchmarksMain {
 		            	solrCloud.createCollection(setup, collectionName, configsetName);
 		            }
 		            long start = System.nanoTime();
-		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, benchmark);
+		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
 		            long end = System.nanoTime();
 
 		            if (i != setup.maxThreads && setup.createCollection) {
@@ -257,15 +257,15 @@ public class BenchmarksMain {
         }
     }
 
-    static void index(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
+    static void index(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
     	if (benchmark.fileFormat.equalsIgnoreCase("json")) {
-    		indexJsonComplex(baseUrl, collection, threads, benchmark);
+    		indexJsonComplex(baseUrl, collection, threads, setup, benchmark);
     	} else if (benchmark.fileFormat.equalsIgnoreCase("tsv")) {
-    		indexTSV(baseUrl, collection, threads, benchmark);
+    		indexTSV(baseUrl, collection, threads, setup, benchmark);
     	}
     }
 
-    static void indexTSV(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
+    static void indexTSV(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
         long start = System.currentTimeMillis();
         ConcurrentUpdateSolrClient client = new ConcurrentUpdateSolrClient.Builder(baseUrl).withThreadCount(threads).build();
         
@@ -298,7 +298,7 @@ public class BenchmarksMain {
         client.close();        
     }
     
-    static void indexJsonSimple(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
+    static void indexJsonSimple(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
 
     	long start = System.currentTimeMillis();
 
@@ -337,7 +337,7 @@ public class BenchmarksMain {
     	log.info("Indexed " + (count - errors) + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
     }
     
-    static void indexJsonComplex(String baseUrl, String collection, int threads, IndexBenchmark benchmark) throws Exception {
+    static void indexJsonComplex(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
 
         long start = System.currentTimeMillis();
         CloseableHttpClient httpClient = HttpClientUtil.createClient(null);
@@ -372,6 +372,9 @@ public class BenchmarksMain {
             		map.get(benchmark.idField) instanceof String? 
             				(String) map.get(benchmark.idField):
             				map.get(benchmark.idField).toString();
+            				
+            RateLimiter rateLimiter = setup.rpm == null? null: new RateLimiter(setup.rpm);
+
             while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
@@ -388,6 +391,8 @@ public class BenchmarksMain {
                 docs.add(line);
                 if (docs.size() >= benchmark.batchSize) {
                     shardVsDocs.remove(targetSlice.getName());
+                    
+                    if (rateLimiter != null) rateLimiter.waitIfRequired();
                     executor.submit(new UploadDocs(docs, httpClient,
                             shardVsLeader.get(targetSlice.getName()),
                             tasks, completed

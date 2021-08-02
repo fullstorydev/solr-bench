@@ -76,6 +76,10 @@ public class IndexBenchmark {
 
     @JsonProperty ("rpm")
     public Integer rpm;
+    
+    // Reuse client or create a new client instance per batch of indexing?
+    @JsonProperty ("single-client")
+    public boolean singleClient = false;
 
     @JsonProperty("min-threads")
     public int minThreads;
