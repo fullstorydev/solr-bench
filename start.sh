@@ -243,12 +243,9 @@ then
      vagrant destroy -f
      rm id_rsa*
 fi
-<<<<<<< HEAD
 if [ "vagrant" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      cd $ORIG_WORKING_DIR/vagrant
      vagrant destroy -f
      rm id_rsa*
 fi
-=======
->>>>>>> stress-harness
