@@ -28,20 +28,7 @@ public class ReqIdUtil {
         if (hex.length() >= ID_LENGTH) {
             return hex.substring(0, ID_LENGTH);
         }
-        String traceId = ZERO_STRING.substring(hex.length()) + hex;
-        String spanId = ZERO_STRING;
-        String parentId = ZERO_STRING;
-        String flags = Integer.toHexString(1);//sampled
-
-        return String.join(ID_SEPARATOR, traceId, spanId, parentId, flags);
-    }
-
-    public static void main(String[] args) {
-        System.out.println(generateTraceIdString());
-
-        System.out.println(generateTraceIdString());
-        System.out.println(generateTraceIdString());
-
+        return ZERO_STRING.substring(hex.length()) + hex;
     }
 
     public static <T> void injectReqId(T carrier, ReqIdInjector<T> injector) {
