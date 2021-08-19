@@ -28,4 +28,4 @@ Example: config.json (GCP), config-local.json (Local mode). For GCP, you need to
 * Results are available after the benchmark in results-\<timestamp\>.json file.
 
 ### Acknowledgement
-This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
+This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory team.
