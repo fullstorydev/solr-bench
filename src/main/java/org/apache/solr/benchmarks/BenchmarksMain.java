@@ -250,7 +250,7 @@ public class BenchmarksMain {
         List<String> headers = new ArrayList<String>(Arrays.asList(line.split("\\t")));
         for (int i=0; i<headers.size(); i++) if (headers.get(i).endsWith("#")) headers.remove(i--);
         System.out.println(headers);
-        
+
         while ((line = br.readLine()) != null) {
         	if (line.trim().equals("")) continue; // ignore empty lines
         	String fields[] = line.split("\\t");
@@ -313,14 +313,15 @@ public class BenchmarksMain {
                     shardVsDocs.remove(targetSlice.getName());
                     executor.submit(new UploadDocs(docs, httpClient,
                             shardVsLeader.get(targetSlice.getName()),
-                            tasks
+                            tasks,
+                            benchmark.reqTrace
                     ));
                 }
             }
             br.close();
             shardVsDocs.forEach((shard, docs) -> executor.submit(new UploadDocs(docs,
                     httpClient,
-                    shardVsLeader.get(shard), tasks)));
+                    shardVsLeader.get(shard), tasks, benchmark.reqTrace)));
         } finally {
             for (; ; ) {
                 if (tasks.get() <= 0) break;
@@ -343,12 +344,17 @@ public class BenchmarksMain {
         final HttpClient client;
         final String leaderUrl;
         final AtomicInteger counter;
+        private final boolean addReqId;
+        private static final ReqIdInjector<HttpPost> ID_INJECTOR = (ReqIdInjector<HttpPost>) (carrier, key, value) -> {
+            carrier.setHeader(key, value);
+        };
 
-        UploadDocs(List<String> docs, HttpClient client, String leaderUrl, AtomicInteger counter) {
+        UploadDocs(List<String> docs, HttpClient client, String leaderUrl, AtomicInteger counter, boolean addReqId) {
             this.docs = docs;
             this.client = client;
             this.leaderUrl = leaderUrl;
             this.counter = counter;
+            this.addReqId = addReqId;
             counter.incrementAndGet();
         }
 
@@ -356,6 +362,9 @@ public class BenchmarksMain {
         public void run() {
             HttpPost httpPost = new HttpPost(leaderUrl);
             httpPost.setHeader(new BasicHeader("Content-Type", "application/json; charset=UTF-8"));
+            if (addReqId) {
+                ReqIdUtil.injectReqId(httpPost, ID_INJECTOR);
+            }
 
             httpPost.setEntity(new BasicHttpEntity() {
                 @Override

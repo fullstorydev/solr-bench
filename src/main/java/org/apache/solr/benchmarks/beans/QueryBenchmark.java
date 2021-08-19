@@ -27,6 +27,9 @@ public class QueryBenchmark {
   @JsonProperty("shuffle")//"random" , "sequential"
   public Boolean shuffle = Boolean.TRUE;
 
+  @JsonProperty("req-trace")//whether inject _req_id trace header or not
+  public Boolean reqTrace = Boolean.FALSE;
+
   @JsonProperty("client-type")
   public String clientType;
 
