@@ -42,6 +42,9 @@ public class QueryBenchmark {
   @JsonProperty("duration-secs")
   public Integer duration;
 
+  @JsonProperty("offset")
+  public Integer offset = 0;
+  
   @JsonProperty("total-count")
   public Long totalCount;
 
@@ -53,4 +56,7 @@ public class QueryBenchmark {
 
   @JsonProperty("params")
   public Map<String,String> params = new HashMap<>();
+
+  @JsonProperty("headers")
+  public Map<String,String> headers;
 }

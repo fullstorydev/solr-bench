@@ -1,0 +1,86 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script>
+window.onload = function() {
+
+	//var lines = [];
+
+/*	var options =  {
+		animationEnabled: true,
+		theme: "light2",
+		title: {
+			text: "Daily Sales Data"
+		},
+		axisX: {
+			//valueFormatString: "DD MMM YYYY",
+		},
+		axisY: {
+			title: "USD",
+			titleFontSize: 24
+		},
+		data: [{
+			type: "spline", 
+			yValueFormatString: "#.##",
+			dataPoints: lines
+		}]
+	};*/
+
+	function addData(data) {
+		var counter = 0;
+		var lines = [];
+
+		for (var key in data) {
+			//alert(data["solr-metrics"][key])
+
+			line = []
+			for (var i = 0; i < data[key]["jvm/solr.jvm/memory.heap.usage"].length; i++) {
+					if (data[key]["jvm/solr.jvm/memory.heap.usage"][i] != -1) {
+				line.push({
+					x: i*2,
+					y: data[key]["jvm/solr.jvm/memory.heap.usage"][i]
+				});
+						}
+			}
+			lines.push(line)
+		}
+
+		var options = {
+				animationEnabled: false,
+				theme: "light2",
+				title: {
+					text: "Memory consumption"
+				},
+				axisX: {
+					//valueFormatString: "DD MMM YYYY",
+				},
+				axisY: {
+					title: "Heap usage",
+					titleFontSize: 24
+				},
+				data: []
+			};
+		
+		for (i=0; i<lines.length; i++) {
+			options['data'].push({
+					type: "line", 
+					yValueFormatString: "#.##",
+					dataPoints: lines[i]
+				});
+		}
+
+		$("#chartContainer").CanvasJSChart(options);
+
+
+	}
+	$.getJSON("metrics-stress.json", addData);
+
+}
+</script>
+</head>
+<body>
+<div id="chartContainer" style="height: 370px; width: 100%;"></div>
+<script src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+<script src="https://canvasjs.com/assets/script/jquery.canvasjs.min.js"></script>
+</body>
+</html>

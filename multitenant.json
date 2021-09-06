@@ -1,0 +1,189 @@
+{
+  "task-types": {
+    "indexing": {
+      "index-benchmark": {
+        "name": "ECOMMERCE_EVENTS",
+        "description": "E-Commerce Events dataset",
+        "replication-type": "cloud",
+        "dataset-file": "ecommerce-events.json.gz",
+        "file-format": "json",
+        "max-docs": 50000,
+        "batch-size": 10000,
+        "id-field": "id",
+        "setups": [
+          {
+            "setup-name": "bulk_index",
+            "collection": "ecommerce-events-${INDEX}",
+            "configset": "conf_ecommerce_events",
+            "replication-factor": 1,
+            "shards": 3,
+            "min-threads": 2,
+            "max-threads": 2,
+            "thread-step": 1
+          }
+        ]
+      }
+    },
+    "incremental-indexing": {
+      "index-benchmark": {
+        "name": "ECOMMERCE_EVENTS",
+        "description": "E-Commerce Events dataset",
+        "replication-type": "cloud",
+        "dataset-file": "ecommerce-events.json.gz",
+        "file-format": "json",
+        "offset": 100000,
+        "max-docs": 110000,
+        "batch-size": 5,
+        "id-field": "id",
+        "setups": [
+          {
+            "setup-name": "slow_updates",
+            "collection": "ecommerce-events-${INDEX}",
+            "create-collection": false,
+            "min-threads": 1,
+            "max-threads": 1,
+            "thread-step": 1
+          }
+        ]
+      }
+    },
+    "querying": {
+      "query-benchmark": {
+        "name": "Regular queries",
+        "collection": "ecommerce-events-${INDEX}",
+        "query-file": "queries-ecommerce.json",
+        "min-threads": 1,
+        "max-threads": 1,
+        "json-query": true,
+        "shuffle": false,
+        "rpm": 3000,
+        "total-count": 800,
+        "warm-count": 20
+      }
+    },
+
+    "ongoing-querying": {
+      "query-benchmark": {
+        "name": "Ongoing queries",
+        "collection": "ecommerce-events-${INDEX}",
+        "query-file": "queries-ecommerce.json",
+        "min-threads": 1,
+        "max-threads": 1,
+        "json-query": true,
+        "shuffle": false,
+        "rpm": 300,
+        "offset": 1000,
+        "total-count": 500,
+        "warm-count": 0
+      }
+    },
+
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "inc-indexing-counter": 0,
+    "query-collection-counter": 0,
+    "restart-counter": 0,
+    "restart-second-counter": 0
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "task1": {
+      "type": "indexing",
+      "instances": 200,
+      "concurrency": 2,
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${collection-counter}"
+      },
+      "pre-task-evals": [
+        "inc(collection-counter,1)"
+      ]
+    },
+    "task2": {
+      "description": "Restart Solr node",
+      "instances": 3,
+      "concurrency": 1,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "task1",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
+    },
+    "task3": {
+      "type": "querying",
+      "instances": 200,
+      "concurrency": 8,
+      "wait-for": "task2",
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${query-collection-counter}"
+      },
+      "pre-task-evals": [
+        "inc(query-collection-counter,1)"
+      ]
+    },
+
+    "task4": {
+      "description": "Restart Solr node",
+      "instances": 3,
+      "concurrency": 1,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-second-counter}"
+      },
+      "wait-for": "task3",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-second-counter,1)"
+      ]
+    },
+
+    "task5a": {
+      "type": "incremental-indexing",
+      "instances": 200,
+      "concurrency": 50,
+      "mode": "sync",
+      "wait-for": "task4",
+      "parameters": {
+        "INDEX": "${inc-indexing-counter}"
+      },
+      "pre-task-evals": [
+        "inc(inc-indexing-counter,1)"
+      ]
+    }
+
+  },
+  "cluster": {
+    "num-solr-nodes": 3,
+    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u291-linux-x64.tar.gz",
+    "jdk-tarball": "jdk-8u291-linux-x64.tar.gz",
+    "jdk-directory": "jdk1.8.0_291",
+    "startup-params": "-m 12g",
+    "provisioning-method": "local"
+  },
+  "repository": {
+    "commit-id": "01c4381d6f960429ccd02c674b94b9338c79c290",
+    "description": "Solr 8.10",
+    "name": "git-repository",
+    "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+    "url": "https://github.com/apache/lucene-solr",
+    "user": "ishan"
+  },
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage"
+  ]
+}
