@@ -41,7 +41,7 @@ public class IndexBenchmark {
   @JsonProperty("id-field")
   public String idField = "id";
 
-  @JsonProperty("req-trace")//whether inject _req_id trace header or not
+  @JsonProperty("req-trace")//whether inject rid trace header or not
   public Boolean reqTrace = Boolean.FALSE;
 
   static public class Setup {

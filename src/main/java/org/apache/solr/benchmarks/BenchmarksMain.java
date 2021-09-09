@@ -12,6 +12,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicHeader;
@@ -204,6 +206,8 @@ public class BenchmarksMain {
             return () -> {
                 try {
                     NamedList<Object> rsp = client.request(qr, collection);
+                    System.out.println("path: " + qr.getPath());
+                    System.out.println("params: " + qr.getParams());
                     printErrOutput(qr, rsp);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -345,8 +349,8 @@ public class BenchmarksMain {
         final String leaderUrl;
         final AtomicInteger counter;
         private final boolean addReqId;
-        private static final ReqIdInjector<HttpPost> ID_INJECTOR = (ReqIdInjector<HttpPost>) (carrier, key, value) -> {
-            carrier.setHeader(key, value);
+        private static final ReqIdInjector<URIBuilder> ID_INJECTOR = (ReqIdInjector<URIBuilder>) (carrier, key, value) -> {
+            carrier.addParameter(key, value);
         };
 
         UploadDocs(List<String> docs, HttpClient client, String leaderUrl, AtomicInteger counter, boolean addReqId) {
@@ -360,11 +364,20 @@ public class BenchmarksMain {
 
         @Override
         public void run() {
-            HttpPost httpPost = new HttpPost(leaderUrl);
-            httpPost.setHeader(new BasicHeader("Content-Type", "application/json; charset=UTF-8"));
-            if (addReqId) {
-                ReqIdUtil.injectReqId(httpPost, ID_INJECTOR);
+            URIBuilder builder;
+            HttpPost httpPost;
+            try {
+                builder = new URIBuilder(leaderUrl);
+                if (addReqId) {
+                    ReqIdUtil.injectReqId(builder, ID_INJECTOR);
+                }
+                httpPost = new HttpPost(builder.build());
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+                return;
             }
+
+            httpPost.setHeader(new BasicHeader("Content-Type", "application/json; charset=UTF-8"));
 
             httpPost.setEntity(new BasicHttpEntity() {
                 @Override

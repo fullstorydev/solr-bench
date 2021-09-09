@@ -9,13 +9,12 @@ import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.MapSolrParams;
+import org.apache.solr.common.params.MultiMapSolrParams;
 import org.apache.solr.common.params.SolrParams;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class QueryGenerator {
@@ -85,26 +84,37 @@ public class QueryGenerator {
 
                 @Override
                 public SolrParams getParams() {
-                    return new MapSolrParams(queryBenchmark.params);
+                    Map<String, String> params;
+                    if (queryBenchmark.reqTrace) {
+                        params = new HashMap<>(queryBenchmark.params);
+                        ReqIdUtil.injectReqId(params, ID_INJECTOR);
+                    } else {
+                        params = queryBenchmark.params;
+                    }
+                    return new MapSolrParams(params);
                 }
             };
 
         } else {
-            request = new QueryRequest(Util.parseQueryString(q)) {
+            MultiMapSolrParams params = Util.parseQueryString(q);
+            if (queryBenchmark.reqTrace) {
+                ReqIdUtil.injectReqId(params.getMap(), ID_INJECTOR_2);
+            }
+            request = new QueryRequest(params) {
                 @Override
                 public String getCollection() {
                     return queryBenchmark.collection;
                 }
             };
         }
-        if (queryBenchmark.reqTrace) {
-            ReqIdUtil.injectReqId(request, ID_INJECTOR);
-        }
 
         return request;
     }
 
-    private static final ReqIdInjector<QueryRequest> ID_INJECTOR = (ReqIdInjector<QueryRequest>) (carrier, key, value) -> {
-        carrier.addHeader(key, value);
+    private static final ReqIdInjector<Map<String, String>> ID_INJECTOR = (ReqIdInjector<Map<String, String>>) (carrier, key, value) -> {
+        carrier.put(key, value);
+    };
+    private static final ReqIdInjector<Map<String, String[]>> ID_INJECTOR_2 = (ReqIdInjector<Map<String, String[]>>) (carrier, key, value) -> {
+        carrier.put(key, new String[] { value });
     };
 }
