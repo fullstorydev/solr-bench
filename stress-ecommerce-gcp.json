@@ -28,13 +28,13 @@
           "query-benchmark": {
             "name": "Facet queries",
             "collection": "ecommerce-events",
-            "query-file": "queries-ecommerce.json",
+            "query-file": "queries-ecommerce-heavy.json",
             "min-threads": 1,
             "max-threads": 1,
             "json-query" : true,
             "shuffle": false,
             "rpm": 3000,
-            "total-count" : 10000,
+            "total-count" : 1000,
             "warm-count": 20
           }
       },
@@ -87,7 +87,6 @@
     },
 
     "cluster": {
-      "num-solr-nodes": 3,
       "jdk-url": "gs://solr-benchmarking-data/jdk-11.0.10_linux-x64_bin.tar.gz",
       "jdk-tarball": "jdk-11.0.10_linux-x64_bin.tar.gz",
       "jdk-directory": "jdk-11.0.10",
