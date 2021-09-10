@@ -36,11 +36,14 @@
       "query-file": "small-data/queryFile",
       "min-threads": 1,
       "max-threads": 2,
-      "json-query" : false,
+      "json-query": false,
       "rpm": 3000,
-      "total-count" : 21,
+      "total-count": 21,
       "warm-count": 5
     }
   ],
-  "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad"]
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.used",
+    "jvm/solr.jvm/os.systemCpuLoad"
+  ]
 }

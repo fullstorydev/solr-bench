@@ -61,7 +61,6 @@
         "warm-count": 20
       }
     },
-
     "ongoing-querying": {
       "query-benchmark": {
         "name": "Ongoing queries",
@@ -77,7 +76,6 @@
         "warm-count": 0
       }
     },
-
     "restart-solr-node": {
       "restart-solr-node": "${NODE_INDEX}",
       "await-recoveries": true
@@ -134,7 +132,6 @@
         "inc(query-collection-counter,1)"
       ]
     },
-
     "task4": {
       "description": "Restart Solr node",
       "instances": 3,
@@ -149,7 +146,6 @@
         "inc(restart-second-counter,1)"
       ]
     },
-
     "task5a": {
       "type": "incremental-indexing",
       "instances": 200,
@@ -163,7 +159,6 @@
         "inc(inc-indexing-counter,1)"
       ]
     }
-
   },
   "cluster": {
     "num-solr-nodes": 3,

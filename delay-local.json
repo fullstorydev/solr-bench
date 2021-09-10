@@ -15,7 +15,7 @@
     "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
     "submodules": false,
     "url": "https://github.com/apache/lucene-solr",
-    "user"  : "ishan"
+    "user": "ishan"
   },
   "index-benchmarks": [
     {
@@ -40,8 +40,8 @@
       ]
     }
   ],
-  "query-benchmarks": [
-
-  ],
-  "metrics": ["jvm/solr.jvm/memory.heap.used"]
+  "query-benchmarks": [],
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.used"
+  ]
 }

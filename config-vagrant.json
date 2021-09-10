@@ -6,15 +6,19 @@
     "startup-params": "-m 1g",
     "provisioning-method": "vagrant",
     "vagrant-config": {
-        "project_id" : "bold-gadget-222718",
-        "zookeeper_machine_type" : "n1-standard-2",
-        "zookeeper_disk_type" : "pd-ssd",
-        "solr_node_count" : 3,
-        "solr_machine_type" : "n1-standard-4",
-        "solr_disk_type"  : "pd-ssd",
-        "tags" : ["benchmarking", "solr", "temp"],
-        "public_key_path" : "id_rsa.pub",
-        "user" : "vagrant"
+      "project_id": "bold-gadget-222718",
+      "zookeeper_machine_type": "n1-standard-2",
+      "zookeeper_disk_type": "pd-ssd",
+      "solr_node_count": 3,
+      "solr_machine_type": "n1-standard-4",
+      "solr_disk_type": "pd-ssd",
+      "tags": [
+        "benchmarking",
+        "solr",
+        "temp"
+      ],
+      "public_key_path": "id_rsa.pub",
+      "user": "vagrant"
     }
   },
   "repository": {
@@ -25,7 +29,7 @@
     "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
     "submodules": false,
     "url": "https://github.com/apache/lucene-solr",
-    "user"  : "ishan"
+    "user": "ishan"
   },
   "index-benchmarks": [
     {
@@ -55,11 +59,14 @@
       "query-file": "small-data/queryFile",
       "min-threads": 1,
       "max-threads": 2,
-      "json-query" : false,
+      "json-query": false,
       "rpm": 3000,
-      "total-count" : 21,
+      "total-count": 21,
       "warm-count": 5
     }
   ],
-  "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad"]
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.used",
+    "jvm/solr.jvm/os.systemCpuLoad"
+  ]
 }
