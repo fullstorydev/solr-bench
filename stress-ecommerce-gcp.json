@@ -82,13 +82,13 @@
   },
   "cluster": {
     "num-solr-nodes": 3,
-    "jdk-url": "gs://solr-benchmarking-data/jdk-11.0.10_linux-x64_bin.tar.gz",
-    "jdk-tarball": "jdk-11.0.10_linux-x64_bin.tar.gz",
-    "jdk-directory": "jdk-11.0.10",
+    "jdk-url": "https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz",
+    "jdk-tarball": "openjdk-11.0.2_linux-x64_bin.tar.gz",
+    "jdk-directory": "jdk-11.0.2",
     "startup-params": "-m 24g",
     "provisioning-method": "terraform-gcp",
     "terraform-gcp-config": {
-      "project_id": "fs-playpen",
+      "project_id": "[GCP-PROJECT-ID]",
       "zookeeper_machine_type": "n2d-standard-2",
       "zookeeper_disk_type": "pd-ssd",
       "zookeeper_instance_name": "benchmarks-zk",
@@ -106,7 +106,16 @@
       "user": "solruser"
     }
   },
-  "solr-package": "gs://solr-benchmarking-data/solr-8.8.1-ec25fc537144d5613a84c63b2da9e97357fb0f17.tgz",
+  "repository": {
+    "commit-id": "01c4381d6f960429ccd02c674b94b9338c79c290",
+    "description": "Solr 8.10",
+    "name": "git-repository",
+    "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+    "url": "https://github.com/apache/lucene-solr",
+    "user": "ishan"
+  },
   "metrics": [
     "jvm/solr.jvm/memory.heap.usage"
   ]
