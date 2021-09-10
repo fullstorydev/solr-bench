@@ -45,7 +45,7 @@ In the coordinator VM (GCP) or local machine (local mode), check out this solr-b
 ### Examples
 
 * rolling-83.json: Local mode, for test of rolling restarts
-* stress-ecommerce-local.json: Local mode, for time series events dataset. Please download the dataset from http://185.14.187.116/ecommerce-events.json.gz before running the test.
+* stress-ecommerce-[local/gcp].json: Local or GCP mode, for time series events dataset. Please download the dataset from http://185.14.187.116/ecommerce-events.json.gz before running the test. Dataset source: https://www.kaggle.com/mkechinov/ecommerce-behavior-data-from-multi-category-store
 * delay-local.json: Local mode, for Airlines delays dataset. Please download the dataset from http://185.14.187.116/delay.json.gz before running the test.
 
 ### Visualization (WIP)

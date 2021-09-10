@@ -75,7 +75,8 @@ terraform-gcp-provisioner() {
      export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
      export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
-
+     export BENCH_USER="solruser"
+     export BENCH_KEY="terraform/id_rsa"
      ./startzk.sh
 
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
@@ -87,7 +88,7 @@ terraform-gcp-provisioner() {
 }
 
 # Download the pre-requisites
-wget -c `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
+download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
 wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz 
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
@@ -126,7 +127,7 @@ fi
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
 echo_blue "Running Stress suite from working directory: $ORIG_WORKING_DIR"
-java -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+java -Xmx16g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    StressMain $CONFIGFILE
 
 # Grab GC logs
