@@ -105,7 +105,7 @@
       "user": "solruser"
     }
   },
-  "solr-package": "gs://solr-benchmarking-data/solr-8.8.1-ec25fc537144d5613a84c63b2da9e97357fb0f17.tgz",
+  "solr-package": "https://archive.apache.org/dist/lucene/solr/8.8.1/solr-8.8.1.tgz",
   "metrics": [
     "jvm/solr.jvm/memory.heap.usage"
   ]
