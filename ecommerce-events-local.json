@@ -15,7 +15,7 @@
     "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
     "submodules": false,
     "url": "https://github.com/apache/lucene-solr",
-    "user"  : "ishan"
+    "user": "ishan"
   },
   "index-benchmarks": [
     {
@@ -43,17 +43,19 @@
   ],
   "query-benchmarks": [
     {
-	          "name": "Facet queries",
-		        "collection": "ecommerce-events",
-			      "query-file": "queries-ecommerce.json",
-			            "min-threads": 1,
-				          "max-threads": 1,
-					        "json-query" : true,
-                  "shuffle": false,
-						      "rpm": 3000,
-						            "total-count" : 10000,
-							          "warm-count": 20
-								 }
+      "name": "Facet queries",
+      "collection": "ecommerce-events",
+      "query-file": "queries-ecommerce.json",
+      "min-threads": 1,
+      "max-threads": 1,
+      "json-query": true,
+      "shuffle": false,
+      "rpm": 3000,
+      "total-count": 10000,
+      "warm-count": 20
+    }
   ],
-  "metrics": ["jvm/solr.jvm/memory.heap.usage"]
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage"
+  ]
 }

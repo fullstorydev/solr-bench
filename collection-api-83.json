@@ -1,25 +1,25 @@
 {
     "task-types": {
-      "indexing":  {
-			"index-benchmark": {
-			      "name": "CLOUD_INDEXING",
-			      "description": "Wikipedia dataset on SolrCloud",
-			      "replication-type": "cloud",
-			      "dataset-file": "small-data/small-enwiki.tsv.gz",
-			      "file-format": "tsv",
-			      "id-field": "id",
-			      "setups": [
-			        {
-			          "setup-name": "cloud_2x2",
-			          "collection": "small-wikipedia-${INDEX}",
-			          "replication-factor": 3,
-			          "shards": 1,
-			          "min-threads": 2,
-			          "max-threads": 2,
-			          "thread-step": 1
-			        }
-			      ]
-		    }		
+        "indexing": {
+            "index-benchmark": {
+                "name": "CLOUD_INDEXING",
+                "description": "Wikipedia dataset on SolrCloud",
+                "replication-type": "cloud",
+                "dataset-file": "small-data/small-enwiki.tsv.gz",
+                "file-format": "tsv",
+                "id-field": "id",
+                "setups": [
+                    {
+                        "setup-name": "cloud_2x2",
+                        "collection": "small-wikipedia-${INDEX}",
+                        "replication-factor": 3,
+                        "shards": 1,
+                        "min-threads": 2,
+                        "max-threads": 2,
+                        "thread-step": 1
+                    }
+                ]
+            }
         },
         "collection-creation": {
             "command": "${SOLRURL}admin/collections?action=CREATE&name=collection${INDEX}&numShards=${SHARDS}",
@@ -41,16 +41,16 @@
             "defaults": {}
         },
         "restart-solr-node": {
-        	"restart-solr-node": "${NODE_INDEX}",
-        	"await-recoveries": true
+            "restart-solr-node": "${NODE_INDEX}",
+            "await-recoveries": true
         }
     },
     "global-variables": {
         "collection-counter": 0,
         "split-counter": 0,
-	"addreplica-counter": 0,
-	        "addreplica1-counter": 0,
-		        "addreplica2-counter": 0
+        "addreplica-counter": 0,
+        "addreplica1-counter": 0,
+        "addreplica2-counter": 0
     },
     "global-constants": {
         "HOST": "localhost",
@@ -70,7 +70,6 @@
                 "inc(collection-counter,1)"
             ]
         },
-        
         "task2": {
             "description": "Split all the collections' shard1, 10 at a time",
             "type": "shard-splitting",
@@ -86,29 +85,27 @@
             "wait-for": "task1",
             "mode": "async"
         },
-
         "task3": {
             "description": "ADDREPLICA for all the collections' shard1, 10 at a time",
             "type": "add-replica",
             "instances": 40,
             "concurrency": 10,
             "parameters": {
-                 "INDEX": "${addreplica-counter}",
-                 "SHARD": "shard1"
+                "INDEX": "${addreplica-counter}",
+                "SHARD": "shard1"
             },
             "pre-task-evals": [
-                 "inc(addreplica-counter,1)"
+                "inc(addreplica-counter,1)"
             ],
             "wait-for": "task1",
             "mode": "async"
         },
-
-       "task4": {
-           "description": "After SPLITs complete, lots of ADDREPLICA for all the collections' shard1_1, 20 at a time",
-           "type": "add-replica",
-           "instances": 40,
-           "concurrency": 20,
-           "parameters": {
+        "task4": {
+            "description": "After SPLITs complete, lots of ADDREPLICA for all the collections' shard1_1, 20 at a time",
+            "type": "add-replica",
+            "instances": 40,
+            "concurrency": 20,
+            "parameters": {
                 "INDEX": "${addreplica2-counter}",
                 "SHARD": "shard1_1"
             },
@@ -118,25 +115,25 @@
             "wait-for": "task2",
             "mode": "async"
         }
-        
     },
-
-  "cluster": {
-    "num-solr-nodes": 10,
-    "startup-params": "-m 4g -V",
-    "provisioning-method": "local"
-  },
-  "repository": {
-    "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
-    "description": "Solr 8.4",
-    "name": "git-repository",
-    "package-subdir": "/solr/package/",
-    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
-    "submodules": false,
-    "url": "https://github.com/apache/lucene-solr",
-    "user"  : "ishan"
-  },
-  "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad", "solr.jetty/solr.jetty/org.eclipse.jetty.server.handler.DefaultHandler.get-requests/count"]
+    "cluster": {
+        "num-solr-nodes": 10,
+        "startup-params": "-m 4g -V",
+        "provisioning-method": "local"
+    },
+    "repository": {
+        "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+        "description": "Solr 8.4",
+        "name": "git-repository",
+        "package-subdir": "/solr/package/",
+        "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+        "submodules": false,
+        "url": "https://github.com/apache/lucene-solr",
+        "user": "ishan"
+    },
+    "metrics": [
+        "jvm/solr.jvm/memory.heap.used",
+        "jvm/solr.jvm/os.systemCpuLoad",
+        "solr.jetty/solr.jetty/org.eclipse.jetty.server.handler.DefaultHandler.get-requests/count"
+    ]
 }
-
-

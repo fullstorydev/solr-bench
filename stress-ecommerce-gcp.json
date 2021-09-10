@@ -1,113 +1,112 @@
 {
-    "task-types": {
-      "indexing":  {
-			"index-benchmark": {
-                "name": "ECOMMERCE_EVENTS",
-                "description": "E-Commerce Events dataset",
-                "replication-type": "cloud",
-                "dataset-file": "ecommerce-events.json.gz",
-                "file-format": "json",
-                "max-docs": 50000000,
-                "batch-size": 50000,
-                "id-field": "id",
-                "setups": [
-                  {
-                    "setup-name": "cloud_3x1",
-                    "collection": "ecommerce-events",
-                    "configset": "conf_ecommerce_events",
-                    "replication-factor": 1,
-                    "shards": 3,
-                    "min-threads": 8,
-                    "max-threads": 8,
-                    "thread-step": 1
-                  }
-                ]
-              }		
-        },
-      "querying": {
-          "query-benchmark": {
-            "name": "Facet queries",
+  "task-types": {
+    "indexing": {
+      "index-benchmark": {
+        "name": "ECOMMERCE_EVENTS",
+        "description": "E-Commerce Events dataset",
+        "replication-type": "cloud",
+        "dataset-file": "ecommerce-events.json.gz",
+        "file-format": "json",
+        "max-docs": 50000000,
+        "batch-size": 50000,
+        "id-field": "id",
+        "setups": [
+          {
+            "setup-name": "cloud_3x1",
             "collection": "ecommerce-events",
-            "query-file": "queries-ecommerce-heavy.json",
-            "min-threads": 1,
-            "max-threads": 1,
-            "json-query" : true,
-            "shuffle": false,
-            "rpm": 3000,
-            "total-count" : 1000,
-            "warm-count": 20
+            "configset": "conf_ecommerce_events",
+            "replication-factor": 1,
+            "shards": 3,
+            "min-threads": 8,
+            "max-threads": 8,
+            "thread-step": 1
           }
+        ]
+      }
+    },
+    "querying": {
+      "query-benchmark": {
+        "name": "Facet queries",
+        "collection": "ecommerce-events",
+        "query-file": "queries-ecommerce-heavy.json",
+        "min-threads": 1,
+        "max-threads": 1,
+        "json-query": true,
+        "shuffle": false,
+        "rpm": 3000,
+        "total-count": 1000,
+        "warm-count": 20
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "restart-counter": 0
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "task1": {
+      "type": "indexing",
+      "instances": 1,
+      "concurrency": 1,
+      "mode": "sync"
+    },
+    "task2": {
+      "description": "Restart Solr node",
+      "instances": 3,
+      "concurrency": 1,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
       },
-      "restart-solr-node": {
-        	"restart-solr-node": "${NODE_INDEX}",
-        	"await-recoveries": true
-      }
+      "wait-for": "task1",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
     },
-    "global-variables": {
-        "collection-counter": 0,
-        "restart-counter": 0
-    },
-    "global-constants": {
-        "HOST": "localhost",
-        "PORT": "8983"
-    },
-    "execution-plan": {
-        "task1": {
-            "type": "indexing",
-            "instances": 1,
-            "concurrency": 1,
-            "mode": "sync"
-        },
-        
-        "task2": {
-            "description": "Restart Solr node",
-            "instances": 3,
-            "concurrency": 1,
-            "type": "restart-solr-node",
-            "parameters": {
-                "NODE_INDEX": "${restart-counter}"
-            },
-            "wait-for": "task1",
-            "mode": "sync",
-            "pre-task-evals": [
-                "inc(restart-counter,1)"
-            ]
-            
-        },
-        
-        "task3": {
-            "type": "querying",
-            "instances": 1,
-            "concurrency": 1,
-            "wait-for": "task2",
-            "mode": "sync"
-        }
-
-        
-    },
-
-    "cluster": {
-      "jdk-url": "gs://solr-benchmarking-data/jdk-11.0.10_linux-x64_bin.tar.gz",
-      "jdk-tarball": "jdk-11.0.10_linux-x64_bin.tar.gz",
-      "jdk-directory": "jdk-11.0.10",
-      "startup-params": "-m 24g",
-      "provisioning-method": "terraform-gcp",
-      "terraform-gcp-config": {
-          "project_id" : "fs-playpen",
-          "zookeeper_machine_type" : "n2d-standard-2",
-          "zookeeper_disk_type" : "pd-ssd",
-          "zookeeper_instance_name": "benchmarks-zk",
-          "solr_instance_name": "benchmarks-solr",
-          "solr_node_count" : 1,
-          "solr_machine_type" : "n2d-standard-16",
-          "solr_boot_image": "debian-cloud/debian-10",
-          "solr_disk_type"  : "pd-ssd",
-          "tags" : ["benchmarking", "solr", "temp"],
-          "public_key_path" : "id_rsa.pub",
-          "user" : "solruser"
-      }
-    },
-    "solr-package": "gs://solr-benchmarking-data/solr-8.8.1-ec25fc537144d5613a84c63b2da9e97357fb0f17.tgz",
-    "metrics": ["jvm/solr.jvm/memory.heap.usage"]
+    "task3": {
+      "type": "querying",
+      "instances": 1,
+      "concurrency": 1,
+      "wait-for": "task2",
+      "mode": "sync"
+    }
+  },
+  "cluster": {
+    "jdk-url": "https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz",
+    "jdk-tarball": "openjdk-11.0.2_linux-x64_bin.tar.gz",
+    "jdk-directory": "jdk-11.0.2",
+    "startup-params": "-m 24g",
+    "provisioning-method": "terraform-gcp",
+    "terraform-gcp-config": {
+      "project_id": "[GCP-PROJECT-ID]",
+      "zookeeper_machine_type": "n2d-standard-2",
+      "zookeeper_disk_type": "pd-ssd",
+      "zookeeper_instance_name": "benchmarks-zk",
+      "solr_instance_name": "benchmarks-solr",
+      "solr_node_count": 1,
+      "solr_machine_type": "n2d-standard-16",
+      "solr_boot_image": "debian-cloud/debian-10",
+      "solr_disk_type": "pd-ssd",
+      "tags": [
+        "benchmarking",
+        "solr",
+        "temp"
+      ],
+      "public_key_path": "id_rsa.pub",
+      "user": "solruser"
+    }
+  },
+  "solr-package": "gs://solr-benchmarking-data/solr-8.8.1-ec25fc537144d5613a84c63b2da9e97357fb0f17.tgz",
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage"
+  ]
 }
-
