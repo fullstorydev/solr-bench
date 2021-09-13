@@ -12,3 +12,5 @@ vagrant/files/*
 vagrant/id_rsa.pub
 vagrant/id_rsa
 vagrant/.vagrant
+terraform/id_rsa
+terraform/id_rsa.pub
