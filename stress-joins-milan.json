@@ -94,7 +94,7 @@
       "provisioning-method": "terraform-gcp",
       "terraform-gcp-config": {
           "project_id" : "[GCP-PROJECT]",
-          "min_cpu_platform": "AMD Rome",
+          "min_cpu_platform": "AMD Milan",
           "zookeeper_machine_type" : "n2d-standard-2",
           "zookeeper_disk_type" : "pd-ssd",
           "zookeeper_instance_name": "benchmarks-zk",

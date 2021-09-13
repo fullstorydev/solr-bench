@@ -98,3 +98,8 @@ variable "user" {
   default     = "solruser"
 }
 
+variable "min_cpu_platform" {
+  description = "The minimum CPU platform. For N2D instances, this is either 'AMD Rome' or 'AMD Milan', for other instances, refer to documentation"
+  default = "AMD Rome"
+}
+

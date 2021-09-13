@@ -10,6 +10,8 @@ module "zookeeper" {
   boot_image  = var.zookeeper_boot_image
   disk_type   = var.zookeeper_disk_type
 
+  min_cpu_platform = var.min_cpu_platform
+
   network_name = var.network_name
 
   user             = var.user
@@ -34,6 +36,8 @@ module "solr_node" {
   device_name = var.solr_device_name
   boot_image  = var.solr_boot_image
   disk_type   = var.solr_disk_type
+
+  min_cpu_platform = var.min_cpu_platform
 
   network_name = var.network_name
 
