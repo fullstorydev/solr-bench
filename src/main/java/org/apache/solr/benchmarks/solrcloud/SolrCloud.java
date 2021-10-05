@@ -98,8 +98,9 @@ public class SolrCloud {
       ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
 
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
+    	  int nodeIndex = i;
     	  Callable c = () -> {
-    		  SolrNode node = new LocalSolrNode(solrPackagePath, cluster.startupParams, zookeeper);
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
     		  
     		  try {
 	    		  node.init();
