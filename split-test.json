@@ -52,10 +52,10 @@
             ]
         },
         "task2": {
-            "description": "Split all the collections' shard1, 10 at a time",
+            "description": "Keep splitting active shards 1500 times, 10 at a time.",
             "type": "shard-splitting",
-            "instances": 1000,
-            "concurrency": 5,
+            "instances": 1500,
+            "concurrency": 10,
             "parameters": {
                 "COLLECTION": "small-wikipedia-1"
             },
@@ -67,8 +67,8 @@
         }
     },
     "cluster": {
-        "num-solr-nodes": 3,
-        "startup-params": "-m 4g -V",
+        "num-solr-nodes": 1,
+        "startup-params": "-m 16g -V",
         "provisioning-method": "local"
     },
   "solr-package": "https://archive.apache.org/dist/lucene/solr/8.8.1/solr-8.8.1.tgz",

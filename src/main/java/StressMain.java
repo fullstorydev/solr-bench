@@ -40,6 +40,7 @@ import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
 import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -386,37 +387,16 @@ public class StressMain {
 					} else if (type.command != null) {
 						Map<String, String> solrurlMap = new HashMap<>();
 						solrurlMap.put("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
-						if (type.command.contains("RANDOM_SHARD")) {
-							try(CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build()) {
-								String collection = params.get("COLLECTION");
-								System.out.println("Trying to get shards for collection: "+collection);
-								List<Slice> slices = new ArrayList();
-								
-								Thread.sleep(500);
-								client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
-								//System.out.println("Clusterstate: "+client.getZkStateReader().getClusterState().getCollection(collection));
-								for (Slice s: client.getZkStateReader().getClusterState().getCollection(collection).getSlices()) {
-									if (s.getState().equals(Slice.State.ACTIVE)) {
-										slices.add(s);
-									}
-								}
-								Collections.shuffle(slices);
-								System.out.println("Active slices: "+slices.size());
-								solrurlMap.put("RANDOM_SHARD", slices.get(0).getName());
-							}
-						}
+						resolveRandomShard(cloud, type, params, solrurlMap);
 						String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap); //nocommit resolve instance.parameters as well
-						System.out.println("Running in "+instance.mode+" mode: "+command);
+						log.info("Running in "+instance.mode+" mode: "+command);
 
 						long taskStart = System.currentTimeMillis();
 						int responseCode = -1;
 						try {
-							//String output = IOUtils.toString(new URL(command).openStream(), Charset.forName("UTF-8"));
-							
 							HttpURLConnection connection = (HttpURLConnection) new URL(command).openConnection();
 							responseCode = connection.getResponseCode();
 							String output = IOUtils.toString((InputStream)connection.getContent(), Charset.forName("UTF-8"));
-							
 							log.info("Output ("+responseCode+"): "+output);
 						} catch (Exception ex) {
 							ex.printStackTrace();
@@ -448,6 +428,36 @@ public class StressMain {
 		if (metricsCollector != null) {
 			new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
 		}
+	}
+
+	private static void resolveRandomShard(SolrCloud cloud, TaskType type, Map<String, String> params,
+			Map<String, String> solrurlMap) throws InterruptedException, KeeperException, IOException {
+		if (type.command.contains("RANDOM_SHARD")) {
+			try(CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build()) {
+				String collection = params.get("COLLECTION");
+				if (collection == null) {
+					throw new RuntimeException("To use RANDOM_SHARD, you must provide a 'collection' parameter.");
+				}
+				System.out.println("Trying to get shards for collection: "+collection);
+				Thread.sleep(500);
+				List<Slice> slices = getActiveSlicedShuffled(client, collection);
+				log.info("Active slices: "+slices.size());
+				solrurlMap.put("RANDOM_SHARD", slices.get(0).getName());
+			}
+		}
+	}
+
+	private static List<Slice> getActiveSlicedShuffled(CloudSolrClient client, String collection)
+			throws KeeperException, InterruptedException {
+		List<Slice> slices = new ArrayList();
+		client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+		for (Slice s: client.getZkStateReader().getClusterState().getCollection(collection).getSlices()) {
+			if (s.getState().equals(Slice.State.ACTIVE)) {
+				slices.add(s);
+			}
+		}
+		Collections.shuffle(slices);
+		return slices;
 	}
 
 	private static class PRS {
