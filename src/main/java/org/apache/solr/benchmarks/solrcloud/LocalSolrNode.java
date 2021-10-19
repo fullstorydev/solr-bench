@@ -19,6 +19,7 @@ package org.apache.solr.benchmarks.solrcloud;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
@@ -36,12 +37,16 @@ public class LocalSolrNode implements SolrNode {
   private final Zookeeper zookeeper;
   private final String solrPackagePath;
   private final String startupParams;
+  private final List<String> startupParamsOverrides;
+  private final int nodeIndex;
   
-  public LocalSolrNode(String solrPackagePath, String startupParams, Zookeeper zookeeper)
+  public LocalSolrNode(String solrPackagePath, int nodeIndex, String startupParams, List<String> startupParamsOverrides, Zookeeper zookeeper)
       throws Exception {
     this.zookeeper = zookeeper;
     this.solrPackagePath = solrPackagePath;
     this.startupParams = startupParams;
+    this.startupParamsOverrides = startupParamsOverrides;
+    this.nodeIndex = nodeIndex;
   }
 
   @Override
@@ -93,8 +98,13 @@ public class LocalSolrNode implements SolrNode {
 
     start = System.currentTimeMillis();
     new File(binDirectory + "solr").setExecutable(true);
-    	returnValue = Util.execute(binDirectory + "solr start -force -Dhost=localhost " + "-p " + port + " " + (startupParams!=null?startupParams:"") + " " + " -z "
-    			+ zookeeper.getHost() + ":" + zookeeper.getPort(), binDirectory);
+	
+    String startup = (startupParams != null ? startupParams : "");
+    if (startupParamsOverrides != null && startupParamsOverrides.size() >= nodeIndex && startupParamsOverrides.get(nodeIndex-1).trim().length()>0) startup = startupParamsOverrides.get(nodeIndex-1);
+
+    returnValue = Util.execute(binDirectory + "solr start -force -Dhost=localhost " + "-p " + port + " "
+			+ startup + " -V " + " -z " + zookeeper.getHost() + ":"
+			+ zookeeper.getPort(), binDirectory);
 
     end = System.currentTimeMillis();
 

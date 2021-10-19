@@ -44,6 +44,7 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Delete;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest.OverseerStatus;
 import org.apache.solr.client.solrj.request.ConfigSetAdminRequest;
 import org.apache.solr.client.solrj.request.HealthCheckRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
@@ -95,11 +96,13 @@ public class SolrCloud {
         throw new RuntimeException("Failed to start Zookeeper!");
       }
 
-      ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
+      ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
+    		  //Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
 
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
+    	  int nodeIndex = i;
     	  Callable c = () -> {
-    		  SolrNode node = new LocalSolrNode(solrPackagePath, cluster.startupParams, zookeeper);
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
     		  
     		  try {
 	    		  node.init();
@@ -153,6 +156,12 @@ public class SolrCloud {
       
       this.nodes = healthyNodes;
       log.info("Healthy nodes: "+healthyNodes.size());
+      
+      try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(getZookeeperUrl()).build();) {
+	      log.info("Cluster state: " + client.getClusterStateProvider().getClusterState());
+	      log.info("Overseer: " + client.request(new OverseerStatus()));
+      }
+
       
     } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());

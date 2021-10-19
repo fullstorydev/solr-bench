@@ -69,7 +69,6 @@ terraform-gcp-provisioner() {
 
      # Start Solr on provisioned instances
      cd $ORIG_WORKING_DIR
-     export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
      export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
@@ -79,11 +78,16 @@ terraform-gcp-provisioner() {
      export BENCH_KEY="terraform/id_rsa"
      ./startzk.sh
 
+     NODE_COUNTER=0
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
+          export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
+          OVERRIDE=`jq -r '."cluster"."startup-params-overrides"[$NODE_COUNTER]' $CONFIGFILE`
+          if [[ "null" == $OVERRIDE ]] ; then echo "No startup param override"; else export SOLR_STARTUP_PARAMS=$OVERRIDE; fi
           SOLR_NODE=${line//\"/}
-          echo_blue "Starting Solr on $SOLR_NODE"
+          echo_blue "Starting Solr on $SOLR_NODE ($NODE_COUNTER), override=$OVERRIDE"
           ./startsolr.sh $SOLR_NODE
+          let NODE_COUNTER=NODE_COUNTER+1
      done
 }
 

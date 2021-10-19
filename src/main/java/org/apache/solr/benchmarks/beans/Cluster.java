@@ -1,5 +1,6 @@
 package org.apache.solr.benchmarks.beans;
 
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,6 +24,9 @@ public class Cluster {
   @JsonProperty("startup-params")
   public String startupParams;
 
+  @JsonProperty("startup-params-overrides")
+  public List<String> startupParamsOverrides;
+  
   @JsonProperty("terraform-gcp-config")
   public Map<String, Object> terraformGCPConfig;
 
