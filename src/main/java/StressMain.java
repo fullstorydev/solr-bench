@@ -1,6 +1,8 @@
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -20,6 +22,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.net.ssl.HttpsURLConnection;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -380,19 +384,45 @@ public class StressMain {
 							ex.printStackTrace();
 						}
 					} else if (type.command != null) {
-						Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+						Map<String, String> solrurlMap = new HashMap<>();
+						solrurlMap.put("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+						if (type.command.contains("RANDOM_SHARD")) {
+							try(CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build()) {
+								String collection = params.get("COLLECTION");
+								System.out.println("Trying to get shards for collection: "+collection);
+								List<Slice> slices = new ArrayList();
+								
+								Thread.sleep(500);
+								client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+								//System.out.println("Clusterstate: "+client.getZkStateReader().getClusterState().getCollection(collection));
+								for (Slice s: client.getZkStateReader().getClusterState().getCollection(collection).getSlices()) {
+									if (s.getState().equals(Slice.State.ACTIVE)) {
+										slices.add(s);
+									}
+								}
+								Collections.shuffle(slices);
+								System.out.println("Active slices: "+slices.size());
+								solrurlMap.put("RANDOM_SHARD", slices.get(0).getName());
+							}
+						}
 						String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap); //nocommit resolve instance.parameters as well
-						log.info("Running in "+instance.mode+" mode: "+command);
+						System.out.println("Running in "+instance.mode+" mode: "+command);
 
 						long taskStart = System.currentTimeMillis();
+						int responseCode = -1;
 						try {
-							String output = IOUtils.toString(new URL(command).openStream(), Charset.forName("UTF-8"));
-							log.info("Output: "+output);
+							//String output = IOUtils.toString(new URL(command).openStream(), Charset.forName("UTF-8"));
+							
+							HttpURLConnection connection = (HttpURLConnection) new URL(command).openConnection();
+							responseCode = connection.getResponseCode();
+							String output = IOUtils.toString((InputStream)connection.getContent(), Charset.forName("UTF-8"));
+							
+							log.info("Output ("+responseCode+"): "+output);
 						} catch (Exception ex) {
 							ex.printStackTrace();
 						}
 						long taskEnd = System.currentTimeMillis();
-						finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0));
+						finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart-executionStart)/1000.0, "end-time", (taskEnd-executionStart)/1000.0, "status", responseCode));
 					}
 					long end = System.currentTimeMillis();
 					return end-start;

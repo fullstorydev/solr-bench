@@ -1,0 +1,80 @@
+{
+    "task-types": {
+        "indexing": {
+            "index-benchmark": {
+                "name": "CLOUD_INDEXING",
+                "description": "Wikipedia dataset on SolrCloud",
+                "replication-type": "cloud",
+                "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
+                "file-format": "tsv",
+                "id-field": "id",
+                "setups": [
+                    {
+                        "setup-name": "cloud_2x2",
+                        "collection": "small-wikipedia-${INDEX}",
+                        "replication-factor": 1,
+                        "shards": 1,
+                        "min-threads": 2,
+                        "max-threads": 2,
+                        "thread-step": 1
+                    }
+                ]
+            }
+        },
+        "shard-splitting": {
+            "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=${COLLECTION}&shard=${RANDOM_SHARD}",
+            "defaults": {}
+        }
+    },
+    "global-variables": {
+        "collection-counter": 0,
+        "split-counter": 0,
+        "addreplica-counter": 0,
+        "addreplica1-counter": 0,
+        "addreplica2-counter": 0
+    },
+    "global-constants": {
+        "HOST": "localhost",
+        "PORT": "8983"
+    },
+    "execution-plan": {
+        "task1": {
+            "type": "indexing",
+            "instances": 1,
+            "concurrency": 1,
+            "mode": "sync",
+            "parameters": {
+                "INDEX": "${collection-counter}",
+                "SHARDS": 1
+            },
+            "pre-task-evals": [
+                "inc(collection-counter,1)"
+            ]
+        },
+        "task2": {
+            "description": "Split all the collections' shard1, 10 at a time",
+            "type": "shard-splitting",
+            "instances": 1000,
+            "concurrency": 5,
+            "parameters": {
+                "COLLECTION": "small-wikipedia-1"
+            },
+            "pre-task-evals": [
+                "inc(split-counter,1)"
+            ],
+            "wait-for": "task1",
+            "mode": "sync"
+        }
+    },
+    "cluster": {
+        "num-solr-nodes": 3,
+        "startup-params": "-m 4g -V",
+        "provisioning-method": "local"
+    },
+  "solr-package": "https://archive.apache.org/dist/lucene/solr/8.8.1/solr-8.8.1.tgz",
+    "metrics": [
+        "jvm/solr.jvm/memory.heap.used",
+        "jvm/solr.jvm/os.systemCpuLoad",
+        "solr.jetty/solr.jetty/org.eclipse.jetty.server.handler.DefaultHandler.get-requests/count"
+    ]
+}
