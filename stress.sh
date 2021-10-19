@@ -13,7 +13,7 @@ download() {
         if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
         then
 		echo_blue "Downloading $file"
-                curl -O $file
+                wget -c $file
         elif [[ $file == "gs://"* ]]
         then
 		echo_blue "Downloading $file"
