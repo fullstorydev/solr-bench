@@ -201,6 +201,7 @@ public class StressMain {
 								do {
 									numInactive = 0;
 									Map<String, String> inactive = new HashMap<>();
+									client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
 									ClusterState state = client.getClusterStateProvider().getClusterState();
 									for (String coll: state.getCollectionsMap().keySet()) {
 										for (Slice shard: state.getCollection(coll).getActiveSlices()) {
@@ -301,8 +302,11 @@ public class StressMain {
 
 							// Translate node names in cluster state to indexes of nodes we have
 							Map<String, Integer> nodeMap = new LinkedHashMap<String, Integer>(); // mapping of node name in supplied cluster state to index of nodes we have
-							for (int j=0; j<status.getCluster().getLiveNodes().size(); j++) {
-								nodeMap.put(status.getCluster().getLiveNodes().get(j), j % cloud.nodes.size());
+							for (int j=0, k=0; k<status.getCluster().getLiveNodes().size(); j++, k++) {
+								if (clusterStateBenchmark.excludeNodes.contains(j % cloud.nodes.size() + 1)) {
+									k--; continue;
+								}
+								nodeMap.put(status.getCluster().getLiveNodes().get(k), j % cloud.nodes.size());
 							}
 							log.info("Node mapping: "+nodeMap);
 							log.info("Summary: "+status.getCluster().getCollections().size()+" collections loaded, to be executed across "+status.getCluster().getLiveNodes().size()+" nodes. Total shards: "+shards);
