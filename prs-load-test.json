@@ -86,5 +86,8 @@
   "metrics": [
     "jvm/solr.jvm/memory.heap.used",
     "jvm/solr.jvm/os.systemCpuLoad"
+  ],
+  "zk-metrics": [
+    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
   ]
 }
