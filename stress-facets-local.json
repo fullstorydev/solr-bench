@@ -82,11 +82,14 @@
   },
   "cluster": {
     "num-solr-nodes": 3,
-    "startup-params": "-m 4g -V",
+    "startup-params": "-m 2g -V",
     "provisioning-method": "local"
   },
   "solr-package": "https://archive.apache.org/dist/lucene/solr/8.8.1/solr-8.8.1.tgz",
   "metrics": [
     "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+  ],
+  "zk-metrics": [
+    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
   ]
 }

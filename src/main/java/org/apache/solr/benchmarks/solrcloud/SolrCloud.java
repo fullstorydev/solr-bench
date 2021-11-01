@@ -279,6 +279,16 @@ public class SolrCloud {
   }
 
   /**
+   * A method used to get the zookeeper url for communication with the solr
+   * cloud.
+   * 
+   * @return String
+   */
+  public String getZookeeperAdminUrl() {
+    return "http://" + zookeeper.getHost() + ":" + zookeeper.getAdminPort();
+  }
+
+  /**
    * A method used for shutting down the solr cloud.
    * @throws Exception 
    */

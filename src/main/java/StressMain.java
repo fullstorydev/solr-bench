@@ -88,7 +88,7 @@ public class StressMain {
 		Map<String, List<Map>> finalResults = new ConcurrentHashMap<String, List<Map>>();
 
 		if (workflow.metrics != null) {
-			metricsCollector = new MetricsCollector(cloud.nodes, workflow.metrics, 2);
+			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, 2);
 			metricsThread = new Thread(metricsCollector);
 			metricsThread.start();
 			//results.put("solr-metrics", metricsCollector.metrics);
@@ -431,6 +431,9 @@ public class StressMain {
 		new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
 		if (metricsCollector != null) {
 			new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
+		}
+		if (metricsCollector != null) {
+			new ObjectMapper().writeValue(new File("metrics-zk-stress.json"), metricsCollector.zkMetrics);
 		}
 	}
 

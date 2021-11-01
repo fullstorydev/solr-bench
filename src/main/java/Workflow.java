@@ -1,3 +1,4 @@
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +34,10 @@ public class Workflow {
 	@JsonProperty("execution-plan")
 	Map<String, TaskInstance> executionPlan;
 	
-	  @JsonProperty("metrics")
-	  public List<String> metrics;
+	@JsonProperty("metrics")
+	public List<String> metrics;
+
+	@JsonProperty("zk-metrics")
+	public List<String> zkMetrics = Collections.emptyList();
 
 }

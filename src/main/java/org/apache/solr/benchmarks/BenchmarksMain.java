@@ -114,7 +114,7 @@ public class BenchmarksMain {
 
             // Start metrics collection
             if (config.metrics != null) {
-            	metricsCollector = new MetricsCollector(solrCloud.nodes, config.metrics, 2);
+            	metricsCollector = new MetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2);
             	metricsThread = new Thread(metricsCollector);
             	metricsThread.start();
             	results.put("solr-metrics", metricsCollector.metrics);

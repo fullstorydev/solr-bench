@@ -100,4 +100,10 @@ public class LocalZookeeper implements Zookeeper {
     return "2181";
   }
 
+  @Override
+  public String getAdminPort() {
+	  // TODO Auto-generated method stub
+	  return "8080";
+  }
+
 }
