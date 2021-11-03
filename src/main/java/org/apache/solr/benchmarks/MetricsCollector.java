@@ -21,8 +21,8 @@ public class MetricsCollector implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	// Key: Node name, Value: Map of metrics (key: metric name, value: list of metrics at various intervals of time) 
-	public Map<String, Map<String, Vector<Double>>> metrics = new ConcurrentHashMap<String, Map<String, Vector<Double>>>();
-	public Map<String, Vector<Double>> zkMetrics = new ConcurrentHashMap<String, Vector<Double>>();
+	public Map<String, Map<String, Vector<Number>>> metrics = new ConcurrentHashMap<String, Map<String, Vector<Number>>>();
+	public Map<String, Vector<Number>> zkMetrics = new ConcurrentHashMap<String, Vector<Number>>();
 	private final List<String> zkMetricsPaths;
 	private final List<String> metricsPaths;
 	private final SolrCloud cloud;
@@ -31,13 +31,13 @@ public class MetricsCollector implements Runnable {
 
 	public MetricsCollector(SolrCloud cloud, List<String> zkMetricsPaths, List<String> solrMetricsPaths, int collectionIntervalSeconds) {
 		for (SolrNode node: cloud.nodes) {
-			metrics.put(node.getNodeName(), new ConcurrentHashMap<String, Vector<Double>>());
+			metrics.put(node.getNodeName(), new ConcurrentHashMap<String, Vector<Number>>());
 			for (String metricPath: solrMetricsPaths) {
-				metrics.get(node.getNodeName()).put(metricPath, new Vector<Double>());
+				metrics.get(node.getNodeName()).put(metricPath, new Vector<Number>());
 			}
 		}
 		for (String zkMetricPath: zkMetricsPaths) {
-			zkMetrics.put(zkMetricPath, new Vector<Double>());
+			zkMetrics.put(zkMetricPath, new Vector<Number>());
 		}
 
 		this.zkMetricsPaths = zkMetricsPaths;
@@ -60,7 +60,7 @@ public class MetricsCollector implements Runnable {
 						URL url = new URL(cloud.getZookeeperAdminUrl() + "/commands/monitor");
 						JSONObject output = new JSONObject(IOUtils.toString(url, Charset.forName("UTF-8")));
 						for (String path: zkMetricsPaths) {
-							Double metric = output.getDouble(path);
+							Long metric = output.getLong(path);
 							zkMetrics.get(path).add(metric);
 						}
 					} catch (JSONException | IOException e1) {

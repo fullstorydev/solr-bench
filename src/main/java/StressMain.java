@@ -430,10 +430,8 @@ public class StressMain {
 		log.info("Final results: "+finalResults);
 		new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
 		if (metricsCollector != null) {
+			metricsCollector.metrics.put("zookeeper", metricsCollector.zkMetrics);
 			new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
-		}
-		if (metricsCollector != null) {
-			new ObjectMapper().writeValue(new File("metrics-zk-stress.json"), metricsCollector.zkMetrics);
 		}
 	}
 

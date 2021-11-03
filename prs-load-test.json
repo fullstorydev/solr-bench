@@ -1,35 +1,14 @@
 {
   "task-types": {
-    "indexing": {
-      "index-benchmark": {
-        "name": "CLOUD_INDEXING",
-        "description": "Wikipedia dataset on SolrCloud",
-        "replication-type": "cloud",
-        "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
-        "file-format": "tsv",
-        "id-field": "id",
-        "setups": [
-          {
-            "setup-name": "cloud_2x2",
-            "collection": "small-wikipedia-${INDEX}",
-            "replication-factor": 3,
-            "shards": 1,
-            "min-threads": 2,
-            "max-threads": 2,
-            "thread-step": 1
-          }
-        ]
-      }
-    },
     "cluster-state-benchmark": {
       "cluster-state-benchmark": {
         "filename": "clusterstatus_clusterstatus.json",
         "collection-creation-params": {
           "perReplicaState": "true"
         },
-        "collections-limit": 1000,
+        "collections-limit": 2800,
 	"exclude-nodes": [1],
-        "simulation-concurrency-fraction": 0.75
+        "simulation-concurrency-fraction": 0.5
       }
     },
     "restart-solr-node": {
@@ -46,21 +25,21 @@
     "PORT": "8983"
   },
   "execution-plan": {
-    "task1": {
+    "create-collections-task": {
       "type": "cluster-state-benchmark",
       "instances": 1,
       "concurrency": 1,
       "mode": "sync"
     },
-    "task2": {
+    "restarts-task": {
       "description": "Restart Solr node",
-      "instances": 5,
-      "concurrency": 1,
+      "instances": 6,
+      "concurrency": 2,
       "type": "restart-solr-node",
       "parameters": {
         "NODE_INDEX": "${restart-counter}"
       },
-      "wait-for": "task1",
+      "wait-for": "create-collections-task",
       "mode": "sync",
       "pre-task-evals": [
         "inc(restart-counter,1)"
@@ -68,9 +47,9 @@
     }
   },
   "cluster": {
-    "num-solr-nodes": 6,
-    "startup-params": "-m 8g -V",
-    "startup-params-overrides": ["-m 2g -V -Doverseer.node=true"],
+    "num-solr-nodes": 13,
+    "startup-params": "-m 12g -V",
+    "startup-params-overrides": ["-m 8g -V -Doverseer.node=true"],
     "provisioning-method": "local"
   },
   "repository": {
@@ -84,10 +63,9 @@
     "user": "ishan"
   },
   "metrics": [
-    "jvm/solr.jvm/memory.heap.used",
-    "jvm/solr.jvm/os.systemCpuLoad"
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count", "jvm/solr.jvm/gc.G1-Young-Generation.count", "jvm/solr.jvm/gc.G1-Young-Generation.time", "jvm/solr.jvm/gc.G1-Old-Generation.count", "jvm/solr.jvm/gc.G1-Old-Generation.time", "jvm/solr.jvm/memory.pools.G1-Eden-Space.committed", "jvm/solr.jvm/memory.pools.G1-Eden-Space.used", "jvm/solr.jvm/memory.pools.G1-Survivor-Space.committed", "jvm/solr.jvm/memory.pools.G1-Survivor-Space.used", "jvm/solr.jvm/memory.pools.G1-Old-Gen.committed", "jvm/solr.jvm/memory.pools.G1-Old-Gen.used"
   ],
   "zk-metrics": [
-    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
+    "sum_collections_read_per_namespace", "sum_collections_write_per_namespace", "sum_overseer_read_per_namespace", "sum_overseer_write_per_namespace"
   ]
 }
