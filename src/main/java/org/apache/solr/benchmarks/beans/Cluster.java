@@ -1,5 +1,6 @@
 package org.apache.solr.benchmarks.beans;
 
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -34,6 +35,35 @@ public class Cluster {
   
   @JsonProperty("provisioning-method")
   public String provisioningMethod;  
+
+  @JsonProperty("zk-host")
+  public String zkHost;
+
+  @JsonProperty("zk-port")
+  public Integer zkPort;
+
+  @JsonProperty("solr-nodes")
+  public List<Node> solrNodes;
+
+  public static class Node {
+    @JsonProperty("host")
+    public String host;
+
+    @JsonProperty("port")
+    public Integer port;
+
+    @JsonProperty("qa")
+    public boolean qa = false;
+
+    @Override
+    public String toString() {
+      return "Node{" +
+              "host='" + host + '\'' +
+              ", port=" + port +
+              ", qa=" + qa +
+              '}';
+    }
+  }
 
   public static class InstanceConfig {
     @JsonProperty("image-project")

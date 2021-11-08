@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -98,6 +99,13 @@ public class SolrCloud {
     	for (String host: getSolrNodesFromTFState()) {
     		nodes.add(new GenericSolrNode(host));
     	}
+    } else if ("existing".equalsIgnoreCase(cluster.provisioningMethod)) {
+        System.out.println("Solr nodes: " + cluster.solrNodes);
+        System.out.println("ZK node: " + cluster.zkHost + ":" + cluster.zkPort);
+        zookeeper = new GenericZookeeper(cluster.zkHost, cluster.zkPort);
+        for (Cluster.Node node: cluster.solrNodes) {
+            nodes.add(new GenericSolrNode(node.host, node.port, node.qa));
+        }
     }
 
   }
@@ -131,6 +139,7 @@ public class SolrCloud {
   public void createCollection(String collectionName, String configName, int shards, int replicas) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
 		  Create create = Create.createCollection(collectionName, configName, shards, replicas);
+		  create.setMaxShardsPerNode(shards * replicas);
 		  CollectionAdminResponse resp = create.process(hsc);
 		  log.info("");
 		  log.info("Collection created: "+ resp.jsonStr());
@@ -138,8 +147,23 @@ public class SolrCloud {
 	  colls.add(collectionName);
   }
 
-  HttpSolrClient createClient() {
-    return new HttpSolrClient.Builder(nodes.get(0).getBaseUrl()).build();
+  public HttpSolrClient createClient() {
+    return createClient(false);
+  }
+
+  public HttpSolrClient createClient(boolean preferQa) { //if not preferQa, then prefer data
+    Map<Boolean, List<SolrNode>> groups =
+            nodes.stream().collect(Collectors.partitioningBy(node -> node.isQaNode()));
+    List<SolrNode> qaNodes = groups.get(true);
+    List<SolrNode> dataNodes = groups.get(false);
+
+    SolrNode node;
+    if (qaNodes.isEmpty()) { //no qa nodes, just return first data node for whatever query
+      node = nodes.get(0);
+    } else {
+      node = preferQa ? qaNodes.get(0) : dataNodes.get(0);
+    }
+    return new HttpSolrClient.Builder(node.getBaseUrl()).build();
   }
 
   /**
@@ -261,8 +285,15 @@ public class SolrCloud {
       configsets.add(configset);
 
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
-      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
-        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configset, (byte[]) null, true);
+      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
+          String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configset;
+          if (zkClient.exists(path, true)) {
+            zkClient.setData(path, (byte[]) null, true);
+          }
+          String path2 = "/solr" + path;
+          if (zkClient.exists(path2, true)) {
+            zkClient.setData(path2, (byte[]) null, true);
+          }
       }
       log.info("Configset: " + configset +
               " created successfully ");

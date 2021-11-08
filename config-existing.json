@@ -1,0 +1,57 @@
+{
+  "cluster": {
+    "num-solr-nodes": 2,
+    "jdk-url": "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u292-b10/OpenJDK8U-jre_x64_linux_hotspot_8u292b10.tar.gz",
+    "jdk-tarball": "OpenJDK8U-jre_x64_linux_hotspot_8u292b10.tar.gz",
+    "jdk-directory": "jdk1.8.0_292_adopt",
+    "startup-params": "-m 1g",
+    "provisioning-method": "existing",
+    "zk-host": "127.0.0.1",
+    "zk-port": 2181,
+    "solr-nodes": [ {"host": "localhost", "port":8983}, {"host": "localhost", "port":8984, "qa": true} ]
+  },
+  "pre-download": [
+    "gs://solr-benchmarking-data/fs1m.json.gz",
+    "gs://solr-benchmarking-data/fsconf_termscache_100m.zip",
+    "gs://solr-benchmarking-data/allqueries.tar.gz"
+  ],
+  "index-benchmarks": [
+    {
+      "name": "CLOUD_INDEXING",
+      "description": "FruitShoppe 1 million dataset",
+      "replication-type": "cloud",
+      "dataset-file": "fs1m.json.gz",
+      "file-format": "json",
+      "id-field": "Id",
+      "setups": [
+        {
+          "setup-name": "cloud_2x2",
+          "collection": "fsloadtest",
+          "configset" : "fsconf_termscache_100m",
+          "replication-factor": 1,
+          "shards": 20,
+          "min-threads": 12,
+          "max-threads": 12,
+          "thread-step": 2
+        }
+      ]
+    }
+  ],
+  "query-benchmarks": [
+    {
+      "name": "FSQUERIES",
+      "collection": "fsloadtest",
+      "query-file": "allqueries.tar.gz",
+      "min-threads": 1,
+      "max-threads": 1,
+      "json-query" : true,
+      "rpm": 1200,
+      "shuffle": false,
+      "total-count" : 3000,
+      "warm-count": 50
+    }
+  ],
+  "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad", "jvm/solr.jvm/gc.G1-Old-Generation.count", "jvm/solr.jvm/gc.G1-Old-Generation.time", "jvm/solr.jvm/gc.G1-Young-Generation.count", "jvm/solr.jvm/gc.G1-Young-Generation.time", "jvm/solr.jvm/memory.pools.G1-Eden-Space.used", "jvm/solr.jvm/memory.pools.G1-Old-Gen.used", "jvm/solr.jvm/memory.pools.G1-Survivor-Space.used"],
+  "results-upload-location": "gs://solr-benchmarking-data"
+}
+

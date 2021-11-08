@@ -25,12 +25,20 @@ import org.slf4j.LoggerFactory;
 public class GenericSolrNode implements SolrNode {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
+  private static final int DEFAULT_PORT = 8983;
   private final String host;
-  private final String port = "8983";
+  private final int port;
+  private final boolean isQa;
 
   public GenericSolrNode(String host) throws Exception {
+    this(host, DEFAULT_PORT, false);
+  }
+
+
+  public GenericSolrNode(String host, int port, boolean isQa) throws Exception {
     this.host = host;
+    this.port = port;
+    this.isQa = isQa;
   }
 
   @Override
@@ -68,4 +76,8 @@ public class GenericSolrNode implements SolrNode {
 	  return host + ":" + port;
   }
 
+  @Override
+  public boolean isQaNode() {
+    return isQa;
+  }
 }

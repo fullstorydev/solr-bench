@@ -13,7 +13,11 @@ public interface SolrNode {
   String getBaseUrl();
   
   String getNodeName();
-  
+
+  default boolean isQaNode() {
+    return false;
+  }
+
   void cleanup() throws Exception;
 
 }

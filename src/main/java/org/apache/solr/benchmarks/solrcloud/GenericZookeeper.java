@@ -18,11 +18,16 @@
 package org.apache.solr.benchmarks.solrcloud;
 
 public class GenericZookeeper implements Zookeeper {
-
-	private final String port = "2181";
+	private static final int DEFAULT_PORT =  2181;
+	private final int port;
 	private final String host;
 	public GenericZookeeper(String host) {
+		this(host, DEFAULT_PORT);
+	}
+
+	public GenericZookeeper(String host, int port) {
 		this.host = host;
+		this.port = port;
 	}
 
 	private void init() throws Exception {
@@ -46,7 +51,7 @@ public class GenericZookeeper implements Zookeeper {
 	}
 
 	public String getPort() {
-		return port;
+		return String.valueOf(port);
 	}
 
 }

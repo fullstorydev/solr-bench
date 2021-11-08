@@ -81,7 +81,8 @@ public class BenchmarksMain {
     		}
     		return filename;
     	}
-    	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration");
+
+    	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration unless it's provision is set to `existing`");
     }
     
     public static void main(String[] args) throws Exception {
@@ -93,7 +94,10 @@ public class BenchmarksMain {
         Configuration config = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Configuration.class);
         Cluster cluster = config.cluster;
 
-        String solrPackagePath = getSolrPackagePath(config.repo, config.solrPackage);
+        String solrPackagePath = null;
+        if (!cluster.provisioningMethod.equals("existing")) {
+            solrPackagePath = getSolrPackagePath(config.repo, config.solrPackage);
+        }
         SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 
         MetricsCollector metricsCollector = null;
@@ -318,6 +322,7 @@ public class BenchmarksMain {
                 }
             }
             br.close();
+            log.info("Indexing " + shardVsDocs.keySet().size() + " shards of accm " + count + " docs");
             shardVsDocs.forEach((shard, docs) -> executor.submit(new UploadDocs(docs,
                     httpClient,
                     shardVsLeader.get(shard), tasks)));
