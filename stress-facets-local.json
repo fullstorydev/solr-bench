@@ -28,7 +28,7 @@
       "query-benchmark": {
         "name": "Facet queries",
         "collection": "ecommerce-events",
-        "query-file": "facets.json",
+        "query-file": "facets2.json",
         "min-threads": 1,
         "max-threads": 1,
         "json-query": true,
