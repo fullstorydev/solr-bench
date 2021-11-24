@@ -154,7 +154,7 @@ public class BenchmarksMain {
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 
-		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(0).getBaseUrl()).build();
+		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,

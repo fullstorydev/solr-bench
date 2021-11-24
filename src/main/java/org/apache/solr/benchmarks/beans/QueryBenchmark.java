@@ -59,4 +59,7 @@ public class QueryBenchmark {
 
   @JsonProperty("headers")
   public Map<String,String> headers;
+  
+  @JsonProperty("query-node")
+  public Integer queryNode = 1;
 }

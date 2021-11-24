@@ -1,0 +1,120 @@
+{
+  "task-types": {
+    "indexing": {
+      "index-benchmark": {
+        "name": "ECOMMERCE_EVENTS",
+        "description": "E-Commerce Events dataset",
+        "replication-type": "cloud",
+        "dataset-file": "ecommerce-events.json.gz",
+        "file-format": "json",
+        "max-docs": 30000000,
+        "batch-size": 50000,
+        "id-field": "id",
+        "setups": [
+          {
+            "setup-name": "cloud_3x1",
+            "collection": "ecommerce-events-${INDEX}",
+            "configset": "conf_ecommerce_events",
+            "replication-factor": 1,
+            "shards": 6,
+            "min-threads": 4,
+            "max-threads": 4,
+            "thread-step": 1
+          }
+        ]
+      }
+    },
+    "querying": {
+      "query-benchmark": {
+        "name": "Facet queries",
+        "collection": "ecommerce-events-${INDEX}",
+        "query-file": "facets.json",
+        "min-threads": 2,
+        "max-threads": 2,
+        "json-query": true,
+        "shuffle": false,
+        "rpm": 3000,
+        "total-count": 10000,
+        "warm-count": 20,
+	"query-node": 2
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "query-counter": 0,
+    "restart-counter": 0
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "task1": {
+      "type": "indexing",
+      "instances": 6,
+      "concurrency": 2,
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${collection-counter}",
+        "SHARDS": 1
+      },
+      "pre-task-evals": [
+          "inc(collection-counter,1)"
+      ]
+    },
+    "task2": {
+      "description": "Restart Solr node",
+      "instances": 6,
+      "concurrency": 6,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "task1",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
+    },
+    "task3": {
+      "type": "querying",
+      "instances": 6,
+      "concurrency": 6,
+      "wait-for": "task2",
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${query-counter}"
+      },
+      "pre-task-evals": [
+          "inc(query-counter,1)"
+      ]
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 8,
+    "startup-params": "-m 2g -V",
+    "startup-params-overrides": ["-m 2g -V -Doverseer.node=true", "-m 2g -V -DSolrQueryAggregator=true"],
+    "provisioning-method": "local"
+  },
+    "repository": {
+	          "commit-id": "ffcee23e9a04406c5db57ebed4ed81b6ac9e62c2",
+		        "description": "Solr 8.8",
+		              "name": "fs-repository",
+		              "package-subdir": "/solr/package/",
+		        "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+	          "submodules": false,
+          "url": "https://github.com/fullstorydev/lucene-solr",
+        "user": "ishan"
+    },
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+  ],
+  "zk-metrics": [
+    "sum_collections_read_per_namespace", "sum_collections_write_per_namespace"
+  ]
+}
