@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
@@ -99,10 +100,12 @@ public class SolrCloud {
       ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
     		  //Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
 
+      int basePort = Util.getFreePort(cluster.numSolrNodes);
+
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
     	  int nodeIndex = i;
     	  Callable c = () -> {
-    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, String.valueOf(basePort + nodeIndex - 1), cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
     		  
     		  try {
 	    		  node.init();

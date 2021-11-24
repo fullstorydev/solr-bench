@@ -32,7 +32,7 @@ public class LocalSolrNode implements SolrNode {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   public String baseDirectory;
-  public String port;
+  public final String port;
   private String binDirectory;
   private final Zookeeper zookeeper;
   private final String solrPackagePath;
@@ -40,13 +40,14 @@ public class LocalSolrNode implements SolrNode {
   private final List<String> startupParamsOverrides;
   private final int nodeIndex;
   
-  public LocalSolrNode(String solrPackagePath, int nodeIndex, String startupParams, List<String> startupParamsOverrides, Zookeeper zookeeper)
+  public LocalSolrNode(String solrPackagePath, int nodeIndex, String port, String startupParams, List<String> startupParamsOverrides, Zookeeper zookeeper)
       throws Exception {
     this.zookeeper = zookeeper;
     this.solrPackagePath = solrPackagePath;
     this.startupParams = startupParams;
     this.startupParamsOverrides = startupParamsOverrides;
     this.nodeIndex = nodeIndex;
+    this.port = port;
   }
 
   @Override
@@ -62,8 +63,6 @@ public class LocalSolrNode implements SolrNode {
   @Override
   public void init() throws Exception {
     log.debug("Installing Solr Node ...");
-
-    this.port = String.valueOf(Util.getFreePort());
 
     this.baseDirectory = Util.SOLR_DIR + UUID.randomUUID().toString() + File.separator;
     this.binDirectory = this.baseDirectory;
