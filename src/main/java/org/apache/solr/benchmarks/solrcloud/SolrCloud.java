@@ -332,7 +332,7 @@ public class SolrCloud {
     }
   }
 
-  public void uploadConfigSet(String configsetFile, String configsetZkName) throws Exception {
+  public void uploadConfigSet(String configsetFile, boolean shareConfigset, String configsetZkName) throws Exception {
     if(configsetFile==null || configsets.contains(configsetZkName)) return;
 
     log.info("Configset: " +configsetZkName+
@@ -382,15 +382,22 @@ public class SolrCloud {
       }
       create.setMethod(SolrRequest.METHOD.POST);
       create.setConfigSetName(configsetZkName);
-      create.process(hsc);
+      try {
+    	  create.process(hsc);
+      } catch (Exception ex) {
+    	  if (shareConfigset) {
+    		  // ignore, since this configset might've been already created and we'll share it now
+    	  } else {
+    		  throw new RuntimeException("Couldn't create configset " + configsetZkName, ex);
+    	  }    		  
+      }
       configsets.add(configsetZkName);
 
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
       try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
         zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
       }
-      log.info("Configset: " + configsetZkName +
-              " created successfully ");
+      log.info("Configset: " + configsetZkName + " created successfully ");
 
 
     }

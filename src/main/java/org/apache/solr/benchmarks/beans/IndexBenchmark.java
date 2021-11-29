@@ -55,6 +55,9 @@ public class IndexBenchmark {
 
     @JsonProperty("configset")
     public String configset;
+    
+    @JsonProperty("share-configset")
+    public boolean shareConfigset = false;
 
     @JsonProperty("replication-factor")
     public Integer replicationFactor;
