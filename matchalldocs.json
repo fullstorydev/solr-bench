@@ -1,0 +1,1 @@
+{'query': '*:*', 'filter': 'event_type:purchase', 'limit': 1}
