@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
@@ -99,10 +100,12 @@ public class SolrCloud {
       ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
     		  //Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
 
+      int basePort = Util.getFreePort(cluster.numSolrNodes);
+
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
     	  int nodeIndex = i;
     	  Callable c = () -> {
-    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, String.valueOf(basePort + nodeIndex - 1), cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
     		  
     		  try {
 	    		  node.init();
@@ -329,7 +332,7 @@ public class SolrCloud {
     }
   }
 
-  public void uploadConfigSet(String configsetFile, String configsetZkName) throws Exception {
+  public void uploadConfigSet(String configsetFile, boolean shareConfigset, String configsetZkName) throws Exception {
     if(configsetFile==null || configsets.contains(configsetZkName)) return;
 
     log.info("Configset: " +configsetZkName+
@@ -379,15 +382,22 @@ public class SolrCloud {
       }
       create.setMethod(SolrRequest.METHOD.POST);
       create.setConfigSetName(configsetZkName);
-      create.process(hsc);
+      try {
+    	  create.process(hsc);
+      } catch (Exception ex) {
+    	  if (shareConfigset) {
+    		  // ignore, since this configset might've been already created and we'll share it now
+    	  } else {
+    		  throw new RuntimeException("Couldn't create configset " + configsetZkName, ex);
+    	  }    		  
+      }
       configsets.add(configsetZkName);
 
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
       try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
         zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
       }
-      log.info("Configset: " + configsetZkName +
-              " created successfully ");
+      log.info("Configset: " + configsetZkName + " created successfully ");
 
 
     }

@@ -21,7 +21,7 @@ public class MetricsCollector implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	// Key: Node name, Value: Map of metrics (key: metric name, value: list of metrics at various intervals of time) 
-	public Map<String, Map<String, Vector<Number>>> metrics = new ConcurrentHashMap<String, Map<String, Vector<Number>>>();
+	public Map<String, Map<String, Vector<Number>>> metrics = Collections.synchronizedMap(new LinkedHashMap<String, Map<String, Vector<Number>>>());
 	public Map<String, Vector<Number>> zkMetrics = new ConcurrentHashMap<String, Vector<Number>>();
 	private final List<String> zkMetricsPaths;
 	private final List<String> metricsPaths;

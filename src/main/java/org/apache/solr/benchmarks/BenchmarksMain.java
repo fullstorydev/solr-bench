@@ -154,7 +154,7 @@ public class BenchmarksMain {
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 
-		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(0).getBaseUrl()).build();
+		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,
@@ -196,6 +196,7 @@ public class BenchmarksMain {
 		        for (int i = setup.minThreads; i <= setup.maxThreads; i += setup.threadStep) {
 		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
 		            String configsetName = setup.configset==null? null: collectionName+".SOLRBENCH";
+		            if (setup.shareConfigset) configsetName = setup.configset;
 
 		            if (setup.createCollection) {
 		            	log.info("Creating collection1: " + collectionName);
@@ -208,10 +209,8 @@ public class BenchmarksMain {
 		            			//log.warn("Error trying to delete collection: " + ex);
 		            		}
 		            	}
-				log.info("checkpoint 1");
-		            	solrCloud.uploadConfigSet(setup.configset, configsetName);
-                                log.info("checkpoint 2");
-				solrCloud.createCollection(setup, collectionName, configsetName);
+		            	solrCloud.uploadConfigSet(setup.configset, setup.shareConfigset, configsetName);
+		            	solrCloud.createCollection(setup, collectionName, configsetName);
 		            }
 		            long start = System.nanoTime();
 		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);

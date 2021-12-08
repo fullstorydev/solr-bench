@@ -21,6 +21,7 @@ function allGraph(data){
 }
 function graph(data, graphName){
 	var lines = [];
+	var names = [];
 	for (var key in data) {
 		line = [];
 		if (key in data && graphName in data[key]) {
@@ -32,13 +33,15 @@ function graph(data, graphName){
 					});
 				}
 			}
+			names.push(key)
 		}
 		lines.push(line)
 	}
-	return lines;
+	return [lines, names];
 }
 function taskGraph(data, graphName, start, end){
 	var lines = [];
+	var names = [];
 	for (var key in data) {
 		line = [];
 		if (key in data && graphName in data[key]) {
@@ -58,10 +61,11 @@ function taskGraph(data, graphName, start, end){
 					}
 				}
 			}
+			names.push(key)
 		}
 		lines.push(line)
 	}
-	return lines;
+	return [lines, names];
 }
 Object.size = function(obj) {
   var size = 0,
@@ -71,7 +75,7 @@ Object.size = function(obj) {
   }
   return size;
 };
-function newrender(linesSize, lines){
+function newrender(linesSize, lines, names){
 	var options = {
 		animationEnabled: false,
 		theme: "light2",
@@ -85,11 +89,21 @@ function newrender(linesSize, lines){
 			title: "graphName",
 			titleFontSize: 18
 		},
+		toolTip:{   
+			content: "{name}: {y}"      
+		},
 		data: []
 	};
 	for (i=0; i<linesSize; i++) {
+		if (names[i] != undefined) {
+			var leg = true
+		} else {
+			var leg = false
+		}
 		options['data'].push({
-			type: "line", 
+			type: "line",
+			showInLegend: leg,
+			name: names[i],
 			yValueFormatString: "#.##",
 			dataPoints: lines[i]
 		});
@@ -102,13 +116,17 @@ function addData(data, start, end) {
 	for(var x=0; x < totalGraph; x++){		
 		var graphName = graphs[x];
 		if(start && end){
-				var lines = taskGraph(data, graphName, start, end);//for tasks
+				var ret = taskGraph(data, graphName, start, end);//for tasks
+				var lines = ret[0]
+				var names = ret[1]
 		} else {
-				var lines = graph(data, graphName);	
+				var ret = graph(data, graphName);	
+				var lines = ret[0]
+				var names = ret[1]
 		}		
 		var linesSize = Object.size(lines);
 		var options = "options"+x;
-		options = newrender(linesSize, lines);
+		options = newrender(linesSize, lines, names);
 		options.title.text = graphName;
 		options.axisY.title = graphName;
 		var idName = "chartContainer" + x;

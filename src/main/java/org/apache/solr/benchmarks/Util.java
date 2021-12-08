@@ -135,49 +135,29 @@ public class Util {
     return ret;
   }
 
-  /**
-   * A method used for get an available free port for running the
-   * solr/zookeeper node on.
-   * 
-   * @return int
-   * @throws Exception 
-   */
-  public static int getFreePort() throws Exception {
-
-    int port = ThreadLocalRandom.current().nextInt(10000, 60000);
-    logger.debug("Looking for a free port ... Checking availability of port number: " + port);
-    ServerSocket serverSocket = null;
-    DatagramSocket datagramSocket = null;
-    try {
-      serverSocket = new ServerSocket(port);
-      serverSocket.setReuseAddress(true);
-      datagramSocket = new DatagramSocket(port);
-      datagramSocket.setReuseAddress(true);
-      logger.debug("Port " + port + " is free to use. Using this port !!");
-      return port;
-    } catch (IOException e) {
-    } finally {
-      if (datagramSocket != null) {
-        datagramSocket.close();
-      }
-
-      if (serverSocket != null) {
-        try {
-          serverSocket.close();
-        } catch (IOException e) {
-          logger.error(e.getMessage());
-          throw new IOException(e.getMessage());
-        }
-      }
-      // Marking for GC
-      serverSocket = null;
-      datagramSocket = null;
-    }
-
-    logger.debug("Port " + port + " looks occupied trying another port number ... ");
-    return getFreePort();
+  private static boolean isPortFree(int port) {
+	  try (ServerSocket socket = new ServerSocket(port);) {
+		  return true;
+	  } catch (IOException ex) {
+		  return false;
+	  }
   }
 
+  /**
+   * Gets a free port number where there's a guarantee of num consecutive ports are free
+   */
+  public static int getFreePort(int num) throws Exception {
+	  int start = 50000;
+	  for (int i=start; i<60000; i++) {
+		  int j = i;
+		  for (j=i; j<i+num && j<60000; j++) {
+			  if (isPortFree(j) == false) break;
+		  }
+		  if (j==i+num) return i;
+	  }
+	  return -1;
+  }
+  
   public static class ProcessStreamReader extends Thread {
 
     public final static Logger logger = Logger.getLogger(ProcessStreamReader.class);
@@ -400,6 +380,5 @@ public class Util {
 	  }
 	  throw new SolrException(ErrorCode.BAD_REQUEST, "URLDecoder: Invalid digit (" + ((char) b) + ") in escape (%) pattern");
   }
-
 
 }
