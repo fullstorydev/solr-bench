@@ -2,7 +2,12 @@ package org.apache.solr.benchmarks;
 
 
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -11,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 public class ControlledExecutor {
+    private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private final int threads;
     private final Supplier<Runnable> runnerSupplier;
     private final LinkedBlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
@@ -72,12 +78,25 @@ public class ControlledExecutor {
                     if (isEnd(initTime)) return;
 
                     long start = System.nanoTime();
+                    Timer timer = new Timer();
+                    timer.scheduleAtFixedRate(new TimerTask() {
+                        @Override
+                        public void run() {
+                            log.info(Thread.currentThread().getName() + " : Long running query, elapsed time " + ((System.nanoTime() - start) / 1000000000) + " sec(s)");
+                        }
+                    }, 10000, 10000);
                     r.run();
+                    timer.cancel();
                     if (count.get() >= warmCount) {
                     	stats.addValue((System.nanoTime() - start) / 1000_000.0);
                     }
                     
-                	count.incrementAndGet();
+                	long currentCount = count.incrementAndGet();
+
+                    long chunk = Math.min(totalCount / 100, 1000);
+                    if (currentCount % chunk == 0) {
+                        log.info(currentCount + " out of " + totalCount + " done");
+                    }
                 });
             }
         } finally {
