@@ -1,5 +1,5 @@
 {
-  "pre-download": ["http://textsearch.io/ecommerce-events.json.gz"],
+  "pre-download": ["https://home.apache.org/~ishan/ecommerce-events.json.gz"],
   "task-types": {
     "indexing": {
       "index-benchmark": {

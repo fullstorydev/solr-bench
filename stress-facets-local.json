@@ -1,4 +1,5 @@
 {
+  "pre-download": ["https://home.apache.org/~ishan/ecommerce-events.json.gz"],
   "task-types": {
     "indexing": {
       "index-benchmark": {
