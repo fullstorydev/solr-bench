@@ -1,0 +1,99 @@
+{
+    "task-types": {
+        "indexing": {
+            "index-benchmark": {
+                "name": "CLOUD_INDEXING",
+                "description": "Wikipedia dataset on SolrCloud",
+                "replication-type": "cloud",
+                "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
+                "file-format": "tsv",
+                "id-field": "id",
+                "setups": [
+                    {
+                        "setup-name": "cloud_2x2",
+                        "collection": "small-wikipedia-${INDEX}",
+                        "replication-factor": 3,
+                        "shards": 1,
+                        "min-threads": 2,
+                        "max-threads": 2,
+                        "thread-step": 1
+                    }
+                ]
+            }
+        },
+        "collection-creation": {
+            "command": "${SOLRURL}admin/collections?action=CREATE&name=collection${INDEX}&numShards=${SHARDS}",
+            "defaults": {
+                "INDEX": 0,
+                "SHARDS": 1
+            }
+        },
+        "shard-splitting": {
+            "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=${COLLECTION}&shard=${SHARD}",
+            "defaults": {}
+        },
+        "num-docs": {
+            "command": "${SOLRURL}small-wikipedia/select?q=*:*&rows=0&distrib=false",
+            "defaults": {}
+        },
+        "restart-solr-node": {
+            "restart-solr-node": "${NODE_INDEX}",
+            "await-recoveries": true
+        }
+    },
+    "global-variables": {
+        "collection-counter": 0,
+        "restart-counter": 1
+    },
+    "global-constants": {
+        "HOST": "localhost",
+        "PORT": "8983"
+    },
+    "execution-plan": {
+        "task1": {
+            "type": "indexing",
+            "instances": 700,
+            "concurrency": 4,
+            "mode": "sync",
+            "parameters": {
+                "INDEX": "${collection-counter}",
+                "SHARDS": 1
+            },
+            "pre-task-evals": [
+                "inc(collection-counter,1)"
+            ]
+        },
+        "task2": {
+            "description": "Restart Solr node",
+            "instances": 9,
+            "concurrency": 1,
+            "type": "restart-solr-node",
+            "parameters": {
+                "NODE_INDEX": "${restart-counter}"
+            },
+            "wait-for": "task1",
+            "mode": "sync",
+            "pre-task-evals": [
+                "inc(restart-counter,1)"
+            ]
+        }
+    },
+    "cluster": {
+        "num-solr-nodes": 10,
+        "startup-params": "-m 4g -V",
+        "provisioning-method": "local"
+    },
+    "repository": {
+        "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+        "description": "Solr 8.4",
+        "name": "git-repository",
+        "package-subdir": "/solr/package/",
+        "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+        "submodules": false,
+        "url": "https://github.com/apache/lucene-solr",
+        "user": "ishan"
+    },
+    "metrics": [
+        "solr.node/solr.node/overseer.stateUpdates"
+    ]
+}

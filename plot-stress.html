@@ -1,0 +1,235 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<style>
+		#radioButtons ul li{
+			height: 30px;;
+		}
+	</style>
+<script>
+/////////////////////////////// Code for all task////////////////////////
+function allGraph(data){
+	var keysAll = new Set();
+	for (var key in data) {
+		for (graphName in data[key]) {
+			//alert(graphName);
+			keysAll.add(graphName);
+		}
+	}
+	console.log(keysAll);
+	return keysAll;
+}
+function graph(data, graphName){
+	var lines = [];
+	var names = [];
+	for (var key in data) {
+		line = [];
+		if (key in data && graphName in data[key]) {
+			for (var i = 0; i < data[key][graphName].length; i++) {
+				if (data[key][graphName][i] != -1) {
+					line.push({
+						x: i*2,
+						y: data[key][graphName][i]
+					});
+				}
+			}
+			names.push(key)
+		}
+		lines.push(line)
+	}
+	return [lines, names];
+}
+function taskGraph(data, graphName, start, end){
+	var lines = [];
+	var names = [];
+	for (var key in data) {
+		line = [];
+		if (key in data && graphName in data[key]) {
+			var firstValue = null
+			for (var i = 0; i < data[key][graphName].length; i++) {
+				if (data[key][graphName][i] != -1) {
+					if (end == -1 || i*2>=start && i*2<=end) {
+						if (firstValue == null) {
+							firstValue = data[key][graphName][i];
+							if (graphName.startsWith("sum_"))
+								console.log(graphName+"'s first value is: "+firstValue);
+						}
+						line.push({
+							x: i*2,
+							y: graphName.startsWith("sum_")? data[key][graphName][i] - firstValue: data[key][graphName][i]
+						});
+					}
+				}
+			}
+			names.push(key)
+		}
+		lines.push(line)
+	}
+	return [lines, names];
+}
+Object.size = function(obj) {
+  var size = 0,
+    key;
+  for (key in obj) {
+    if (obj.hasOwnProperty(key)) size++;
+  }
+  return size;
+};
+function newrender(linesSize, lines, names){
+	var options = {
+		animationEnabled: false,
+		theme: "light2",
+		title: {
+			text: "graphName"
+		},
+		axisX: {
+			//valueFormatString: "DD MMM YYYY",
+		},
+		axisY: {
+			title: "graphName",
+			titleFontSize: 18
+		},
+		toolTip:{   
+			content: "{name}: {y}"      
+		},
+		data: []
+	};
+	for (i=0; i<linesSize; i++) {
+		if (names[i] != undefined) {
+			var leg = true
+		} else {
+			var leg = false
+		}
+		options['data'].push({
+			type: "line",
+			showInLegend: leg,
+			name: names[i],
+			yValueFormatString: "#.##",
+			dataPoints: lines[i]
+		});
+	}
+	return options;
+}
+function addData(data, start, end) {
+	var graphs = Array.from(allGraph(data));
+	var totalGraph = graphs.length;
+	for(var x=0; x < totalGraph; x++){		
+		var graphName = graphs[x];
+		if(start && end){
+				var ret = taskGraph(data, graphName, start, end);//for tasks
+				var lines = ret[0]
+				var names = ret[1]
+		} else {
+				var ret = graph(data, graphName);	
+				var lines = ret[0]
+				var names = ret[1]
+		}		
+		var linesSize = Object.size(lines);
+		var options = "options"+x;
+		options = newrender(linesSize, lines, names);
+		options.title.text = graphName;
+		options.axisY.title = graphName;
+		var idName = "chartContainer" + x;
+		$("#graph").append('<div id='+idName+' style="height: 370px; width: 100%; margin-bottom: 15px; padding-bottom: 15px;"></div>');
+		$("#"+idName).CanvasJSChart(options);
+	}
+	
+}
+///////////////////////// Code for addTaskUI ///////////////////////
+function addTaskUI(task){
+	$("#liAll").css('display','block');
+	for (var key in task) {
+		var keyUpperCase = key.toUpperCase();
+		if(task[key].length!=0){
+			$("#radioButtons ul").append('<li><label for="'+key+'"><input type="radio" name="task" id="'+key+'" class="radioClass" value="'+key+'">'+keyUpperCase+'</label></li>');
+		}
+	}
+}
+//////////////////////Code for tasks/////////////////////////
+function findStartEnd(data, taskNum){
+	var start, end, obj;
+	for(key in data){
+		if(taskNum==key){
+			var tasksSize = Object.size(data[key]);
+			for(var key in data[taskNum]){
+				if(key==0){
+					obj = data[taskNum][key];
+					start = obj["start-time"];
+				}
+				if(key==tasksSize-1){
+					obj = data[taskNum][key];
+					end = obj["end-time"];
+					break;
+				}
+			}
+		}
+	}
+	return [start, end];
+}
+////////////////load file///////////////////
+window.onload = function() {
+	//////////////////////////////////////
+	var results_stress, metrics_stress;
+	$("#clickMe").click(function(){	
+		$.ajax({ 
+	    type: 'GET', 
+	    url: 'results-stress.json',
+	    dataType: 'json',
+	    async: false,
+	    success: function (data) {
+	       results_stress = data;
+	    }
+		});
+		addTaskUI(results_stress);
+		//////////////////////////////////////
+		
+		$.ajax({ 
+	    type: 'GET', 
+	    url: 'metrics-stress.json',
+	    dataType: 'json',
+	    async: false,
+	    success: function (data) {
+	       metrics_stress = data;
+	    }
+		});
+		addData(metrics_stress);	
+		});
+	
+	//////////////////////////////////////////
+	document.getElementById("all").checked = true; //This is only for firefox issue
+	$(document).on('change', '.radioClass', function () {		
+		var startEnd = findStartEnd(results_stress, this.value);		
+		var start = startEnd[0];
+		var end = startEnd[1];
+		addData(metrics_stress, start, end);
+	});
+}
+</script>
+</head>
+<body>
+<div style="height: 30px;margin: 20px 0;">
+	<label for="file1">Choose first file:</label>
+	<select name="file1" id="file1">
+  	<option value="metrics-stress.json">metrics-stress.json</option>
+	</select>
+	<label for="file2">Choose second file:</label>
+	<select name="file2" id="file2">
+  	<option value="results-stress.json">results-stress.json</option>
+	</select>
+	 <button id="clickMe">Click me</button> 
+</div>
+	<div id="graph" style="width: 80%;float: left;"></div>
+	<div id="rightSide" style="width: 20%;float: right;">
+		<div id="radioButtons" style="margin: 15px 0 0 0;padding-left: 25px;">
+			<ul style="list-style-type: none;">
+				<li id="liAll" style="display: none;">
+					<label for="all"><input type="radio" name="task" id="all" class="radioClass" value="all" checked="checked">ALL</label>						
+				</li>
+			</ul>
+		</div>
+	</div>
+
+<script src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+<script src="https://canvasjs.com/assets/script/jquery.canvasjs.min.js"></script>
+</body>
+</html>

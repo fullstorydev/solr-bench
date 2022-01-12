@@ -80,4 +80,9 @@ public class GenericSolrNode implements SolrNode {
   public boolean isQaNode() {
     return isQa;
   }
+  @Override
+  public int pause(int seconds) throws Exception {
+	  throw new UnsupportedOperationException();
+  }
+
 }

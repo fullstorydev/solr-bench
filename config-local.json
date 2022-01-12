@@ -1,61 +1,59 @@
 {
   "cluster": {
     "num-solr-nodes": 2,
-   "jdk-url": "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u292-b10/OpenJDK8U-jre_x64_linux_hotspot_8u292b10.tar.gz",
-    "jdk-tarball": "OpenJDK8U-jre_x64_linux_hotspot_8u292b10.tar.gz",
-    "jdk-directory": "jdk1.8.0_292_adopt",
+    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u241-linux-x64.tar.gz",
+    "jdk-tarball": "jdk-8u241-linux-x64.tar.gz",
+    "jdk-directory": "jdk1.8.0_241",
     "startup-params": "-m 1g",
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "8c84f9ec1525eb860eb017975d99f8446c538920",
-    "description": "fs solr-8",
+    "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+    "description": "Solr 8.4",
     "name": "git-repository",
-    "package-subdir": "lucene-solr/solr/package/",
-    "build-command": "export VERSION=`git rev-parse HEAD`; export RELEASE=`head -1 Makefile | cut -f3 -d ' '`; export SOLR_VERSION=\"$RELEASE-$VERSION\"; echo \"Running build command for $SOLR_VERSION\"; cd lucene-solr; ant ivy-bootstrap; cd ..; make clean; make",
-    "submodules": true,
-    "url": "https://github.com/cowpaths/fs-solr.git"
+    "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+    "url": "https://github.com/apache/lucene-solr",
+    "user": "ishan"
   },
-  "pre-download": [
-    "gs://solr-benchmarking-data/fs1m.json.gz",
-    "gs://solr-benchmarking-data/fsconf_termscache_100m.zip",
-    "gs://solr-benchmarking-data/allqueries.tar.gz"
-  ],
   "index-benchmarks": [
     {
       "name": "CLOUD_INDEXING",
-      "description": "FruitShoppe 1 million dataset",
+      "description": "Wikipedia dataset on SolrCloud",
       "replication-type": "cloud",
-      "dataset-file": "fs1m.json.gz",
-      "file-format": "json",
-      "id-field": "Id",
+      "dataset-file": "small-data/small-enwiki.tsv.gz",
+      "file-format": "tsv",
+      "id-field": "id",
       "setups": [
         {
           "setup-name": "cloud_2x2",
-          "collection": "fsloadtest",
-          "configset" : "solr-perf-config-set",
+          "collection": "small-wikipedia",
           "replication-factor": 1,
-          "shards": 20,
-          "min-threads": 12,
-          "max-threads": 12,
-          "thread-step": 2
+          "shards": 1,
+          "min-threads": 2,
+          "max-threads": 2,
+          "thread-step": 1
         }
       ]
     }
   ],
   "query-benchmarks": [
     {
-      "name": "FSQUERIES",
-      "collection": "fsloadtest",
-      "query-file": "allqueries.tar.gz",
+      "name": "Terms queries",
+      "collection": "small-wikipedia",
+      "query-file": "small-data/queryFile",
       "min-threads": 1,
-      "max-threads": 1,
-      "json-query" : true,
-      "rpm": 1200,
-      "shuffle": false,
-      "total-count" : 3000,
-      "warm-count": 50
+      "max-threads": 2,
+      "json-query": false,
+      "rpm": 3000,
+      "total-count": 21,
+      "warm-count": 5
     }
   ],
-  "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad"]
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.used",
+    "jvm/solr.jvm/os.systemCpuLoad",
+    "solr.jetty/solr.jetty/org.eclipse.jetty.server.handler.DefaultHandler.get-requests/count"
+  ]
 }

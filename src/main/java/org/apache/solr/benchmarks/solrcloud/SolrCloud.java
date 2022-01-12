@@ -24,23 +24,34 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.beans.Cluster;
+import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Delete;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest.OverseerStatus;
 import org.apache.solr.client.solrj.request.ConfigSetAdminRequest;
+import org.apache.solr.client.solrj.request.HealthCheckRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
+import org.apache.solr.client.solrj.response.HealthCheckResponse;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkConfigManager;
 import org.apache.solr.common.params.ConfigSetParams;
@@ -51,13 +62,14 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class SolrCloud {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   Zookeeper zookeeper;
-  public List<SolrNode> nodes = new ArrayList<>();
+  public List<SolrNode> nodes = Collections.synchronizedList(new ArrayList());
 
   private Set<String> configsets = new HashSet<>();
 
@@ -86,17 +98,87 @@ public class SolrCloud {
         throw new RuntimeException("Failed to start Zookeeper!");
       }
 
+      ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build());
+    		  //Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build());
+
+      int basePort = Util.getFreePort(cluster.numSolrNodes);
+
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
-        SolrNode node = new LocalSolrNode(solrPackagePath, zookeeper);
-        node.init();
-        node.start();
-        nodes.add(node);
+    	  int nodeIndex = i;
+    	  Callable c = () -> {
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, String.valueOf(basePort + nodeIndex - 1), cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
+
+    		  try {
+	    		  node.init();
+	    		  node.start();
+	    		  nodes.add(node);
+
+	    		  log.info("Nodes started: "+nodes.size());
+
+	    		  //try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl()).build();) {
+	    			  //log.info("Health check: "+ new HealthCheckRequest().process(client) + ", Nodes started: "+nodes.size());
+	    		  //} catch (Exception ex) {
+	    			//  log.error("Problem starting node: "+node.getBaseUrl());
+	    			  //throw new RuntimeException("Problem starting node: "+node.getBaseUrl());
+	    		  //}
+	    		  return node;
+    		  } catch (Exception ex) {
+    			  ex.printStackTrace();
+    			  log.error("Problem starting node: "+node.getBaseUrl());
+    			  return null;
+    		  }
+    	  };
+    	  executor.submit(c);
       }
+
+      executor.shutdown();
+      executor.awaitTermination(1, TimeUnit.HOURS);
+
+      log.info("Looking for healthy nodes...");
+      List<SolrNode> healthyNodes = new ArrayList<>();
+      for (SolrNode node: nodes) {
+  		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
+  			HealthCheckRequest req = new HealthCheckRequest();
+  			HealthCheckResponse rsp;
+  			try {
+  				rsp = req.process(client);
+  			} catch (Exception ex) {
+  				Thread.sleep(100);
+  				rsp = req.process(client);
+  			}
+  			if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
+  				log.error("Couldn't start node: "+node.getBaseUrl());
+  				throw new RuntimeException("Couldn't start node: "+node.getBaseUrl());
+  			} else {
+  				healthyNodes.add(node);
+  			}
+  		} catch (Exception ex) {
+  			ex.printStackTrace();
+  			log.error("Problem starting node: "+node.getBaseUrl());
+  		}
+      }
+
+      this.nodes = healthyNodes;
+      log.info("Healthy nodes: "+healthyNodes.size());
+
+      try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(getZookeeperUrl()).build();) {
+	      log.info("Cluster state: " + client.getClusterStateProvider().getClusterState());
+	      log.info("Overseer: " + client.request(new OverseerStatus()));
+      }
+
+
     } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
     	System.out.println("ZK node: "+getZkNodeFromTFState());
     	zookeeper = new GenericZookeeper(getZkNodeFromTFState());
     	for (String host: getSolrNodesFromTFState()) {
+    		nodes.add(new GenericSolrNode(host));
+    	}
+    } else if ("vagrant".equalsIgnoreCase(cluster.provisioningMethod)) {
+    	System.out.println("Solr nodes: "+getSolrNodesFromVagrant());
+    	System.out.println("ZK node: "+getZkNodeFromVagrant());
+    	zookeeper = new GenericZookeeper(getZkNodeFromVagrant());
+    	for (String host: getSolrNodesFromVagrant()) {
     		nodes.add(new GenericSolrNode(host));
     	}
     } else if ("existing".equalsIgnoreCase(cluster.provisioningMethod)) {
@@ -107,6 +189,7 @@ public class SolrCloud {
             nodes.add(new GenericSolrNode(node.host, node.port, node.qa));
         }
     }
+
 
   }
 
@@ -127,6 +210,23 @@ public class SolrCloud {
 	  throw new RuntimeException("Couldn't get ZK node from tfstate");
   }
 
+  List<String> getSolrNodesFromVagrant() throws JsonMappingException, JsonProcessingException, IOException {
+	  List<String> out = new ArrayList<String>();
+	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/solr-servers.json"), "UTF-8"), Map.class);
+	  for (String server: servers.keySet()) {
+		  out.add(servers.get(server).toString());
+	  }
+	  return out;
+  }
+
+  String getZkNodeFromVagrant() throws JsonMappingException, JsonProcessingException, IOException {
+	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/zk-servers.json"), "UTF-8"), Map.class);
+	  for (String server: servers.keySet()) {
+		  return servers.get(server).toString();
+	  }
+	  throw new RuntimeException("Couldn't get ZK node from tfstate");
+  }
+
   /**
    * A method used for creating a collection.
    * 
@@ -136,15 +236,30 @@ public class SolrCloud {
    * @param replicas
    * @throws Exception 
    */
-  public void createCollection(String collectionName, String configName, int shards, int replicas) throws Exception {
+  public void createCollection(IndexBenchmark.Setup setup, String collectionName, String configsetName) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
-		  Create create = Create.createCollection(collectionName, configName, shards, replicas);
+		  Create create;
+		  if (setup.replicationFactor != null) {
+			  create = Create.createCollection(collectionName, configsetName, setup.shards, setup.replicationFactor);
+			  create.setMaxShardsPerNode(setup.shards*(setup.replicationFactor));
+		  } else {
+			  create = Create.createCollection(collectionName, configsetName, setup.shards,
+					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
+			  create.setMaxShardsPerNode(setup.shards
+					  * ((setup.pullReplicas==null? 0: setup.pullReplicas)
+					   + (setup.nrtReplicas==null? 0: setup.nrtReplicas)
+					   + (setup.tlogReplicas==null? 0: setup.tlogReplicas)));
+		  }
 		  create.setMaxShardsPerNode(shards * replicas);
-		  CollectionAdminResponse resp = create.process(hsc);
-		  log.info("");
+		  CollectionAdminResponse resp;
+		  if (setup.collectionCreationParams != null && setup.collectionCreationParams.isEmpty()==false) {
+			  resp = new CreateWithAdditionalParameters(create, collectionName, setup.collectionCreationParams).process(hsc);
+		  } else {
+			  resp = create.process(hsc);
+		  }
 		  log.info("Collection created: "+ resp.jsonStr());
       }
-	  colls.add(collectionName);
+	  colls.add(setup.collection);
   }
 
   public HttpSolrClient createClient() {
@@ -191,6 +306,16 @@ public class SolrCloud {
   }
 
   /**
+   * A method used to get the zookeeper url for communication with the solr
+   * cloud.
+   *
+   * @return String
+   */
+  public String getZookeeperAdminUrl() {
+    return "http://" + zookeeper.getHost() + ":" + zookeeper.getAdminPort();
+  }
+
+  /**
    * A method used for shutting down the solr cloud.
    * @throws Exception 
    */
@@ -207,7 +332,7 @@ public class SolrCloud {
       }
 
       //cleanup configsets created , if any
-      for (String configset : configsets) {
+      /*for (String configset : configsets) {
         try (HttpSolrClient hsc = createClient()) {
           try {
             new ConfigSetAdminRequest.Delete().setConfigSetName(configset).process(hsc);
@@ -216,7 +341,7 @@ public class SolrCloud {
             e.printStackTrace();
           }
         }
-      }
+      }*/
 
       for (SolrNode node : nodes) {
        node.stop();
@@ -231,16 +356,16 @@ public class SolrCloud {
     }
   }
 
-  public void uploadConfigSet(String configset) throws Exception {
-    if(configset==null || configsets.contains(configset)) return;
+  public void uploadConfigSet(String configsetFile, boolean shareConfigset, String configsetZkName) throws Exception {
+    if(configsetFile==null || configsets.contains(configsetZkName)) return;
 
-    log.info("Configset: " +configset+
+    log.info("Configset: " +configsetZkName+
             " does not exist. creating... ");
 
-    File f = new File(configset + ".zip");
+    File f = new File(configsetFile + ".zip");
 
     if (!f.exists()) {
-      throw new RuntimeException("Could not find configset file: " + configset);
+      throw new RuntimeException("Could not find configset file: " + configsetFile);
     }
 
     try (HttpSolrClient hsc = createClient()) {
@@ -274,29 +399,41 @@ public class SolrCloud {
       
       try {
 	      ConfigSetAdminRequest.Delete delete = new ConfigSetAdminRequest.Delete();
-	      delete.setConfigSetName(configset);
+	      delete.setConfigSetName(configsetZkName);
 	      delete.process(hsc);
       } catch (Exception ex) {
-    	  log.warn("Exception trying to delete configset", ex);
+    	  //log.warn("Exception trying to delete configset", ex);
       }
       create.setMethod(SolrRequest.METHOD.POST);
-      create.setConfigSetName(configset);
-      create.process(hsc);
-      configsets.add(configset);
+      create.setConfigSetName(configsetZkName);
+      try {
+    	  create.process(hsc);
+      } catch (Exception ex) {
+    	  if (shareConfigset) {
+    		  // ignore, since this configset might've been already created and we'll share it now
+    	  } else {
+    		  throw new RuntimeException("Couldn't create configset " + configsetZkName, ex);
+    	  }
+      }
+      configsets.add(configsetZkName);
 
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
-      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
-          String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configset;
-          if (zkClient.exists(path, true)) {
-            zkClient.setData(path, (byte[]) null, true);
-          }
-          String path2 = "/solr" + path;
-          if (zkClient.exists(path2, true)) {
-            zkClient.setData(path2, (byte[]) null, true);
-          }
+      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
+        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
       }
-      log.info("Configset: " + configset +
-              " created successfully ");
+
+//        try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
+//            String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configset;
+//            if (zkClient.exists(path, true)) {
+//                zkClient.setData(path, (byte[]) null, true);
+//            }
+//            String path2 = "/solr" + path;
+//            if (zkClient.exists(path2, true)) {
+//                zkClient.setData(path2, (byte[]) null, true);
+//            }
+//        }
+
+      log.info("Configset: " + configsetZkName + " created successfully ");
 
 
     }

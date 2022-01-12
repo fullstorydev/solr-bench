@@ -14,7 +14,7 @@ public class Cluster {
 
   @JsonProperty("solr-instance-config")
   public InstanceConfig solrInstanceConfig;
-  
+
   @JsonProperty("ssh-flags")
   public String sshFlags;
 
@@ -30,9 +30,15 @@ public class Cluster {
   @JsonProperty("startup-params")
   public String startupParams;
 
+  @JsonProperty("startup-params-overrides")
+  public List<String> startupParamsOverrides;
+
   @JsonProperty("terraform-gcp-config")
   public Map<String, Object> terraformGCPConfig;
-  
+
+  @JsonProperty("vagrant-config")
+  public Map<String, Object> vagrantConfig;
+
   @JsonProperty("provisioning-method")
   public String provisioningMethod;  
 

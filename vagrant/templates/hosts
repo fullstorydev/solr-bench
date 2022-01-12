@@ -1,0 +1,7 @@
+{% for ip in zk_ip_addresses %}
+{{ip}}	zk-{{loop.index}}
+{% endfor %}
+{% for ip in solr_ip_addresses %}
+{{ip}}  solr-{{loop.index}}
+{% endfor %}
+

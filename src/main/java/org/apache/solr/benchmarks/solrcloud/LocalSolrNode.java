@@ -19,8 +19,10 @@ package org.apache.solr.benchmarks.solrcloud;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
+import java.util.List;
 import java.util.UUID;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,14 +32,22 @@ public class LocalSolrNode implements SolrNode {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   public String baseDirectory;
-  public String port;
-  private String nodeDirectory;
+  public final String port;
+  private String binDirectory;
   private final Zookeeper zookeeper;
   private final String solrPackagePath;
-  public LocalSolrNode(String solrPackagePath, Zookeeper zookeeper)
+  private final String startupParams;
+  private final List<String> startupParamsOverrides;
+  private final int nodeIndex;
+  
+  public LocalSolrNode(String solrPackagePath, int nodeIndex, String port, String startupParams, List<String> startupParamsOverrides, Zookeeper zookeeper)
       throws Exception {
     this.zookeeper = zookeeper;
     this.solrPackagePath = solrPackagePath;
+    this.startupParams = startupParams;
+    this.startupParamsOverrides = startupParamsOverrides;
+    this.nodeIndex = nodeIndex;
+    this.port = port;
   }
 
   @Override
@@ -54,16 +64,14 @@ public class LocalSolrNode implements SolrNode {
   public void init() throws Exception {
     log.debug("Installing Solr Node ...");
 
-    this.port = String.valueOf(Util.getFreePort());
-
     this.baseDirectory = Util.SOLR_DIR + UUID.randomUUID().toString() + File.separator;
-    this.nodeDirectory = this.baseDirectory;
+    this.binDirectory = this.baseDirectory;
 
     try {
 
       log.debug("Checking if SOLR node directory exists ...");
 
-      File node = new File(nodeDirectory);
+      File node = new File(binDirectory);
 
       if (!node.exists()) {
 
@@ -76,9 +84,9 @@ public class LocalSolrNode implements SolrNode {
       throw new Exception(e.getMessage());
     }
 
-    Util.extract(solrPackagePath, nodeDirectory);
+    Util.extract(solrPackagePath, binDirectory);
 
-    this.nodeDirectory = new File(this.nodeDirectory).listFiles()[0] + File.separator + "bin" + File.separator;
+    this.binDirectory = new File(this.binDirectory).listFiles()[0] + File.separator + "bin" + File.separator;
   }
 
   @Override
@@ -88,9 +96,14 @@ public class LocalSolrNode implements SolrNode {
     int returnValue = 0;
 
     start = System.currentTimeMillis();
-    new File(nodeDirectory + "solr").setExecutable(true);
-    	returnValue = Util.execute(nodeDirectory + "solr start -force -Dhost=localhost " + "-p " + port + " -m 5g " + " -z "
-    			+ zookeeper.getHost() + ":" + zookeeper.getPort(), nodeDirectory);
+    new File(binDirectory + "solr").setExecutable(true);
+	
+    String startup = (startupParams != null ? startupParams : "");
+    if (startupParamsOverrides != null && startupParamsOverrides.size() >= nodeIndex && startupParamsOverrides.get(nodeIndex-1).trim().length()>0) startup = startupParamsOverrides.get(nodeIndex-1);
+
+    returnValue = Util.execute(binDirectory + "solr start -force -Dhost=localhost " + "-p " + port + " "
+			+ startup + " -V " + " -z " + zookeeper.getHost() + ":"
+			+ zookeeper.getPort(), binDirectory);
 
     end = System.currentTimeMillis();
 
@@ -105,10 +118,10 @@ public class LocalSolrNode implements SolrNode {
 	  int returnValue = 0;
 
 	  start = System.currentTimeMillis();
-	  new File(nodeDirectory + "solr").setExecutable(true);
+	  new File(binDirectory + "solr").setExecutable(true);
 	  returnValue = Util.execute(
-			  nodeDirectory + "solr stop -p " + port + " -z " + zookeeper.getHost() + ":" + zookeeper.getPort() + " -force",
-			  nodeDirectory);
+			  binDirectory + "solr stop -p " + port + " -z " + zookeeper.getHost() + ":" + zookeeper.getPort() + " -force",
+			  binDirectory);
 	  end = System.currentTimeMillis();
 
 	  log.info("Time taken for the node stop activity is: " + (end - start) + " millisecond(s)");
@@ -136,5 +149,35 @@ public class LocalSolrNode implements SolrNode {
   @Override
   public String getNodeName() {
 	  return "localhost:"+port;
+  }
+  
+  public void restart() throws Exception {
+	    long start = System.currentTimeMillis();
+	    stop();
+	    start();
+	    long end = System.currentTimeMillis();
+
+	    log.info("Time taken for the node restart is: " + (end - start)/1000.0 + " seconds");
+  }
+
+  @Override
+  public int pause(int seconds) throws Exception {
+	  long start = 0;
+	  long end = 0;
+	  int returnValue = 0;
+
+	  start = System.currentTimeMillis();
+	  new File(binDirectory + "solr").setExecutable(true);
+	  
+	  String pidFile = binDirectory + "solr-"+port+".pid";
+	  String pid = FileUtils.readFileToString(new File(pidFile));
+	  log.info("PID: "+pid);
+	  returnValue = Util.execute("kill -STOP "+pid, binDirectory);
+	  Thread.sleep(seconds*1000);
+	  returnValue = Util.execute("kill -CONT "+pid, binDirectory);
+	  end = System.currentTimeMillis();
+
+	  log.info("Time taken for the pause is: " + (end - start)/1000.0 + " second(s)");
+	  return returnValue;
   }
 }

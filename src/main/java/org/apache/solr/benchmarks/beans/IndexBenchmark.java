@@ -3,6 +3,7 @@ package org.apache.solr.benchmarks.beans;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Map;
 
 public class IndexBenchmark {
   @JsonProperty("name")
@@ -29,11 +30,11 @@ public class IndexBenchmark {
   @JsonProperty("run-count")
   public Integer runCount;
 
+  @JsonProperty("offset")
+  public Integer offset = 0;
+
   @JsonProperty("max-docs")
   public Integer maxDocs = Integer.MAX_VALUE;
-
-  @JsonProperty ("rpm")
-  public Integer rpm;
 
   @JsonProperty("batch-size")
   public Integer batchSize = 1000;
@@ -48,15 +49,40 @@ public class IndexBenchmark {
 
     @JsonProperty("collection")
     public String collection;
+    
+    @JsonProperty("create-collection")
+    public boolean createCollection = true;    
 
     @JsonProperty("configset")
     public String configset;
+    
+    @JsonProperty("share-configset")
+    public boolean shareConfigset = false;
 
     @JsonProperty("replication-factor")
-    public int replicationFactor;
+    public Integer replicationFactor;
+
+    @JsonProperty("nrt-replicas")
+    public Integer nrtReplicas;
+
+    @JsonProperty("tlog-replicas")
+    public Integer tlogReplicas;
+    
+    @JsonProperty("pull-replicas")
+    public Integer pullReplicas;
+
+    @JsonProperty("collection-creation-params")
+    public Map<String, String> collectionCreationParams;
 
     @JsonProperty("shards")
     public int shards;
+
+    @JsonProperty ("rpm")
+    public Integer rpm;
+    
+    // Reuse client or create a new client instance per batch of indexing?
+    @JsonProperty ("single-client")
+    public boolean singleClient = false;
 
     @JsonProperty("min-threads")
     public int minThreads;

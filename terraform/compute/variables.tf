@@ -71,3 +71,9 @@ variable "public_key_path" {
 variable "user" {
   description = "The user with which you can ssh into the VM"
 }
+
+variable "min_cpu_platform" {
+  description = "The minimum CPU platform. For N2D instances, this is either 'AMD Rome' or 'AMD Milan', for other instances, refer to documentation"
+  default = null
+}
+

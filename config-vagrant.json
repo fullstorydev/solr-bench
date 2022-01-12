@@ -1,0 +1,72 @@
+{
+  "cluster": {
+    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u241-linux-x64.tar.gz",
+    "jdk-tarball": "jdk-8u241-linux-x64.tar.gz",
+    "jdk-directory": "jdk1.8.0_241",
+    "startup-params": "-m 1g",
+    "provisioning-method": "vagrant",
+    "vagrant-config": {
+      "project_id": "bold-gadget-222718",
+      "zookeeper_machine_type": "n1-standard-2",
+      "zookeeper_disk_type": "pd-ssd",
+      "solr_node_count": 3,
+      "solr_machine_type": "n1-standard-4",
+      "solr_disk_type": "pd-ssd",
+      "tags": [
+        "benchmarking",
+        "solr",
+        "temp"
+      ],
+      "public_key_path": "id_rsa.pub",
+      "user": "vagrant"
+    }
+  },
+  "repository": {
+    "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+    "description": "Solr 8.4",
+    "name": "git-repository",
+    "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+    "url": "https://github.com/apache/lucene-solr",
+    "user": "ishan"
+  },
+  "index-benchmarks": [
+    {
+      "name": "CLOUD_INDEXING",
+      "description": "Wikipedia dataset on SolrCloud",
+      "replication-type": "cloud",
+      "dataset-file": "small-data/small-enwiki.tsv.gz",
+      "file-format": "tsv",
+      "id-field": "id",
+      "setups": [
+        {
+          "setup-name": "cloud_2x2",
+          "collection": "small-wikipedia",
+          "replication-factor": 1,
+          "shards": 1,
+          "min-threads": 2,
+          "max-threads": 2,
+          "thread-step": 1
+        }
+      ]
+    }
+  ],
+  "query-benchmarks": [
+    {
+      "name": "Terms queries",
+      "collection": "small-wikipedia",
+      "query-file": "small-data/queryFile",
+      "min-threads": 1,
+      "max-threads": 2,
+      "json-query": false,
+      "rpm": 3000,
+      "total-count": 21,
+      "warm-count": 5
+    }
+  ],
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.used",
+    "jvm/solr.jvm/os.systemCpuLoad"
+  ]
+}

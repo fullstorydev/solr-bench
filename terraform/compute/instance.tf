@@ -17,6 +17,8 @@ resource "google_compute_instance" "instance" {
     ssh-keys = "${var.user}:${file(var.public_key_path)}"
   }
 
+  min_cpu_platform = var.min_cpu_platform
+
   boot_disk {
     auto_delete = true
     device_name = var.device_name
@@ -25,6 +27,10 @@ resource "google_compute_instance" "instance" {
       image = var.boot_image
       type  = var.disk_type
     }
+  }
+
+  scratch_disk {
+    interface = "NVME"
   }
 
   # metadata_startup_script   = var.startup_script

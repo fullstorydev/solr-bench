@@ -20,6 +20,7 @@ package org.apache.solr.benchmarks.solrcloud;
 public class GenericZookeeper implements Zookeeper {
 	private static final int DEFAULT_PORT =  2181;
 	private final int port;
+	private final String adminPort = "8080";
 	private final String host;
 	public GenericZookeeper(String host) {
 		this(host, DEFAULT_PORT);
@@ -52,6 +53,10 @@ public class GenericZookeeper implements Zookeeper {
 
 	public String getPort() {
 		return String.valueOf(port);
+	}
+
+	public String getAdminPort() {
+		return adminPort;
 	}
 
 }

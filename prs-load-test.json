@@ -1,0 +1,71 @@
+{
+  "task-types": {
+    "cluster-state-benchmark": {
+      "cluster-state-benchmark": {
+        "filename": "clusterstatus_clusterstatus.json",
+        "collection-creation-params": {
+          "perReplicaState": "true"
+        },
+        "collections-limit": 2800,
+	"exclude-nodes": [1],
+        "simulation-concurrency-fraction": 0.5
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "restart-counter": 1
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "create-collections-task": {
+      "type": "cluster-state-benchmark",
+      "instances": 1,
+      "concurrency": 1,
+      "mode": "sync"
+    },
+    "restarts-task": {
+      "description": "Restart Solr node",
+      "instances": 6,
+      "concurrency": 2,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "create-collections-task",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 13,
+    "startup-params": "-m 12g -V",
+    "startup-params-overrides": ["-m 8g -V -Doverseer.node=true"],
+    "provisioning-method": "local"
+  },
+  "repository": {
+    "commit-id": "57e915ad68f676056542fdc79ff9736f222163b7",
+    "description": "FS Solr 8.8",
+    "name": "fs-repository",
+    "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+    "url": "https://github.com/fullstorydev/lucene-solr",
+    "user": "ishan"
+  },
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count", "jvm/solr.jvm/gc.G1-Young-Generation.count", "jvm/solr.jvm/gc.G1-Young-Generation.time", "jvm/solr.jvm/gc.G1-Old-Generation.count", "jvm/solr.jvm/gc.G1-Old-Generation.time", "jvm/solr.jvm/memory.pools.G1-Eden-Space.committed", "jvm/solr.jvm/memory.pools.G1-Eden-Space.used", "jvm/solr.jvm/memory.pools.G1-Survivor-Space.committed", "jvm/solr.jvm/memory.pools.G1-Survivor-Space.used", "jvm/solr.jvm/memory.pools.G1-Old-Gen.committed", "jvm/solr.jvm/memory.pools.G1-Old-Gen.used"
+  ],
+  "zk-metrics": [
+    "sum_collections_read_per_namespace", "sum_collections_write_per_namespace", "sum_overseer_read_per_namespace", "sum_overseer_write_per_namespace"
+  ]
+}
