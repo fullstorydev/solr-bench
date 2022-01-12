@@ -13,6 +13,8 @@ import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -90,6 +92,9 @@ public class BenchmarksMain {
         Configurator.setRootLevel(Level.INFO);
 
         String configFile = args[0];
+
+        log.info("Test config: ");
+        log.info(Files.readString(Path.of(configFile)));
 
         Configuration config = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Configuration.class);
         Cluster cluster = config.cluster;

@@ -33,7 +33,7 @@
         {
           "setup-name": "cloud_2x2",
           "collection": "fsloadtest",
-          "configset" : "fsconf_termscache_100m",
+          "configset" : "solr-perf-config-set",
           "replication-factor": 1,
           "shards": 20,
           "min-threads": 12,
