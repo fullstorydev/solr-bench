@@ -91,7 +91,7 @@ public class SolrCloud {
    */
   public void init() throws Exception {
     if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
-      zookeeper = new LocalZookeeper();
+      zookeeper = new LocalZookeeper(cluster.zkAdminPort);
       int initValue = zookeeper.start();
       if (initValue != 0) {
         log.error("Failed to start Zookeeper!");
@@ -229,12 +229,10 @@ public class SolrCloud {
 
   /**
    * A method used for creating a collection.
-   * 
+   * @param setup
    * @param collectionName
-   * @param configName
-   * @param shards
-   * @param replicas
-   * @throws Exception 
+   * @param configsetName
+   * @throws Exception
    */
   public void createCollection(IndexBenchmark.Setup setup, String collectionName, String configsetName) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
@@ -250,7 +248,6 @@ public class SolrCloud {
 					   + (setup.nrtReplicas==null? 0: setup.nrtReplicas)
 					   + (setup.tlogReplicas==null? 0: setup.tlogReplicas)));
 		  }
-		  create.setMaxShardsPerNode(shards * replicas);
 		  CollectionAdminResponse resp;
 		  if (setup.collectionCreationParams != null && setup.collectionCreationParams.isEmpty()==false) {
 			  resp = new CreateWithAdditionalParameters(create, collectionName, setup.collectionCreationParams).process(hsc);

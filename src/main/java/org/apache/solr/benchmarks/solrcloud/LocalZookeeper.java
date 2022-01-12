@@ -18,6 +18,9 @@
 package org.apache.solr.benchmarks.solrcloud;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 import org.apache.log4j.Logger;
 import org.apache.solr.benchmarks.Util;
@@ -35,13 +38,15 @@ public class LocalZookeeper implements Zookeeper {
   public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.3-bin";
   public static final String ZK_COMMAND = "bin/zkServer.sh";
 
+  private final String adminPort;
   /**
    * Constructor.
    *
    * @throws Exception
    */
-  LocalZookeeper() throws Exception {
+  LocalZookeeper(String adminPort) throws Exception {
     super();
+    this.adminPort = adminPort;
     this.init();
   }
 
@@ -60,6 +65,10 @@ public class LocalZookeeper implements Zookeeper {
                 + Util.RUN_DIR, Util.RUN_DIR);
         log.info("After untarring, ZK dir is here: " + ZK_DIR);
         Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
+
+      Path cfgPath = Path.of(ZK_DIR, "conf", "zoo.cfg");
+      Files.writeString(cfgPath, System.lineSeparator() + "admin.serverPort=" + adminPort + System.lineSeparator(), StandardOpenOption.APPEND);
+
     } else {
     	throw new RuntimeException("ZK tarball not found at: " + ZK_TARBALL);
     }
@@ -102,8 +111,7 @@ public class LocalZookeeper implements Zookeeper {
 
   @Override
   public String getAdminPort() {
-	  // TODO Auto-generated method stub
-	  return "8080";
+	  return adminPort;
   }
 
 }
