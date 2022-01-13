@@ -33,6 +33,7 @@ download $CONFIGFILE # download this file from GCS/HTTP, if necessary
 CONFIGFILE="${CONFIGFILE##*/}"
 
 mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
+mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
 
 COMMIT=`jq -r '."repository"."commit-id"' $CONFIGFILE`
 REPOSRC=`jq -r '."repository"."url"' $CONFIGFILE`
