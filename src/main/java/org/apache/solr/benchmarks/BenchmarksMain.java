@@ -210,7 +210,7 @@ public class BenchmarksMain {
 		            if (setup.createCollection) {
 		            	log.info("Creating collection1: " + collectionName);
 		            	try {
-		            		solrCloud.deleteCollection(configsetName);
+		            		solrCloud.deleteCollection(collectionName);
 		            	} catch (Exception ex) {
 		            		if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
 		            			//log.debug("Error trying to delete collection: " + ex);
