@@ -419,16 +419,21 @@ public class SolrCloud {
 //        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
 //      }
 
-        try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
+
+        boolean patched = false;
+        while (!patched) {
             String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName;
-            if (zkClient.exists(path, true)) {
-                System.out.println("Before change " + path + " is : " + zkClient.getData(path, null, null,true));
-                zkClient.setData(path, (byte[]) null, true);
-                System.out.println("After change " + path + " is : " + zkClient.getData(path, null, null,true));
+            try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
+                if (zkClient.exists(path, true)) {
+                    log.info("Before change " + path + " is : " + new String(zkClient.getData(path, null, null, true)));
+                    zkClient.setData(path, (byte[]) null, true);
+                    log.info("After change " + path + " is : " + zkClient.getData(path, null, null, true));
+                    patched = true;
+                }
             }
-            String path2 = "/solr" + path;
-            if (zkClient.exists(path2, true)) {
-                zkClient.setData(path2, (byte[]) null, true);
+            if (!patched) {
+                log.info("zknode [" + path + "] is not yet avaialable. Waiting...");
+                TimeUnit.SECONDS.sleep(1);
             }
         }
 
