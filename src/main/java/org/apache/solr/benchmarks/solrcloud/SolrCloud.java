@@ -422,8 +422,9 @@ public class SolrCloud {
         try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
             String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName;
             if (zkClient.exists(path, true)) {
+                System.out.println("Before change " + path + " is : " + zkClient.getData(path, null, null,true));
                 zkClient.setData(path, (byte[]) null, true);
-                System.out.println("data is of " + path + " is : " + zkClient.getData(path, null, null,true));
+                System.out.println("After change " + path + " is : " + zkClient.getData(path, null, null,true));
             }
             String path2 = "/solr" + path;
             if (zkClient.exists(path2, true)) {
