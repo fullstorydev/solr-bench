@@ -415,20 +415,20 @@ public class SolrCloud {
       configsets.add(configsetZkName);
 
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
-      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
-        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
-      }
+//      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
+//        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
+//      }
 
-//        try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
-//            String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configset;
-//            if (zkClient.exists(path, true)) {
-//                zkClient.setData(path, (byte[]) null, true);
-//            }
-//            String path2 = "/solr" + path;
-//            if (zkClient.exists(path2, true)) {
-//                zkClient.setData(path2, (byte[]) null, true);
-//            }
-//        }
+        try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
+            String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName;
+            if (zkClient.exists(path, true)) {
+                zkClient.setData(path, (byte[]) null, true);
+            }
+            String path2 = "/solr" + path;
+            if (zkClient.exists(path2, true)) {
+                zkClient.setData(path2, (byte[]) null, true);
+            }
+        }
 
       log.info("Configset: " + configsetZkName + " created successfully ");
 
