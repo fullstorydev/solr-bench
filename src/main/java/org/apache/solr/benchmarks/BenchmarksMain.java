@@ -148,7 +148,7 @@ public class BenchmarksMain {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            //solrCloud.shutdown(true);
+            solrCloud.shutdown(true);
         }
     }
 
