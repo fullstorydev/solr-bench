@@ -423,6 +423,7 @@ public class SolrCloud {
             String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName;
             if (zkClient.exists(path, true)) {
                 zkClient.setData(path, (byte[]) null, true);
+                System.out.println("data is of " + path + " is : " + zkClient.getData(path, null, null,true));
             }
             String path2 = "/solr" + path;
             if (zkClient.exists(path2, true)) {
