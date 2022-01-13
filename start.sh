@@ -189,7 +189,7 @@ fi
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
 echo_blue "Running suite from working directory: $ORIG_WORKING_DIR"
-java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. $SOLR_BENC_JVM_ARGS \
    org.apache.solr.benchmarks.BenchmarksMain $CONFIGFILE
 
 # Grab GC logs
