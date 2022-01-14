@@ -158,6 +158,9 @@ public class SolrCloud {
   		}
       }
 
+      //TODO some sleep here, otherwise zk might not be healthy yet - need better check than arbitrary sleep
+      TimeUnit.SECONDS.sleep(5);
+
       this.nodes = healthyNodes;
       log.info("Healthy nodes: "+healthyNodes.size());
 
@@ -425,7 +428,8 @@ public class SolrCloud {
             String path = ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName;
             try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100000, 100000, null, null)) {
                 if (zkClient.exists(path, true)) {
-                    log.info("Before change " + path + " is : " + new String(zkClient.getData(path, null, null, true)));
+                    byte[] beforeData = zkClient.getData(path, null, null, true);
+                    log.info("Before change " + path + " is : " + (beforeData != null ? new String(beforeData) : null));
                     zkClient.setData(path, (byte[]) null, true);
                     log.info("After change " + path + " is : " + zkClient.getData(path, null, null, true));
                     patched = true;
