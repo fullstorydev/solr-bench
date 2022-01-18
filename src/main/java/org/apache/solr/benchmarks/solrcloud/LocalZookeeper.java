@@ -37,18 +37,21 @@ public class LocalZookeeper implements Zookeeper {
   public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.6.3-bin.tar.gz";
   public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.3-bin";
   public static final String ZK_COMMAND = "bin/zkServer.sh";
+  private static final String DEFAULT_ZK_PORT = "2181";
 
   private final String adminPort;
   private final String zkPort;
+
+
   /**
    * Constructor.
    *
    * @throws Exception
    */
-  LocalZookeeper(int zkPort, String adminPort) throws Exception {
+  LocalZookeeper(Integer zkPort, String adminPort) throws Exception {
     super();
     this.adminPort = adminPort;
-    this.zkPort = String.valueOf(zkPort);
+    this.zkPort = zkPort != null ? String.valueOf(zkPort) : DEFAULT_ZK_PORT;
     this.init();
   }
 
