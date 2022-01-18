@@ -14,7 +14,7 @@ download() {
 		return
         fi
 
-        if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
+        if [[ $file == "https://"* ]] || [[ $file == "http://"* ]] || [[ $file == "file://"* ]]
         then
 		echo_blue "Downloading $file"
                 curl -O $file
