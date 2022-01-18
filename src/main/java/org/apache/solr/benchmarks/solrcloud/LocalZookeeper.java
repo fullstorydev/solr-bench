@@ -75,7 +75,7 @@ public class LocalZookeeper implements Zookeeper {
 
       String finalConfig = sampleCfg;
       if (finalConfig.indexOf("clientPort=2181") != -1) {
-        finalConfig.replaceAll("clientPort=2181", "clientPort=" + zkPort);
+        finalConfig = finalConfig.replaceAll("clientPort=2181", "clientPort=" + zkPort);
       } else {
         finalConfig += System.lineSeparator() + "clientPort=" + zkPort;
       }
