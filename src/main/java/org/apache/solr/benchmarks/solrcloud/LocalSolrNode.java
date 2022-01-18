@@ -24,13 +24,13 @@ import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.Util;
+import org.apache.solr.benchmarks.beans.Cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LocalSolrNode implements SolrNode {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
   public String baseDirectory;
   public final String port;
   private String binDirectory;
@@ -40,17 +40,17 @@ public class LocalSolrNode implements SolrNode {
   private final List<String> startupParamsOverrides;
   private final int nodeIndex;
   
-  public LocalSolrNode(String solrPackagePath, int nodeIndex, String port, String startupParams, List<String> startupParamsOverrides, Zookeeper zookeeper)
+  public LocalSolrNode(String solrPackagePath, int nodeIndex, String port, Cluster clusterConfig, Zookeeper zookeeper)
       throws Exception {
     this.zookeeper = zookeeper;
     this.solrPackagePath = solrPackagePath;
-    this.startupParams = startupParams;
-    this.startupParamsOverrides = startupParamsOverrides;
+    this.startupParams = clusterConfig.startupParams;
+    this.startupParamsOverrides = clusterConfig.startupParamsOverrides;
     this.nodeIndex = nodeIndex;
     this.port = port;
   }
 
-  @Override
+    @Override
   public void provision() throws Exception {
     // no-op
   }

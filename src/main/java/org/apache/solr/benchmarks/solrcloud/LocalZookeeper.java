@@ -39,14 +39,16 @@ public class LocalZookeeper implements Zookeeper {
   public static final String ZK_COMMAND = "bin/zkServer.sh";
 
   private final String adminPort;
+  private final String zkPort;
   /**
    * Constructor.
    *
    * @throws Exception
    */
-  LocalZookeeper(String adminPort) throws Exception {
+  LocalZookeeper(int zkPort, String adminPort) throws Exception {
     super();
     this.adminPort = adminPort;
+    this.zkPort = String.valueOf(zkPort);
     this.init();
   }
 
@@ -64,11 +66,21 @@ public class LocalZookeeper implements Zookeeper {
         Util.execute("tar -xf " + ZK_TARBALL + " -C "
                 + Util.RUN_DIR, Util.RUN_DIR);
         log.info("After untarring, ZK dir is here: " + ZK_DIR);
-        Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
+        //Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
+
+      String sampleCfg = Files.readString(Path.of(ZK_DIR, "conf", "zoo_sample.cfg"));
+
+      String finalConfig = sampleCfg;
+      if (finalConfig.indexOf("clientPort=2181") != -1) {
+        finalConfig.replaceAll("clientPort=2181", "clientPort=" + zkPort);
+      } else {
+        finalConfig += System.lineSeparator() + "clientPort=" + zkPort;
+      }
+
+      finalConfig += System.lineSeparator() + "admin.serverPort=" + adminPort + System.lineSeparator();
 
       Path cfgPath = Path.of(ZK_DIR, "conf", "zoo.cfg");
-      Files.writeString(cfgPath, System.lineSeparator() + "admin.serverPort=" + adminPort + System.lineSeparator(), StandardOpenOption.APPEND);
-
+      Files.writeString(cfgPath, finalConfig);
     } else {
     	throw new RuntimeException("ZK tarball not found at: " + ZK_TARBALL);
     }
@@ -79,7 +91,7 @@ public class LocalZookeeper implements Zookeeper {
   }
 
   public int stop() throws Exception {
-	  return Util.execute(ZK_DIR + "/" + ZK_COMMAND + " stop", ZK_DIR);
+	  return Util.execute(ZK_DIR + "/" + ZK_COMMAND + " stop", ZK_DIR); //TODO need to be more specific - which port/process
   }
 
   public void cleanup() throws Exception {
@@ -106,7 +118,7 @@ public class LocalZookeeper implements Zookeeper {
    * @return
    */
   public String getPort() {
-    return "2181";
+    return zkPort;
   }
 
   @Override

@@ -91,7 +91,7 @@ public class SolrCloud {
    */
   public void init() throws Exception {
     if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
-      zookeeper = new LocalZookeeper(cluster.zkAdminPort);
+      zookeeper = new LocalZookeeper(cluster.zkPort, cluster.zkAdminPort);
       int initValue = zookeeper.start();
       if (initValue != 0) {
         log.error("Failed to start Zookeeper!");
@@ -106,7 +106,7 @@ public class SolrCloud {
       for (int i = 1; i <= cluster.numSolrNodes; i++) {
     	  int nodeIndex = i;
     	  Callable c = () -> {
-    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, String.valueOf(basePort + nodeIndex - 1), cluster.startupParams, cluster.startupParamsOverrides, zookeeper);
+    		  SolrNode node = new LocalSolrNode(solrPackagePath, nodeIndex, String.valueOf(basePort + nodeIndex - 1), cluster, zookeeper);
 
     		  try {
 	    		  node.init();
