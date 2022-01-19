@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
@@ -162,7 +163,7 @@ public class BenchmarksMain {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
 		for (QueryBenchmark benchmark : queryBenchmarks) {
-      metadata.add(new BenchmarkMetadata(benchmark.name, System.currentTimeMillis()));
+      metadata.add(new BenchmarkMetadata("query." + benchmark.name, System.currentTimeMillis()));
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
 
 
@@ -198,7 +199,10 @@ public class BenchmarksMain {
 	}
 
 	private static class BenchmarkMetadata {
+    @JsonProperty("name")
     private final String name;
+
+    @JsonProperty("start-time")
     private final long startTime;
 
     public BenchmarkMetadata(String name, long startTime) {
@@ -215,7 +219,7 @@ public class BenchmarksMain {
     List<BenchmarkMetadata> metadata = new ArrayList<>();
 
 		for (IndexBenchmark benchmark : indexBenchmarks) {
-			results.get("indexing-benchmarks").put(benchmark.name, new LinkedHashMap());
+			results.get("indexing-benchmarks").put("index." + benchmark.name, new LinkedHashMap());
 			
 		    for (IndexBenchmark.Setup setup : benchmark.setups) {
 		      metadata.add(new BenchmarkMetadata(setup.name, System.currentTimeMillis()));
