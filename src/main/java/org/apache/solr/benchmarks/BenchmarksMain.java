@@ -219,10 +219,10 @@ public class BenchmarksMain {
     List<BenchmarkMetadata> metadata = new ArrayList<>();
 
 		for (IndexBenchmark benchmark : indexBenchmarks) {
-			results.get("indexing-benchmarks").put("index." + benchmark.name, new LinkedHashMap());
+			results.get("indexing-benchmarks").put(benchmark.name, new LinkedHashMap());
 			
 		    for (IndexBenchmark.Setup setup : benchmark.setups) {
-		      metadata.add(new BenchmarkMetadata(setup.name, System.currentTimeMillis()));
+		      metadata.add(new BenchmarkMetadata("index." + setup.name, System.currentTimeMillis()));
 		    	List setupMetrics = new ArrayList();
 		    	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
 
