@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
@@ -130,13 +129,14 @@ public class BenchmarksMain {
             	results.put("solr-metrics", metricsCollector.metrics);
             }
 
+            List<BenchmarkMetadata> allMetadata = new ArrayList<>();
             // Indexing benchmarks
             log.info("Starting indexing benchmarks...");
 
-            runIndexingBenchmarks(config.indexBenchmarks, solrCloud, results);
+            allMetadata.addAll(runIndexingBenchmarks(config.indexBenchmarks, solrCloud, results));
 
             // Query benchmarks
-            runQueryBenchmarks(config.queryBenchmarks, null, solrCloud, results);
+            allMetadata.addAll(runQueryBenchmarks(config.queryBenchmarks, null, solrCloud, results));
 
             // Stop metrics collection
             if (config.metrics != null) {
@@ -145,7 +145,10 @@ public class BenchmarksMain {
             // Write results to a file
             results.put("configuration", Util.map("configuration", config));
             System.out.println("Final results: "+results);
-            new ObjectMapper().writeValue(new File("results.json"), results);
+          ObjectMapper jsonMapper = new ObjectMapper();
+          jsonMapper.writeValue(new File("results.json"), results);
+          jsonMapper.writeValue(new File("timeline.json"), allMetadata);
+
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -153,11 +156,13 @@ public class BenchmarksMain {
         }
     }
 
-	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
+	public static List<BenchmarkMetadata> runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
 			throws IOException, InterruptedException {
+    List<BenchmarkMetadata> metadata = new ArrayList<>();
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
 		for (QueryBenchmark benchmark : queryBenchmarks) {
+      metadata.add(new BenchmarkMetadata(benchmark.name, System.currentTimeMillis()));
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
 
 
@@ -189,17 +194,31 @@ public class BenchmarksMain {
 		        }
 		    }
 		}
+		return metadata;
 	}
 
-	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results) throws Exception {
-		runIndexingBenchmarks(indexBenchmarks, null, true, solrCloud, results);
+	private static class BenchmarkMetadata {
+    private final String name;
+    private final long startTime;
+
+    public BenchmarkMetadata(String name, long startTime) {
+      this.name = name;
+      this.startTime = startTime;
+    }
+  }
+
+	public static List<BenchmarkMetadata> runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results) throws Exception {
+		return runIndexingBenchmarks(indexBenchmarks, null, true, solrCloud, results);
 	}
-	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, String collectionNameOverride, boolean deleteAfter, SolrCloud solrCloud, Map<String, Map> results)
+	public static List<BenchmarkMetadata> runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, String collectionNameOverride, boolean deleteAfter, SolrCloud solrCloud, Map<String, Map> results)
 			throws Exception {
+    List<BenchmarkMetadata> metadata = new ArrayList<>();
+
 		for (IndexBenchmark benchmark : indexBenchmarks) {
 			results.get("indexing-benchmarks").put(benchmark.name, new LinkedHashMap());
 			
 		    for (IndexBenchmark.Setup setup : benchmark.setups) {
+		      metadata.add(new BenchmarkMetadata(setup.name, System.currentTimeMillis()));
 		    	List setupMetrics = new ArrayList();
 		    	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
 
@@ -236,6 +255,7 @@ public class BenchmarksMain {
 		        }
 		    }
 		}
+		return metadata;
 	}
 
     private static Supplier<Runnable> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
