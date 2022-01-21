@@ -151,10 +151,14 @@ public class BenchmarksMain {
             }
             // Write results to a file
             results.put("configuration", Util.map("configuration", config));
-            System.out.println("Final results: "+results);
+
           ObjectMapper jsonMapper = new ObjectMapper();
           File resultFile = new File("results.json");
-          jsonMapper.writeValue(resultFile, results);
+          Map<String, Object> flattenedResults = mapGrafanaResults(results);
+
+          System.out.println("Final results: "+flattenedResults);
+
+          jsonMapper.writeValue(resultFile, flattenedResults);
           log.info("Result written to " + resultFile.getAbsolutePath());
           File timelineFile = new File("timeline.json");
           jsonMapper.writeValue(new File("timeline.json"), allMetadata);
@@ -165,6 +169,47 @@ public class BenchmarksMain {
             solrCloud.shutdown(true);
         }
     }
+
+  private static Map<String, Object> mapGrafanaResults(Map<String, Map> input) {
+    Map<String, Object> result = new HashMap<>();
+    for (Map.Entry<String, Map> entry : input.entrySet()) {
+      String key = entry.getKey();
+      if ("indexing-benchmarks".equals(key)) {
+        List<Map<String, Object>> flattenedResult = new ArrayList<>();
+        Map<String, Map> benchmarksByName = entry.getValue();
+        for (Map.Entry<String, Map> nameEntry : benchmarksByName.entrySet()) {
+          String benchmarkName = nameEntry.getKey();
+          Map<String, List<Map<String, Number>>> benchmarksBySetup = nameEntry.getValue();
+          for (Map.Entry<String, List<Map<String, Number>>> setupEntry : benchmarksBySetup.entrySet()) { //flatten the list
+            String setupName = setupEntry.getKey();
+            Map<String, Object> flattenedEntry = new HashMap<>();
+            flattenedEntry.put("key", benchmarkName + "." + setupName);
+            for (Map<String, Number> metricsEntry : setupEntry.getValue()) {
+              flattenedEntry.putAll(metricsEntry);
+            }
+            flattenedResult.add(flattenedEntry);
+          }
+        }
+        result.put(key, flattenedResult);
+      } else if ("query-benchmarks".equals(key)) {
+        List<Map<String, Object>> flattenedResult = new ArrayList<>();
+        Map<String, List<Map<String, Number>>> benchmarksByName = entry.getValue();
+        for (Map.Entry<String, List<Map<String, Number>>> nameEntry : benchmarksByName.entrySet()) {
+          String benchmarkName = nameEntry.getKey();
+          for (Map<String, Number> metricsEntry : nameEntry.getValue()) {
+            Map<String, Object> flattenedEntry = new HashMap<>();
+            flattenedEntry.put("key", benchmarkName);
+            flattenedEntry.putAll(metricsEntry);
+            flattenedResult.add(flattenedEntry);
+          }
+        }
+        result.put(key, flattenedResult);
+      } else {
+        result.put(key, entry.getValue()); //no flattening for other types
+      }
+    }
+    return result;
+  }
 
   private static List<BenchmarkMetadata> shiftMetadata(long baseTime, long startTime, List<BenchmarkMetadata> metadata) {
     List<BenchmarkMetadata> result = new ArrayList<>();
