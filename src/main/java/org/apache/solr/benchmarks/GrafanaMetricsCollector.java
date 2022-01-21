@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,6 +34,20 @@ public class GrafanaMetricsCollector implements Runnable {
 	Set<String> groups = new HashSet<String>();
 	private static final String TOTAL_SIZE_IN_BYTES_KEY = "totalSizeInBytes";
 
+	private static long BASE_START_TIME = getBaseStartTime();
+
+	private static long getBaseStartTime() {
+		String pattern = "yyyy-MM-dd";
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+		try {
+			Date date = simpleDateFormat.parse("2022-01-01");
+			return date.getTime();
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return 0;
+	}
+
 	private static class TimedMetrics {
 		@JsonProperty("timestamp")
 		private final long timestamp;
@@ -44,7 +60,8 @@ public class GrafanaMetricsCollector implements Runnable {
 		}
 
 		private void putMetric(String metricPath, Number value) {
-			metricsByPath.put(metricPath, value);
+			String grafanaPath = metricPath.replace('.', '_').replace('/', '_');
+			metricsByPath.put(grafanaPath, value);
 		}
 	}
 
@@ -61,7 +78,7 @@ public class GrafanaMetricsCollector implements Runnable {
 		this.metricsPaths = solrMetricsPaths;
 		this.cloud = cloud;
 		this.collectionDurationSeconds = collectionIntervalSeconds;
-		
+
 		for (String path: metricsPaths) {
 			groups.add(path.split("/")[0]);
 		}
@@ -89,7 +106,7 @@ public class GrafanaMetricsCollector implements Runnable {
 				for (SolrNode node: cloud.nodes) {
 					Map<String, JSONObject> resp = new HashMap<String, JSONObject>();
 
-					TimedMetrics timedMetrics = new TimedMetrics(System.currentTimeMillis() - startTime);
+					TimedMetrics timedMetrics = new TimedMetrics((System.currentTimeMillis() - startTime) + BASE_START_TIME);
 					for (String group: groups) {
 						try {
 							URL url = new URL(node.getBaseUrl()+"admin/metrics?group="+group);
@@ -104,7 +121,6 @@ public class GrafanaMetricsCollector implements Runnable {
 						String group = elements[0];
 						JSONObject json = resp.get(group);
 
-						String grafanaPath = path.replace('.', '_').replace('/', '_');
 						if (json != null) {
 							try {
 								json = json.getJSONObject("metrics");
@@ -113,14 +129,14 @@ public class GrafanaMetricsCollector implements Runnable {
 									json = json.getJSONObject(elements[i]);
 								}
 								Double metric = json.getDouble(elements[n - 1]);
-								timedMetrics.putMetric(grafanaPath, metric);
+								timedMetrics.putMetric(path, metric);
 							} catch (JSONException e) {
 								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
 								log.debug("skipped metrics path {}:", path, e);
-								timedMetrics.putMetric(grafanaPath, -1.0);
+								timedMetrics.putMetric(path, -1.0);
 							}
 						} else { // else this response wasn't fetched
-							timedMetrics.putMetric(grafanaPath, -1.0);
+							timedMetrics.putMetric(path, -1.0);
 						}
 					}
 					//Always collect size total
