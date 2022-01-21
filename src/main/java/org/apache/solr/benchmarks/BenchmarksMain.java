@@ -15,14 +15,9 @@ import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -121,10 +116,13 @@ public class BenchmarksMain {
             results.put("indexing-benchmarks", new LinkedHashMap<Map, List<Map>>());
             results.put("query-benchmarks", new LinkedHashMap<Map, List<Map>>());
 
+
             // Start metrics collection
+            long baseTime = getBaseTime();
+
             if (config.metrics != null) {
             	//metricsCollector = new MetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2);
-              metricsCollector = new GrafanaMetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2);
+              metricsCollector = new GrafanaMetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2, baseTime);
             	metricsThread = new Thread(metricsCollector);
             	metricsThread.setDaemon(true);
             	metricsThread.start();
@@ -132,13 +130,18 @@ public class BenchmarksMain {
             }
 
             List<BenchmarkMetadata> allMetadata = new ArrayList<>();
+            long startTime = System.currentTimeMillis();
             // Indexing benchmarks
             log.info("Starting indexing benchmarks...");
 
-            allMetadata.addAll(runIndexingBenchmarks(config.indexBenchmarks, solrCloud, results));
+            List<BenchmarkMetadata> metadata = runIndexingBenchmarks(config.indexBenchmarks, solrCloud, results);
+            allMetadata.addAll(shiftMetadata(baseTime, startTime, metadata));
+
 
             // Query benchmarks
-            allMetadata.addAll(runQueryBenchmarks(config.queryBenchmarks, null, solrCloud, results));
+            metadata = runQueryBenchmarks(config.queryBenchmarks, null, solrCloud, results);
+            allMetadata.addAll(shiftMetadata(baseTime, startTime, metadata));
+
 
             // Stop metrics collection
             if (config.metrics != null) {
@@ -160,6 +163,28 @@ public class BenchmarksMain {
             solrCloud.shutdown(true);
         }
     }
+
+  private static List<BenchmarkMetadata> shiftMetadata(long baseTime, long startTime, List<BenchmarkMetadata> metadata) {
+    List<BenchmarkMetadata> result = new ArrayList<>();
+    long shift = baseTime - startTime;
+    for (BenchmarkMetadata entry : metadata) {
+      long newStartTime = entry.startTime + shift;
+      result.add(new BenchmarkMetadata(entry.name, newStartTime));
+    }
+    return result;
+  }
+
+  private static long getBaseTime() {
+    String pattern = "yyyy-MM-dd";
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+    try {
+      Date date = simpleDateFormat.parse("2022-01-01");
+      return date.getTime();
+    } catch (ParseException e) {
+      e.printStackTrace();
+    }
+    return 0;
+  }
 
 	public static List<BenchmarkMetadata> runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
 			throws IOException, InterruptedException {

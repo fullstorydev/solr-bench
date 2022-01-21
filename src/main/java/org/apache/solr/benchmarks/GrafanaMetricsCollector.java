@@ -34,19 +34,7 @@ public class GrafanaMetricsCollector implements Runnable {
 	Set<String> groups = new HashSet<String>();
 	private static final String TOTAL_SIZE_IN_BYTES_KEY = "totalSizeInBytes";
 
-	private static long BASE_START_TIME = getBaseStartTime();
-
-	private static long getBaseStartTime() {
-		String pattern = "yyyy-MM-dd";
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-		try {
-			Date date = simpleDateFormat.parse("2022-01-01");
-			return date.getTime();
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		return 0;
-	}
+	private static long baseTime;
 
 	private static class TimedMetrics {
 		@JsonProperty("timestamp")
@@ -65,7 +53,7 @@ public class GrafanaMetricsCollector implements Runnable {
 		}
 	}
 
-	public GrafanaMetricsCollector(SolrCloud cloud, List<String> zkMetricsPaths, List<String> solrMetricsPaths, int collectionIntervalSeconds) {
+	public GrafanaMetricsCollector(SolrCloud cloud, List<String> zkMetricsPaths, List<String> solrMetricsPaths, int collectionIntervalSeconds, long baseTime) {
 		for (SolrNode node: cloud.nodes) {
 			List<TimedMetrics> metricsByNode = new ArrayList<TimedMetrics>();
 			solrMetrics.put(node.getNodeName(), metricsByNode);
@@ -78,6 +66,7 @@ public class GrafanaMetricsCollector implements Runnable {
 		this.metricsPaths = solrMetricsPaths;
 		this.cloud = cloud;
 		this.collectionDurationSeconds = collectionIntervalSeconds;
+		this.baseTime = baseTime;
 
 		for (String path: metricsPaths) {
 			groups.add(path.split("/")[0]);
@@ -106,7 +95,7 @@ public class GrafanaMetricsCollector implements Runnable {
 				for (SolrNode node: cloud.nodes) {
 					Map<String, JSONObject> resp = new HashMap<String, JSONObject>();
 
-					TimedMetrics timedMetrics = new TimedMetrics((System.currentTimeMillis() - startTime) + BASE_START_TIME);
+					TimedMetrics timedMetrics = new TimedMetrics((System.currentTimeMillis() - startTime) + baseTime);
 					for (String group: groups) {
 						try {
 							URL url = new URL(node.getBaseUrl()+"admin/metrics?group="+group);
