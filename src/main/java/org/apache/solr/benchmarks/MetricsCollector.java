@@ -28,6 +28,7 @@ public class MetricsCollector implements Runnable {
 	private final SolrCloud cloud;
 	private final int collectionDurationSeconds;
 	Set<String> groups = new HashSet<String>();
+	private static final String TOTAL_SIZE_IN_BYTES_KEY = "totalSizeInBytes";
 
 	public MetricsCollector(SolrCloud cloud, List<String> zkMetricsPaths, List<String> solrMetricsPaths, int collectionIntervalSeconds) {
 		for (SolrNode node: cloud.nodes) {
@@ -35,6 +36,7 @@ public class MetricsCollector implements Runnable {
 			for (String metricPath: solrMetricsPaths) {
 				metrics.get(node.getNodeName()).put(metricPath, new Vector<Number>());
 			}
+			metrics.get(node.getNodeName()).put(TOTAL_SIZE_IN_BYTES_KEY, new Vector<Number>());
 		}
 		for (String zkMetricPath: zkMetricsPaths) {
 			zkMetrics.put(zkMetricPath, new Vector<Number>());
@@ -101,6 +103,22 @@ public class MetricsCollector implements Runnable {
 							metrics.get(node.getNodeName()).get(path).add(-1.0);
 						}
 					}
+
+					//Always collect size total
+					try {
+						URL url = new URL(node.getBaseUrl()+"admin/metrics?prefix=INDEX.sizeInBytes");
+						JSONObject response = new JSONObject(IOUtils.toString(url, Charset.forName("UTF-8")));
+						JSONObject metricsJson = response.getJSONObject("metrics");
+						long totalSizeInBytes = 0;
+						for (String replica : metricsJson.keySet()) {
+							totalSizeInBytes += metricsJson.getJSONObject(replica).getLong("INDEX.sizeInBytes");
+						}
+						metrics.get(node.getNodeName()).get(TOTAL_SIZE_IN_BYTES_KEY).add(totalSizeInBytes);
+					} catch (JSONException | IOException e1) {
+						log.debug("Couldn't get metrics from "+node.getBaseUrl(), e1);
+						metrics.get(node.getNodeName()).get(TOTAL_SIZE_IN_BYTES_KEY).add(-1.0);
+					}
+
 				}
 				Thread.sleep(collectionDurationSeconds*1000);
 			} catch (InterruptedException e) {
