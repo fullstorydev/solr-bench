@@ -110,7 +110,7 @@ public class BenchmarksMain {
         }
         SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 
-        MetricsCollector metricsCollector = null;
+        GrafanaMetricsCollector metricsCollector = null;
         Thread metricsThread = null;
         
         try {
@@ -123,11 +123,12 @@ public class BenchmarksMain {
 
             // Start metrics collection
             if (config.metrics != null) {
-            	metricsCollector = new MetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2);
+            	//metricsCollector = new MetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2);
+              metricsCollector = new GrafanaMetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2);
             	metricsThread = new Thread(metricsCollector);
             	metricsThread.setDaemon(true);
             	metricsThread.start();
-            	results.put("solr-metrics", metricsCollector.metrics);
+            	results.put("solr-metrics", metricsCollector.solrMetrics);
             }
 
             List<BenchmarkMetadata> allMetadata = new ArrayList<>();
@@ -147,9 +148,12 @@ public class BenchmarksMain {
             results.put("configuration", Util.map("configuration", config));
             System.out.println("Final results: "+results);
           ObjectMapper jsonMapper = new ObjectMapper();
-          jsonMapper.writeValue(new File("results.json"), results);
+          File resultFile = new File("results.json");
+          jsonMapper.writeValue(resultFile, results);
+          log.info("Result written to " + resultFile.getAbsolutePath());
+          File timelineFile = new File("timeline.json");
           jsonMapper.writeValue(new File("timeline.json"), allMetadata);
-
+          log.info("Timeline written to " + timelineFile.getAbsolutePath());
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
