@@ -143,6 +143,8 @@ public class BenchmarksMain {
             allMetadata.addAll(shiftMetadata(baseTime, startTime, metadata));
 
 
+            allMetadata.add(new BenchmarkMetadata("finish", System.currentTimeMillis() + baseTime - startTime));
+
             // Stop metrics collection
             if (config.metrics != null) {
             	metricsCollector.stop();
@@ -189,6 +191,8 @@ public class BenchmarksMain {
 	public static List<BenchmarkMetadata> runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
 			throws IOException, InterruptedException {
     List<BenchmarkMetadata> metadata = new ArrayList<>();
+    queryBenchmarks = new ArrayList<>(queryBenchmarks); //make sure it's mutable
+    queryBenchmarks.sort(Comparator.comparing(o -> o.name));
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
 		for (QueryBenchmark benchmark : queryBenchmarks) {
