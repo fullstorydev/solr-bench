@@ -20,6 +20,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
@@ -166,6 +167,7 @@ public class BenchmarksMain {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
+          TimeUnit.MINUTES.sleep(20);
             solrCloud.shutdown(true);
         }
     }
