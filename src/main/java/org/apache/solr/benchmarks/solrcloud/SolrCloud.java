@@ -137,25 +137,34 @@ public class SolrCloud {
       log.info("Looking for healthy nodes...");
       List<SolrNode> healthyNodes = new ArrayList<>();
       for (SolrNode node: nodes) {
-  		try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
-  			HealthCheckRequest req = new HealthCheckRequest();
-  			HealthCheckResponse rsp;
-  			try {
-  				rsp = req.process(client);
-  			} catch (Exception ex) {
-  				Thread.sleep(100);
-  				rsp = req.process(client);
-  			}
-  			if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
-  				log.error("Couldn't start node: "+node.getBaseUrl());
-  				throw new RuntimeException("Couldn't start node: "+node.getBaseUrl());
-  			} else {
-  				healthyNodes.add(node);
-  			}
-  		} catch (Exception ex) {
-  			ex.printStackTrace();
-  			log.error("Problem starting node: "+node.getBaseUrl());
-  		}
+        try (HttpSolrClient client = new HttpSolrClient.Builder(node.getBaseUrl().substring(0, node.getBaseUrl().length()-1)).build();) {
+          HealthCheckRequest req = new HealthCheckRequest();
+          HealthCheckResponse rsp;
+          final int MAX_RETRIES = 10;
+          int tries = 0;
+          boolean healthChecked = false;
+
+          while (!healthChecked && tries ++ <= MAX_RETRIES) {
+            try {
+              rsp = req.process(client);
+
+              healthChecked = true; //call completes, set the flag to exit the loop
+
+              if (rsp.getNodeStatus().equalsIgnoreCase("ok") == false) {
+                log.error("Couldn't start node: " + node.getBaseUrl());
+                throw new RuntimeException("Couldn't start node: " + node.getBaseUrl());
+              } else {
+                healthyNodes.add(node);
+              }
+            } catch (Exception ex) {
+              Thread.sleep(1000);
+              log.info("Exception from checking health, perhaps node is not ready yet, retries: " + (tries) + " message : " + ex.getMessage());
+            }
+          }
+        } catch (Exception ex) {
+          ex.printStackTrace();
+          log.error("Problem starting node: "+node.getBaseUrl());
+        }
       }
 
       //TODO some sleep here, otherwise zk might not be healthy yet - need better check than arbitrary sleep
