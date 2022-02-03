@@ -85,8 +85,14 @@ public class LocalSolrNode implements SolrNode {
     }
 
     Util.extract(solrPackagePath, binDirectory);
+    for (File file : new File(this.binDirectory).listFiles()) {
+      if (file.isDirectory() && file.getName().startsWith("solr-")) {
+        this.binDirectory = file.getPath() + File.separator + "bin" + File.separator;
+      }
+    }
 
-    this.binDirectory = new File(this.binDirectory).listFiles()[0] + File.separator + "bin" + File.separator;
+
+
   }
 
   @Override
