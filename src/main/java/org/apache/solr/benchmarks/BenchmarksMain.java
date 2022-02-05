@@ -226,6 +226,7 @@ public class BenchmarksMain {
   private static long getBaseTime() {
     String pattern = "yyyy-MM-dd";
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+    simpleDateFormat.setTimeZone(new SimpleTimeZone(SimpleTimeZone.UTC_TIME, "UTC"));
     try {
       Date date = simpleDateFormat.parse("2022-01-01");
       return date.getTime();
