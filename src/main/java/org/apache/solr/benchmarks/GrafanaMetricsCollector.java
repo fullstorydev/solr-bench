@@ -152,7 +152,9 @@ public class GrafanaMetricsCollector implements Runnable {
 
 				//add metrics for "all"
 				TimedMetrics allMetrics = new TimedMetrics(timeMarker);
-				for (String path: metricsPaths) {
+				List<String> allMetricsPaths = new ArrayList<>(metricsPaths);
+				allMetricsPaths.add(TOTAL_SIZE_IN_BYTES_KEY);
+				for (String path: allMetricsPaths) {
 					double total = 0;
 					for (SolrNode node: cloud.nodes) {
 						Number value = metricsByNode.get(node).metricsByPath.get(path);
@@ -162,6 +164,7 @@ public class GrafanaMetricsCollector implements Runnable {
 					}
 					allMetrics.putMetric(path, total);
 				}
+
 				solrMetrics.get("all").add(allMetrics);
 
 
