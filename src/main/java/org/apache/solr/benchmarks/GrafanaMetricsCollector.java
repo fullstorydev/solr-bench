@@ -58,6 +58,7 @@ public class GrafanaMetricsCollector implements Runnable {
 			List<TimedMetrics> metricsByNode = new ArrayList<TimedMetrics>();
 			solrMetrics.put(node.getNodeName(), metricsByNode);
 		}
+		solrMetrics.put("all", new ArrayList<>());
 		for (String zkMetricPath: zkMetricsPaths) {
 			zkMetrics.put(zkMetricPath, new Vector<Number>());
 		}
@@ -91,11 +92,14 @@ public class GrafanaMetricsCollector implements Runnable {
 						log.error("Couldn't get metrics from " + cloud.getZookeeperAdminUrl(), e1);
 					}
 				}
+				long timeMarker = System.currentTimeMillis() - startTime + baseTime;
+				Map<SolrNode, TimedMetrics> metricsByNode = new HashMap<>();
 				// Fetch Solr metrics
 				for (SolrNode node: cloud.nodes) {
 					Map<String, JSONObject> resp = new HashMap<String, JSONObject>();
 
-					TimedMetrics timedMetrics = new TimedMetrics((System.currentTimeMillis() - startTime) + baseTime);
+					TimedMetrics timedMetrics = new TimedMetrics(timeMarker);
+					metricsByNode.put(node, timedMetrics);
 					for (String group: groups) {
 						try {
 							URL url = new URL(node.getBaseUrl()+"admin/metrics?group="+group);
@@ -145,6 +149,22 @@ public class GrafanaMetricsCollector implements Runnable {
 					solrMetrics.get(node.getNodeName()).add(timedMetrics);
 
 				}
+
+				//add metrics for "all"
+				TimedMetrics allMetrics = new TimedMetrics(timeMarker);
+				for (String path: metricsPaths) {
+					double total = 0;
+					for (SolrNode node: cloud.nodes) {
+						Number value = metricsByNode.get(node).metricsByPath.get(path);
+						if (value != null) {
+							total += value.doubleValue();
+						}
+					}
+					allMetrics.putMetric(path, total);
+				}
+				solrMetrics.get("all").add(allMetrics);
+
+
 				Thread.sleep(collectionDurationSeconds*1000);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
