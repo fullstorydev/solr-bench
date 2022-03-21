@@ -58,7 +58,7 @@ public class Util {
 
   public static String WORK_DIRECTORY = getWorkingDir() + File.separator;
 
-  private static String getWorkingDir(){
+  public static String getWorkingDir(){
     try {
       return new File( "." ).getCanonicalPath();
     } catch (IOException e) {

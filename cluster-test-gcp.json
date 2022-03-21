@@ -1,0 +1,118 @@
+{
+        "task-types": {
+          "indexing":  {
+    			"index-benchmark": {
+    			      "name": "CLOUD_INDEXING",
+    			      "description": "Wikipedia dataset on SolrCloud",
+    			      "replication-type": "cloud",
+    			      "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
+    			      "file-format": "tsv",
+    			      "id-field": "id",
+    			      "setups": [
+    			        {
+    			          "setup-name": "cloud_2x2",
+    			          "collection": "small-wikipedia-${INDEX}",
+    			          "replication-factor": 3,
+    			          "shards": 1,
+    			          "min-threads": 2,
+    			          "max-threads": 2,
+    			          "thread-step": 1
+    			        }
+    			      ]
+    		    }		
+            },
+            "cluster-state-benchmark": {
+                "cluster-state-benchmark": {
+                   "filename": "clusterstatus_clusterstatus.json",
+                   "collection-creation-params": {"perReplicaState": "true"},
+                   "collections-limit": 5000,
+                   "simulation-concurrency-fraction": 0.75
+                 }
+            },
+            "collection-creation": {
+                "command": "${SOLRURL}admin/collections?action=CREATE&name=collection${INDEX}&numShards=${SHARDS}",
+                "defaults": {
+                    "INDEX": 0,
+                    "SHARDS": 1
+                }
+            },
+            "shard-splitting": {
+                "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=${COLLECTION}&shard=${SHARD}",
+                "defaults": {}
+            },
+            "num-docs": {
+                "command": "${SOLRURL}small-wikipedia/select?q=*:*&rows=0&distrib=false",
+                "defaults": {}
+            },
+            "restart-solr-node": {
+            	"restart-solr-node": "${NODE_INDEX}",
+            	"await-recoveries": true
+            }
+        },
+        "global-variables": {
+            "collection-counter": 0,
+            "restart-counter": 1
+        },
+        "global-constants": {
+            "HOST": "localhost",
+            "PORT": "8983"
+        },
+        "execution-plan": {
+            "task1": {
+                "type": "cluster-state-benchmark",
+                "instances": 1,
+                "concurrency": 1,
+                "mode": "sync"
+            }       ,
+            "task2": {
+                "description": "Restart Solr node",
+                "instances": 30,
+                "concurrency": 10,
+                "type": "restart-solr-node",
+                "parameters": {
+                   "NODE_INDEX": "${restart-counter}"
+                },
+                "wait-for": "task1",
+                "mode": "sync",
+                "pre-task-evals": [
+                        "inc(restart-counter,1)"
+                ]
+            }
+    
+        },
+    
+      "cluster": {
+        "num-solr-nodes": 32,
+        "jdk-url": "http://ghaffarian.net/downloads/Java/jdk-8u202-linux-x64.tar.gz",
+        "jdk-tarball": "jdk-8u202-linux-x64.tar.gz",
+        "jdk-directory": "jdk1.8.0_202",
+        "startup-params": "-m 12g",
+        "provisioning-method": "terraform-gcp",
+        "terraform-gcp-config": {
+            "project_id" : "fs-playpen",
+            "zookeeper_machine_type" : "n1-standard-2",
+            "zookeeper_disk_type" : "pd-ssd",
+    	"zookeeper_instance_name": "ishan-zk",
+    	"solr_instance_name": "ishan-solr",
+            "solr_node_count" : 32,
+            "solr_machine_type" : "n2d-standard-4",
+            "solr_disk_type"  : "pd-ssd",
+            "tags" : ["benchmarking", "solr", "temp"],
+            "public_key_path" : "id_rsa.pub",
+            "user" : "solruser"
+        }
+      },
+      "repository": {
+        "commit-id": "412ac6c09b24700504fa0f6a034dd9564cafb1eb",
+        "description": "Solr 8.7",
+        "name": "fs-repository",
+        "package-subdir": "/solr/package/",
+        "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+        "submodules": false,
+        "url": "https://github.com/fullstorydev/lucene-solr",
+        "user"  : "ishan"
+      },
+      "metrics": ["jvm/solr.jvm/memory.heap.used", "jvm/solr.jvm/os.systemCpuLoad", "solr.node/solr.node/overseer.totalMessages", "solr.node/solr.node/overseer.stateMessages", "solr.node/solr.node/overseer.leaderMessages"]
+    }
+    
+    

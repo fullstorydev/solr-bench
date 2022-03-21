@@ -19,6 +19,7 @@ package org.apache.solr.benchmarks.solrcloud;
 
 import java.lang.invoke.MethodHandles;
 
+import org.apache.solr.benchmarks.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,13 @@ public class GenericSolrNode implements SolrNode {
   public int stop() throws Exception {
 	  return 0;
   }
+  
+  @Override
+  public int restart() throws Exception {
+	  Util.execute("./restartsolr.sh " + host, Util.getWorkingDir());
+	  return 0;
+  }
+
 
   @Override
   public String getBaseUrl() {

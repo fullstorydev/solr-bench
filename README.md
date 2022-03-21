@@ -53,6 +53,14 @@ In the coordinator VM (GCP) or local machine (local mode), check out this solr-b
 * `python2.7 -m SimpleHTTPServer`
 * Open http://localhost:8000/plot-stress.html (to view the graph of the metrics of last performed test)
 
+### Plotting the results
+
+Once you have the results in a dir, say, `results/experiment1`, and you want to plot heap usage of a Solr node (hardcoded to the 7th node at the moment), beginning the task2, then
+
+    ./plot.sh results experiment1 task2 jvm/solr.jvm/memory.heap.used
+
+will generate a experiment1.png file containing the plot.
+
 
 ## Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.

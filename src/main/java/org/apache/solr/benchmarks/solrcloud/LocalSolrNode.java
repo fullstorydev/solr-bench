@@ -151,13 +151,15 @@ public class LocalSolrNode implements SolrNode {
 	  return "localhost:"+port;
   }
   
-  public void restart() throws Exception {
+  @Override
+  public int restart() throws Exception {
 	    long start = System.currentTimeMillis();
 	    stop();
 	    start();
 	    long end = System.currentTimeMillis();
 
 	    log.info("Time taken for the node restart is: " + (end - start)/1000.0 + " seconds");
+	    return 0;
   }
 
   @Override

@@ -139,10 +139,11 @@ NOW=`date +"%Y-%d-%m_%H.%M.%S"`
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      echo_blue "Pulling logs"
+     cd $ORIG_WORKING_DIR
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
         SOLR_NODE=${line//\"/}
-        SOLR_DIR=`tar --exclude='*/*/*' -tf ${SOLR_TARBALL_NAME} | head -1| cut -d '/' -f 1`
+        SOLR_DIR=`tar --exclude='*/*/*' -tf ${SOLR_TARBALL_PATH} | head -1| cut -d '/' -f 1`
 	ssh -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE "tar -cf solrlogs-${SOLR_NODE}.tar $SOLR_DIR/server/logs"
 	scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:solrlogs-${SOLR_NODE}.tar .
         zip logs-${NOW}.zip solrlogs*tar
@@ -170,10 +171,10 @@ fi
 #fi
 
 # Cleanup
-#if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
-#then
-#     cd $ORIG_WORKING_DIR/terraform
-#     terraform destroy --auto-approve
-#     rm id_rsa*
-#fi
+if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     cd $ORIG_WORKING_DIR/terraform
+     terraform destroy --auto-approve
+     rm id_rsa*
+fi
 

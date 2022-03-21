@@ -1,6 +1,5 @@
 {
   "cluster": {
-    "num-solr-nodes": 1,
     "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u241-linux-x64.tar.gz",
     "jdk-tarball": "jdk-8u241-linux-x64.tar.gz",
     "jdk-directory": "jdk1.8.0_241",

@@ -24,15 +24,22 @@ public class Workflow {
 	// Workflow definition
 	@JsonProperty("task-types")
 	Map<String, TaskType> taskTypes;
-	
+
 	@JsonProperty("global-variables")
 	Map<String, Integer> globalVariables;
 
 	@JsonProperty("global-constants")
 	Map<String, String> globalConstants;
 
+	@JsonProperty("threadpools")
+	List<ThreadpoolInfo> threadpools = Collections.emptyList();
+
 	@JsonProperty("execution-plan")
 	Map<String, TaskInstance> executionPlan;
+	
+	// Validations definition
+	@JsonProperty("validations")
+	Map<String, Validation> validations;
 	
 	@JsonProperty("metrics")
 	public List<String> metrics;
@@ -40,4 +47,22 @@ public class Workflow {
 	@JsonProperty("zk-metrics")
 	public List<String> zkMetrics = Collections.emptyList();
 
+	static class ThreadpoolInfo {
+		public String name;
+		public int size;
+	}
+	
+	static class Validation {
+		@JsonProperty("num-inactive-replicas")
+		Integer numInactiveReplicas;
+		
+		@JsonProperty("match-docs")
+		MatchDocs matchDocs;
+		
+		static class MatchDocs {
+			@JsonProperty("indexing-tasks")
+			List<String> indexingTasks;
+			
+		}
+	}
 }
