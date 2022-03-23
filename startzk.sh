@@ -8,7 +8,11 @@ echo_blue() {
 
 ./wait-for-it.sh -t 0 $ZK_NODE:22
 echo_blue "Starting Zookeeper on $ZK_NODE"
-ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE uptime
+
+echo_blue "Checking SSH agent..."
+ssh-add -L
+
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $ZK_NODE uptime
 ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE rm -rf *zook* 
 ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE rm -rf /tmp/zookeeper 
 ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE sudo pkill -9 java

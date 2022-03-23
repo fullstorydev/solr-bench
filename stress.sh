@@ -67,14 +67,18 @@ terraform-gcp-provisioner() {
      terraform init 
      terraform apply --auto-approve
 
-     # Start Solr on provisioned instances
+     # Wait 10 seconds for GCP to sync the SSH keys we need to login, needed esp. when using SSH
+     # agent forwarding
+     sleep 30
+
+     # Start ZK & Solr on provisioned instances
      cd $ORIG_WORKING_DIR
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
      export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
      export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
-     export BENCH_USER="solruser"
+     export BENCH_USER=`jq -r '."cluster"."terraform-gcp-config"."user"' $CONFIGFILE`
      export BENCH_KEY="terraform/id_rsa"
      ./startzk.sh
 
@@ -82,7 +86,7 @@ terraform-gcp-provisioner() {
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
           export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
-          OVERRIDE=`jq -r '."cluster"."startup-params-overrides"[$NODE_COUNTER]' $CONFIGFILE`
+          OVERRIDE=`jq -r ".\\"cluster\\".\\"startup-params-overrides\\"[$NODE_COUNTER]" $CONFIGFILE`
           if [[ "null" == $OVERRIDE ]] ; then echo "No startup param override"; else export SOLR_STARTUP_PARAMS=$OVERRIDE; fi
           SOLR_NODE=${line//\"/}
           echo_blue "Starting Solr on $SOLR_NODE ($NODE_COUNTER), override=$OVERRIDE"
@@ -144,8 +148,8 @@ then
      do
         SOLR_NODE=${line//\"/}
         SOLR_DIR=`tar --exclude='*/*/*' -tf ${SOLR_TARBALL_PATH} | head -1| cut -d '/' -f 1`
-	ssh -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE "tar -cf solrlogs-${SOLR_NODE}.tar $SOLR_DIR/server/logs"
-	scp -i terraform/id_rsa -oStrictHostKeyChecking=no  solruser@$SOLR_NODE:solrlogs-${SOLR_NODE}.tar .
+	ssh -i terraform/id_rsa -oStrictHostKeyChecking=no  $BENCH_USER@$SOLR_NODE "tar -cf solrlogs-${SOLR_NODE}.tar $SOLR_DIR/server/logs"
+	scp -i terraform/id_rsa -oStrictHostKeyChecking=no  $BENCH_USER@$SOLR_NODE:solrlogs-${SOLR_NODE}.tar .
         zip logs-${NOW}.zip solrlogs*tar
      done
 

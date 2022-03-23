@@ -29,9 +29,11 @@ public class GenericSolrNode implements SolrNode {
 
   private final String host;
   private final String port = "8983";
+  private final String user;
 
-  public GenericSolrNode(String host) throws Exception {
+  public GenericSolrNode(String host, String user) throws Exception {
     this.host = host;
+    this.user = user;
   }
 
   @Override
@@ -56,7 +58,7 @@ public class GenericSolrNode implements SolrNode {
   
   @Override
   public int restart() throws Exception {
-	  Util.execute("./restartsolr.sh " + host, Util.getWorkingDir());
+	  Util.execute("./restartsolr.sh " + host + " " + user, Util.getWorkingDir());
 	  return 0;
   }
 

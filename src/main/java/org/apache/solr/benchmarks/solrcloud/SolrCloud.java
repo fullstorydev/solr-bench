@@ -171,14 +171,14 @@ public class SolrCloud {
     	System.out.println("ZK node: "+getZkNodeFromTFState());
     	zookeeper = new GenericZookeeper(getZkNodeFromTFState());
     	for (String host: getSolrNodesFromTFState()) {
-    		nodes.add(new GenericSolrNode(host));
+    		nodes.add(new GenericSolrNode(host, cluster.terraformGCPConfig.get("user").toString()));
     	}
     } else if ("vagrant".equalsIgnoreCase(cluster.provisioningMethod)) {
     	System.out.println("Solr nodes: "+getSolrNodesFromVagrant());
     	System.out.println("ZK node: "+getZkNodeFromVagrant());
     	zookeeper = new GenericZookeeper(getZkNodeFromVagrant());
     	for (String host: getSolrNodesFromVagrant()) {
-    		nodes.add(new GenericSolrNode(host));
+    		nodes.add(new GenericSolrNode(host, null)); // TODO fix username for vagrant
     	}
     }
 
