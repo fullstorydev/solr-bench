@@ -202,281 +202,309 @@ public class StressMain {
 			log.debug("Hello1: "+params+", "+copyOfGlobalVarialbes+", "+ instance.parameters+", "+ globalVariables);
 
 			if (type.pauseSolrNode != null) {
-				String nodeIndex = resolveString(resolveString(type.pauseSolrNode, params), workflow.globalConstants);
-				int pauseDuration = type.pauseSeconds;
-				long taskStart = System.currentTimeMillis();
-				LocalSolrNode node = ((LocalSolrNode) cloud.nodes.get(Integer.valueOf(nodeIndex) - 1));
-				try {
-					node.pause(pauseDuration);
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
-
-				if (type.awaitRecoveries) {
-					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
-
-						int numInactive = 0;
-						do {
-							numInactive = 0;
-							Set<String> inactive = new HashSet<>();
-							ClusterState state = client.getClusterStateProvider().getClusterState();
-							for (String coll: state.getCollectionsMap().keySet()) {
-								PRS prs = new PRS(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient());
-								for (Slice shard: state.getCollection(coll).getActiveSlices()) {
-									for (Replica replica: shard.getReplicas()) {
-										if (replica.getState() != Replica.State.ACTIVE) {
-											if (replica.getNodeName().contains(node.port)) {
-												numInactive++;
-												inactive.add(coll+"_"+shard.getName());
-												System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.getState(replica.getName()));
-											}
-										}
-									}
-								}
-
-							}
-
-							System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
-							if (numInactive != 0) {
-								Thread.sleep(2000);
-								client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
-							}
-						} while (numInactive > 0);
-					}
-
-				}
-				long taskEnd = System.currentTimeMillis();
-
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
-
+				doPauseTask(workflow, cloud, finalResults, executionStart, taskName, type, params);
 			} else if (type.restartSolrNode != null) {
-				log.info("Restarting node: "+type.restartSolrNode);
-
-				String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
-				long taskStart = System.currentTimeMillis();
-				log.info("Restarting node "+Integer.valueOf(nodeIndex));
-				SolrNode node = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
-				log.info("Restarting " + node.getNodeName());
-
-				try {
-					node.restart();
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
-
-				if (type.awaitRecoveries) {
-					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
-						int numInactive = 0;
-						do {
-							numInactive = getNumInactiveReplicas(node, client);
-						} while (numInactive > 0);
-					} catch (Exception ex) {
-						ex.printStackTrace();
-					}
-				}
-				long taskEnd = System.currentTimeMillis();
-
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
-
+				doRestartTask(workflow, cloud, finalResults, executionStart, taskName, type, params);
 			} else if (type.indexBenchmark != null) {
-				log.info("Running benchmarking task: "+ type.indexBenchmark.datasetFile);
-
-				// resolve the collection name using template
-				Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
-				//String collectionName = resolveString(resolveInteger(resolveString(type.indexBenchmark.setups.get(0).collection, params), copyOfGlobalVarialbes), solrurlMap);
-				String collectionName = resolveString(type.indexBenchmark.setups.get(0).collection, params);
-
-				log.info("Global variables: "+ instance.parameters);
-				log.info("Indexing benchmarks for collection: "+collectionName);
-
-				Map<String, Map> results = new HashMap<String, Map>();
-				results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
-				long taskStart = System.currentTimeMillis();
-				try {
-					BenchmarksMain.runIndexingBenchmarks(Collections.singletonList(type.indexBenchmark), collectionName, false, cloud, results);
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
-				long taskEnd = System.currentTimeMillis();
-				log.info("Results: "+results.get("indexing-benchmarks"));
-				try {
-					String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
-					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
-				} catch (Exception ex) {
-					//ex.printStackTrace();
-				}
+				doIndexingTask(cloud, finalResults, executionStart, taskName, instance, type, params);
 			} else if (type.queryBenchmark != null) {
-				log.info("Running benchmarking task: "+ type.queryBenchmark.queryFile);
-
-				// resolve the collection name using template
-				Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
-				String collectionName = resolveString(type.queryBenchmark.collection, params);
-
-				log.info("Global variables: "+ instance.parameters);
-				log.info("Query benchmarks for collection: "+collectionName);
-
-				Map<String, Map> results = new HashMap<String, Map>();
-				results.put("query-benchmarks", new LinkedHashMap<String, List<Map>>());
-				long taskStart = System.currentTimeMillis();
-				try {
-					BenchmarksMain.runQueryBenchmarks(Collections.singletonList(type.queryBenchmark), collectionName, cloud, results);
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
-				long taskEnd = System.currentTimeMillis();
-				log.info("Results: "+results.get("query-benchmarks"));
-				try {
-					//String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
-					String totalTime = String.valueOf(taskEnd - taskStart);
-
-					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
-							"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()));
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
+				doQueryTask(cloud, finalResults, executionStart, taskName, instance, type, params);
 			} else if (type.clusterStateBenchmark!=null) {
-				TaskType.ClusterStateBenchmark clusterStateBenchmark = type.clusterStateBenchmark;
-				log.info("starting cluster state task...");
-				try {
-					SolrClusterStatus status = new ObjectMapper().readValue(new File(clusterStateBenchmark.filename), SolrClusterStatus.class);
-					log.info("starting cluster state task... "+status);
-
-					long taskStart = System.currentTimeMillis();
-					int shards = 0;
-					for (String name: status.getCluster().getCollections().keySet()) {
-						Collection coll = status.getCluster().getCollections().get(name);
-						shards += coll.getShards().size();
-					}
-
-					// Translate node names in cluster state to indexes of nodes we have
-					Map<String, Integer> nodeMap = new LinkedHashMap<String, Integer>(); // mapping of node name in supplied cluster state to index of nodes we have
-					for (int j=0, k=0; k<status.getCluster().getLiveNodes().size(); j++, k++) {
-						if (clusterStateBenchmark.excludeNodes.contains(j % cloud.nodes.size() + 1)) {
-							k--; continue;
-						}
-						nodeMap.put(status.getCluster().getLiveNodes().get(k), j % cloud.nodes.size());
-					}
-					log.info("Node mapping: "+nodeMap);
-
-					try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
-						ClusterState state = client.getClusterStateProvider().getClusterState();
-						log.info("Live nodes: "+state.getLiveNodes());
-					}
-
-					log.info("Summary: "+status.getCluster().getCollections().size()+" collections loaded, to be executed across "+status.getCluster().getLiveNodes().size()+" nodes. Total shards: "+shards);
-
-					// Start the simulation
-					AtomicInteger collectionCounter = new AtomicInteger(0);
-					AtomicInteger shardCounter = new AtomicInteger(0);
-					ConcurrentHashMap<String, Integer> failedCollections = new ConcurrentHashMap<String, Integer>();
-					int simpleCounter = 0;
-
-					int threadPoolSize = (int)((double)Runtime.getRuntime().availableProcessors() * clusterStateBenchmark.simulationConcurrencyFraction) + 1;
-					ExecutorService clusterStateExecutor = Executors.newFixedThreadPool(threadPoolSize, new ThreadFactoryBuilder().setNameFormat("clusterstate-task-threadpool").build());
-
-					for (String name: status.getCluster().getCollections().keySet()) {
-						if ((++simpleCounter) > clusterStateBenchmark.collectionsLimit && type.clusterStateBenchmark.collectionsLimit > 0) {
-							log.info("Setting up tasks for " + clusterStateBenchmark.collectionsLimit+" collections...");
-							break;
-						}
-
-						Callable callable = () -> {
-							Collection coll = status.getCluster().getCollections().get(name);
-							Set<Integer> nodes = new HashSet<>();
-							for (Shard sh: coll.getShards().values()) {
-								nodes.add(nodeMap.get(sh.getReplicas().values().iterator().next().getNodeName()));
-							}
-
-							String nodeSet = "";
-							for (int n: nodes) {
-								nodeSet += cloud.nodes.get(n).getNodeName() + 
-										(cloud.nodes.get(n).getNodeName().endsWith("_solr")? "": "_solr") +",";
-							}
-							nodeSet = nodeSet.substring(0, nodeSet.length()-1);
-							shardCounter.addAndGet(coll.getShards().size());
-
-							final int COLLECTION_TIMEOUT_SECS = 200;
-
-							try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(nodes.iterator().next()).getBaseUrl()).build();) {
-								Create create = Create.createCollection(name, coll.getShards().size(), 1).
-										setMaxShardsPerNode(coll.getShards().size()).
-										setCreateNodeSet(nodeSet);
-								create.setAsyncId(name);
-
-								Map<String, String> additional = clusterStateBenchmark.collectionCreationParams==null? new HashMap<>(): clusterStateBenchmark.collectionCreationParams;
-								CreateWithAdditionalParameters newCreate = new CreateWithAdditionalParameters(create, name, additional);
-								String asyncId = newCreate.processAsync(name, client);
-								RequestStatusState state = CollectionAdminRequest.requestStatus(asyncId).waitFor(client, COLLECTION_TIMEOUT_SECS);
-								if (state != RequestStatusState.COMPLETED) { // timeout
-									log.error("Waited "+COLLECTION_TIMEOUT_SECS+" seconds, but collection "+name+" failed: "+name+", shards: "+coll.getShards().size());
-									log.error("Collection creation failed, last status on the async task: "
-												+ CollectionAdminRequest.requestStatus(asyncId).process(client).toString());
-									failedCollections.put(name, coll.getShards().size());
-								}
-							} catch (Exception ex) {
-								log.error("Collection creation failed: "+name+", shards: "+coll.getShards().size());
-								failedCollections.put(name, coll.getShards().size());
-								new RuntimeException("Collection creation failed: ", ex).printStackTrace();
-							}
-
-							int currentCounter = collectionCounter.incrementAndGet();
-							if (currentCounter % 10 == 0) {
-								log.info(collectionCounter + ": Time elapsed for this task: " + (System.currentTimeMillis()-taskStart)/1000 + " seconds (approx),"
-										+ " total shards: " + shardCounter + ", per node: " + (shardCounter.get() / cloud.nodes.size()));
-							}
-
-							return true;
-						};
-
-						clusterStateExecutor.submit(callable);
-					}
-
-					clusterStateExecutor.shutdown();
-					clusterStateExecutor.awaitTermination(24, TimeUnit.HOURS);
-
-					log.info("Number of failed collections: "+failedCollections.size());
-					log.info("Failed collections: "+failedCollections);
-
-					long taskEnd = System.currentTimeMillis();
-					log.info("Task took time: "+(taskEnd-taskStart)/1000.0+" seconds.");
-					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
+				doClusterStateSimulationTask(cloud, finalResults, executionStart, taskName, type);
 			} else if (type.command != null) {
-				Map<String, String> solrurlMap = new HashMap<>();
-				solrurlMap.put("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
-				log.info("Resolving random params: "+type.command);
-				try {
-					resolveRandomParams(cloud, type, params, solrurlMap);
-				} catch (Exception ex) {
-					log.error("Failed to populate random params", ex);
-				}
-				String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap); //nocommit resolve instance.parameters as well
-				log.info("Resolved command: " + command);
-				log.info("Running in "+ instance.mode+" mode: "+command);
-
-				long taskStart = System.currentTimeMillis();
-				int responseCode = -1;
-				try {
-					HttpURLConnection connection = (HttpURLConnection) new URL(command).openConnection();
-					responseCode = connection.getResponseCode();
-					String output = IOUtils.toString((InputStream)connection.getContent(), Charset.forName("UTF-8"));
-					log.info("Output ("+responseCode+"): "+output);
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
-				long taskEnd = System.currentTimeMillis();
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode));
+				doAPICommandTask(workflow, cloud, finalResults, executionStart, taskName, instance, type, params);
 			}
 			long end = System.currentTimeMillis();
 
 			runValidations(instance.validations, workflow, cloud);
 
-			
 			return end-start;			
 		};
 		return c;
+	}
+
+	private static void doAPICommandTask(Workflow workflow, SolrCloud cloud, Map<String, List<Map>> finalResults,
+			long executionStart, String taskName, TaskInstance instance, TaskType type, Map<String, String> params) {
+		Map<String, String> solrurlMap = new HashMap<>();
+		solrurlMap.put("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+		log.info("Resolving random params: "+type.command);
+		try {
+			resolveRandomParams(cloud, type, params, solrurlMap);
+		} catch (Exception ex) {
+			log.error("Failed to populate random params", ex);
+		}
+		String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap); //nocommit resolve instance.parameters as well
+		log.info("Resolved command: " + command);
+		log.info("Running in "+ instance.mode+" mode: "+command);
+
+		long taskStart = System.currentTimeMillis();
+		int responseCode = -1;
+		try {
+			HttpURLConnection connection = (HttpURLConnection) new URL(command).openConnection();
+			responseCode = connection.getResponseCode();
+			String output = IOUtils.toString((InputStream)connection.getContent(), Charset.forName("UTF-8"));
+			log.info("Output ("+responseCode+"): "+output);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		long taskEnd = System.currentTimeMillis();
+		finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode));
+	}
+
+	private static void doClusterStateSimulationTask(SolrCloud cloud, Map<String, List<Map>> finalResults,
+			long executionStart, String taskName, TaskType type) {
+		TaskType.ClusterStateBenchmark clusterStateBenchmark = type.clusterStateBenchmark;
+		log.info("starting cluster state task...");
+		try {
+			SolrClusterStatus status = new ObjectMapper().readValue(new File(clusterStateBenchmark.filename), SolrClusterStatus.class);
+			log.info("starting cluster state task... "+status);
+
+			long taskStart = System.currentTimeMillis();
+			int shards = 0;
+			for (String name: status.getCluster().getCollections().keySet()) {
+				Collection coll = status.getCluster().getCollections().get(name);
+				shards += coll.getShards().size();
+			}
+
+			// Translate node names in cluster state to indexes of nodes we have
+			Map<String, Integer> nodeMap = new LinkedHashMap<String, Integer>(); // mapping of node name in supplied cluster state to index of nodes we have
+			for (int j=0, k=0; k<status.getCluster().getLiveNodes().size(); j++, k++) {
+				if (clusterStateBenchmark.excludeNodes.contains(j % cloud.nodes.size() + 1)) {
+					k--; continue;
+				}
+				nodeMap.put(status.getCluster().getLiveNodes().get(k), j % cloud.nodes.size());
+			}
+			log.info("Node mapping: "+nodeMap);
+
+			try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+				ClusterState state = client.getClusterStateProvider().getClusterState();
+				log.info("Live nodes: "+state.getLiveNodes());
+			}
+
+			log.info("Summary: "+status.getCluster().getCollections().size()+" collections loaded, to be executed across "+status.getCluster().getLiveNodes().size()+" nodes. Total shards: "+shards);
+
+			// Start the simulation
+			AtomicInteger collectionCounter = new AtomicInteger(0);
+			AtomicInteger shardCounter = new AtomicInteger(0);
+			ConcurrentHashMap<String, Integer> failedCollections = new ConcurrentHashMap<String, Integer>();
+			int simpleCounter = 0;
+
+			int threadPoolSize = (int)((double)Runtime.getRuntime().availableProcessors() * clusterStateBenchmark.simulationConcurrencyFraction) + 1;
+			ExecutorService clusterStateExecutor = Executors.newFixedThreadPool(threadPoolSize, new ThreadFactoryBuilder().setNameFormat("clusterstate-task-threadpool").build());
+
+			for (String name: status.getCluster().getCollections().keySet()) {
+				if ((++simpleCounter) > clusterStateBenchmark.collectionsLimit && type.clusterStateBenchmark.collectionsLimit > 0) {
+					log.info("Setting up tasks for " + clusterStateBenchmark.collectionsLimit+" collections...");
+					break;
+				}
+
+				Callable callable = () -> {
+					Collection coll = status.getCluster().getCollections().get(name);
+					Set<Integer> nodes = new HashSet<>();
+					for (Shard sh: coll.getShards().values()) {
+						nodes.add(nodeMap.get(sh.getReplicas().values().iterator().next().getNodeName()));
+					}
+
+					String nodeSet = "";
+					for (int n: nodes) {
+						nodeSet += cloud.nodes.get(n).getNodeName() + 
+								(cloud.nodes.get(n).getNodeName().endsWith("_solr")? "": "_solr") +",";
+					}
+					nodeSet = nodeSet.substring(0, nodeSet.length()-1);
+					shardCounter.addAndGet(coll.getShards().size());
+
+					final int COLLECTION_TIMEOUT_SECS = 200;
+
+					try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(nodes.iterator().next()).getBaseUrl()).build();) {
+						Create create = Create.createCollection(name, coll.getShards().size(), 1).
+								setMaxShardsPerNode(coll.getShards().size()).
+								setCreateNodeSet(nodeSet);
+						create.setAsyncId(name);
+
+						Map<String, String> additional = clusterStateBenchmark.collectionCreationParams==null? new HashMap<>(): clusterStateBenchmark.collectionCreationParams;
+						CreateWithAdditionalParameters newCreate = new CreateWithAdditionalParameters(create, name, additional);
+						String asyncId = newCreate.processAsync(name, client);
+						RequestStatusState state = CollectionAdminRequest.requestStatus(asyncId).waitFor(client, COLLECTION_TIMEOUT_SECS);
+						if (state != RequestStatusState.COMPLETED) { // timeout
+							log.error("Waited "+COLLECTION_TIMEOUT_SECS+" seconds, but collection "+name+" failed: "+name+", shards: "+coll.getShards().size());
+							log.error("Collection creation failed, last status on the async task: "
+										+ CollectionAdminRequest.requestStatus(asyncId).process(client).toString());
+							failedCollections.put(name, coll.getShards().size());
+						}
+					} catch (Exception ex) {
+						log.error("Collection creation failed: "+name+", shards: "+coll.getShards().size());
+						failedCollections.put(name, coll.getShards().size());
+						new RuntimeException("Collection creation failed: ", ex).printStackTrace();
+					}
+
+					int currentCounter = collectionCounter.incrementAndGet();
+					if (currentCounter % 10 == 0) {
+						log.info(collectionCounter + ": Time elapsed for this task: " + (System.currentTimeMillis()-taskStart)/1000 + " seconds (approx),"
+								+ " total shards: " + shardCounter + ", per node: " + (shardCounter.get() / cloud.nodes.size()));
+					}
+
+					return true;
+				};
+
+				clusterStateExecutor.submit(callable);
+			}
+
+			clusterStateExecutor.shutdown();
+			clusterStateExecutor.awaitTermination(24, TimeUnit.HOURS);
+
+			log.info("Number of failed collections: "+failedCollections.size());
+			log.info("Failed collections: "+failedCollections);
+
+			long taskEnd = System.currentTimeMillis();
+			log.info("Task took time: "+(taskEnd-taskStart)/1000.0+" seconds.");
+			finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private static void doQueryTask(SolrCloud cloud, Map<String, List<Map>> finalResults, long executionStart,
+			String taskName, TaskInstance instance, TaskType type, Map<String, String> params) {
+		log.info("Running benchmarking task: "+ type.queryBenchmark.queryFile);
+
+		// resolve the collection name using template
+		Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+		String collectionName = resolveString(type.queryBenchmark.collection, params);
+
+		log.info("Global variables: "+ instance.parameters);
+		log.info("Query benchmarks for collection: "+collectionName);
+
+		Map<String, Map> results = new HashMap<String, Map>();
+		results.put("query-benchmarks", new LinkedHashMap<String, List<Map>>());
+		long taskStart = System.currentTimeMillis();
+		try {
+			BenchmarksMain.runQueryBenchmarks(Collections.singletonList(type.queryBenchmark), collectionName, cloud, results);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		long taskEnd = System.currentTimeMillis();
+		log.info("Results: "+results.get("query-benchmarks"));
+		try {
+			//String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
+			String totalTime = String.valueOf(taskEnd - taskStart);
+
+			finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+					"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()));
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private static void doIndexingTask(SolrCloud cloud, Map<String, List<Map>> finalResults, long executionStart,
+			String taskName, TaskInstance instance, TaskType type, Map<String, String> params) {
+		log.info("Running benchmarking task: "+ type.indexBenchmark.datasetFile);
+
+		// resolve the collection name using template
+		Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+		//String collectionName = resolveString(resolveInteger(resolveString(type.indexBenchmark.setups.get(0).collection, params), copyOfGlobalVarialbes), solrurlMap);
+		String collectionName = resolveString(type.indexBenchmark.setups.get(0).collection, params);
+
+		log.info("Global variables: "+ instance.parameters);
+		log.info("Indexing benchmarks for collection: "+collectionName);
+
+		Map<String, Map> results = new HashMap<String, Map>();
+		results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
+		long taskStart = System.currentTimeMillis();
+		try {
+			BenchmarksMain.runIndexingBenchmarks(Collections.singletonList(type.indexBenchmark), collectionName, false, cloud, results);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		long taskEnd = System.currentTimeMillis();
+		log.info("Results: "+results.get("indexing-benchmarks"));
+		try {
+			String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
+			finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+		} catch (Exception ex) {
+			//ex.printStackTrace();
+		}
+	}
+
+	private static void doRestartTask(Workflow workflow, SolrCloud cloud, Map<String, List<Map>> finalResults,
+			long executionStart, String taskName, TaskType type, Map<String, String> params) {
+		log.info("Restarting node: "+type.restartSolrNode);
+
+		String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
+		long taskStart = System.currentTimeMillis();
+		log.info("Restarting node "+Integer.valueOf(nodeIndex));
+		SolrNode node = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
+		log.info("Restarting " + node.getNodeName());
+
+		try {
+			node.restart();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
+		if (type.awaitRecoveries) {
+			try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
+				int numInactive = 0;
+				do {
+					numInactive = getNumInactiveReplicas(node, client);
+				} while (numInactive > 0);
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+		}
+		long taskEnd = System.currentTimeMillis();
+
+		finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+	}
+
+	private static void doPauseTask(Workflow workflow, SolrCloud cloud, Map<String, List<Map>> finalResults,
+			long executionStart, String taskName, TaskType type, Map<String, String> params)
+			throws IOException, Exception, InterruptedException, KeeperException {
+		String nodeIndex = resolveString(resolveString(type.pauseSolrNode, params), workflow.globalConstants);
+		int pauseDuration = type.pauseSeconds;
+		long taskStart = System.currentTimeMillis();
+		LocalSolrNode node = ((LocalSolrNode) cloud.nodes.get(Integer.valueOf(nodeIndex) - 1));
+		try {
+			node.pause(pauseDuration);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
+		if (type.awaitRecoveries) {
+			try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
+
+				int numInactive = 0;
+				do {
+					numInactive = 0;
+					Set<String> inactive = new HashSet<>();
+					ClusterState state = client.getClusterStateProvider().getClusterState();
+					for (String coll: state.getCollectionsMap().keySet()) {
+						PRS prs = new PRS(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient());
+						for (Slice shard: state.getCollection(coll).getActiveSlices()) {
+							for (Replica replica: shard.getReplicas()) {
+								if (replica.getState() != Replica.State.ACTIVE) {
+									if (replica.getNodeName().contains(node.port)) {
+										numInactive++;
+										inactive.add(coll+"_"+shard.getName());
+										System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.getState(replica.getName()));
+									}
+								}
+							}
+						}
+
+					}
+
+					System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
+					if (numInactive != 0) {
+						Thread.sleep(2000);
+						client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+					}
+				} while (numInactive > 0);
+			}
+
+		}
+		long taskEnd = System.currentTimeMillis();
+
+		finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
 	}
 
 	private static int getNumInactiveReplicas(SolrNode node, CloudSolrClient client)

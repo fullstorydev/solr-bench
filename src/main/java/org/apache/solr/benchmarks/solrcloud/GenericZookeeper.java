@@ -19,12 +19,13 @@ package org.apache.solr.benchmarks.solrcloud;
 
 public class GenericZookeeper implements Zookeeper {
 
-	private final String port = "2181";
-	private final String adminPort = "8080";
-
 	private final String host;
-	public GenericZookeeper(String host) {
+	private final String port;
+	private final String adminPort = "8080";
+	
+	public GenericZookeeper(String host, String port) {
 		this.host = host;
+		this.port = port;
 	}
 
 	private void init() throws Exception {

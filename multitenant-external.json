@@ -1,0 +1,205 @@
+{
+  "task-types": {
+    "indexing": {
+      "index-benchmark": {
+        "name": "CLOUD_INDEXING",
+        "description": "Wikipedia dataset on SolrCloud",
+        "replication-type": "cloud",
+        "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
+        "file-format": "tsv",
+        "id-field": "id",
+        "setups": [
+          {
+            "setup-name": "cloud_2x2",
+            "collection": "small-wikipedia-${INDEX}",
+            "replication-factor": 1,
+            "shards": 4,
+            "min-threads": 1,
+            "max-threads": 1,
+            "thread-step": 1
+          }
+        ]
+      }
+    },
+    "incremental-indexing": {
+      "index-benchmark": {
+        "name": "ECOMMERCE_EVENTS",
+        "description": "E-Commerce Events dataset",
+        "replication-type": "cloud",
+        "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
+        "file-format": "tsv",
+        "batch-size": 1,
+        "id-field": "id",
+        "setups": [
+          {
+            "setup-name": "slow_updates",
+            "collection": "small-wikipedia-${INDEX}",
+            "create-collection": false,
+            "min-threads": 1,
+            "max-threads": 1,
+            "thread-step": 1
+          }
+        ]
+      }
+    },
+    "ongoing-querying": {
+      "query-benchmark": {
+        "name": "Ongoing queries",
+        "collection": "ecommerce-events-${INDEX}",
+        "query-file": "queries-ecommerce.json",
+        "min-threads": 1,
+        "max-threads": 1,
+        "json-query": true,
+        "shuffle": false,
+        "rpm": 300,
+        "offset": 1000,
+        "total-count": 500,
+        "warm-count": 0
+      }
+    },
+
+    "shard-splitting": {
+      "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=${RANDOM_COLLECTION}&shard=${RANDOM_SHARD}",
+      "defaults": {}
+    },
+
+    "modify-collection": {
+      "command": "${SOLRURL}admin/collections?action=MODIFYCOLLECTION&collection=${RANDOM_COLLECTION}&perReplicaState=${RANDOM_BOOLEAN}",
+      "defaults": {}
+    },
+
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "inc-indexing-counter": 0,
+    "restart-counter": 0
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "threadpools": [
+    {"name": "indexing-threadpool", "size": 2},
+    {"name": "collection-api-threadpool", "size": 1},
+    {"name": "modify-threadpool", "size": 1}
+  ],
+  "execution-plan": {
+    "task1": {
+      "type": "indexing",
+      "instances": 20,
+      "concurrency": 10,
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${collection-counter}"
+      },
+      "pre-task-evals": [
+        "inc(collection-counter,1)"
+      ]
+    },
+    "task2a": {
+      "type": "incremental-indexing",
+      "instances": 20,
+      "concurrency": 20,
+      "threadpool": "indexing-threadpool",
+      "mode": "async",
+      "wait-for": "task1",
+      "parameters": {
+        "INDEX": "${inc-indexing-counter}"
+      },
+      "pre-task-evals": [
+        "inc(inc-indexing-counter,1)"
+      ]
+    },
+
+    "task2b": {
+      "description": "Keep splitting active shards 1500 times, 10 at a time.",
+      "type": "shard-splitting",
+      "instances": 50,
+      "concurrency": 1,
+      "threadpool": "collection-api-threadpool",
+      "wait-for": "task1",
+      "mode": "async",
+      "validations": ["all-replicas-active"]
+    },
+    "task2c": {
+      "description": "MODIFYCOLLECTION at random",
+      "type": "modify-collection",
+      "instances": 200,
+      "threadpool": "modify-threadpool",
+      "wait-for": "task1",
+      "mode": "async"
+    },
+
+    "task3": {
+      "description": "Restart Solr node",
+      "instances": 20,
+      "concurrency": 1,
+      "threadpool": "collection-api-threadpool",
+      "type": "restart-solr-node",
+      "parameters": {
+          "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "task1",
+      "mode": "async",
+      "pre-task-evals": [
+          "delay(10)",
+          "random(restart-counter,3,6)"
+      ]
+    }
+
+  },
+  "validations": {
+    "all-replicas-active": {
+      "num-inactive-replicas": 0
+    },
+    "num-docs": {
+      "match-docs": {
+        "indexing-tasks": ["task1", "task2a"]
+      }
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 10,
+    "jdk-url": "https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz",
+    "jdk-tarball": "openjdk-11.0.2_linux-x64_bin.tar.gz",
+    "jdk-directory": "jdk-11.0.2",
+    "startup-params": "-m 8g",
+    "startup-params-overrides": ["-m 2g -V -Doverseer.node=true", "-m 2g -V -Doverseer.node=true"],
+    "provisioning-method": "external",
+    "terraform-gcp-config": {
+      "project_id": "bold-gadget-222718",
+      "zookeeper_machine_type": "n1-standard-2",
+      "zookeeper_disk_type": "pd-ssd",
+      "solr_node_count": 6,
+      "solr_machine_type": "n1-standard-4",
+      "solr_disk_type": "pd-ssd",
+      "tags": [
+        "benchmarking",
+        "solr",
+        "temp"
+      ]
+    },
+    "external-solr-config": {
+	    "zk-host": "172.24.0.2:2181",
+	    "restart-script": "./restart-external-solr.sh",
+	    "ssh-username": "ishan"
+    }
+  },
+  "repository": {
+    "commit-id": "36a296eb80f0af9b085034ee7f06cf5c15dc0e4f",
+    "description": "Solr 8.11",
+    "name": "fs-repository",
+    "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+    "url": "https://github.com/fullstorydev/lucene-solr",
+    "user": "ishan"
+  },
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage"
+  ]
+}

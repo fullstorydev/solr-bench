@@ -30,6 +30,9 @@ public class Cluster {
   @JsonProperty("terraform-gcp-config")
   public Map<String, Object> terraformGCPConfig;
 
+  @JsonProperty("external-solr-config")
+  public Map<String, Object> externalSolrConfig;
+
   @JsonProperty("vagrant-config")
   public Map<String, Object> vagrantConfig;
 

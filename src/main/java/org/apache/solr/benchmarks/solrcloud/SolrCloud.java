@@ -40,6 +40,7 @@ import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
@@ -90,7 +91,53 @@ public class SolrCloud {
    */
   public void init() throws Exception {
     if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
-      zookeeper = new LocalZookeeper();
+      initLocalModeCluster();
+    } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
+    	initGCPTerraformCluster();
+    } else if ("vagrant".equalsIgnoreCase(cluster.provisioningMethod)) {
+    	initVagrantCluster();
+    } else if ("external".equalsIgnoreCase(cluster.provisioningMethod)) {
+    	initExternalCluster();
+    }
+  }
+
+  private void initExternalCluster() throws Exception {
+	  String zkHost = cluster.externalSolrConfig.get("zk-host").toString();
+	  
+	  try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(zkHost).build();) {
+		  Set<String> liveNodes = client.getZkStateReader().getClusterState().getLiveNodes();
+		  for (String liveNode: liveNodes) {
+			  nodes.add(new GenericSolrNode(
+					  liveNode.split("_solr")[0].split(":")[0],
+					  liveNode.split("_solr")[0].split(":")[1],
+					  cluster.externalSolrConfig.get("ssh-username").toString(),
+					  cluster.externalSolrConfig.get("restart-script").toString()));
+		  }
+		  zookeeper = new GenericZookeeper(zkHost.split(":")[0], zkHost.split(":")[1]);
+	  }
+	  log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper);
+  }
+
+private void initVagrantCluster() throws JsonMappingException, JsonProcessingException, IOException, Exception {
+	System.out.println("Solr nodes: "+getSolrNodesFromVagrant());
+	System.out.println("ZK node: "+getZkNodeFromVagrant());
+	zookeeper = new GenericZookeeper(getZkNodeFromVagrant(), "2181");
+	for (String host: getSolrNodesFromVagrant()) {
+		nodes.add(new GenericSolrNode(host, "8983", null, null)); // TODO fix username for vagrant
+	}
+}
+
+private void initGCPTerraformCluster() throws JsonMappingException, JsonProcessingException, IOException, Exception {
+	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
+	System.out.println("ZK node: "+getZkNodeFromTFState());
+	zookeeper = new GenericZookeeper(getZkNodeFromTFState(), "2181");
+	for (String host: getSolrNodesFromTFState()) {
+		nodes.add(new GenericSolrNode(host, "8983", cluster.terraformGCPConfig.get("user").toString(), "./restartsolr.sh"));
+	}
+}
+
+private void initLocalModeCluster() throws Exception, InterruptedException, IOException, SolrServerException {
+	zookeeper = new LocalZookeeper();
       int initValue = zookeeper.start();
       if (initValue != 0) {
         log.error("Failed to start Zookeeper!");
@@ -164,26 +211,7 @@ public class SolrCloud {
 	      log.info("Cluster state: " + client.getClusterStateProvider().getClusterState());
 	      log.info("Overseer: " + client.request(new OverseerStatus()));
       }
-
-      
-    } else if ("terraform-gcp".equalsIgnoreCase(cluster.provisioningMethod)) {
-    	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
-    	System.out.println("ZK node: "+getZkNodeFromTFState());
-    	zookeeper = new GenericZookeeper(getZkNodeFromTFState());
-    	for (String host: getSolrNodesFromTFState()) {
-    		nodes.add(new GenericSolrNode(host, cluster.terraformGCPConfig.get("user").toString()));
-    	}
-    } else if ("vagrant".equalsIgnoreCase(cluster.provisioningMethod)) {
-    	System.out.println("Solr nodes: "+getSolrNodesFromVagrant());
-    	System.out.println("ZK node: "+getZkNodeFromVagrant());
-    	zookeeper = new GenericZookeeper(getZkNodeFromVagrant());
-    	for (String host: getSolrNodesFromVagrant()) {
-    		nodes.add(new GenericSolrNode(host, null)); // TODO fix username for vagrant
-    	}
-    }
-
-
-  }
+}
 
   List<String> getSolrNodesFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
 	  List<String> out = new ArrayList<String>();

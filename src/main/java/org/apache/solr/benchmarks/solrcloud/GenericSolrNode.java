@@ -28,14 +28,25 @@ public class GenericSolrNode implements SolrNode {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private final String host;
-  private final String port = "8983";
+  private final String port;
   private final String user;
+  private final String restartScript;
 
-  public GenericSolrNode(String host, String user) throws Exception {
+  /**
+   * @param hostPort Example "localhost:8983"
+   */
+  public GenericSolrNode(String host, String port, String user, String restartScript) throws Exception {
     this.host = host;
+    this.port = port;
     this.user = user;
+    this.restartScript = restartScript;
   }
 
+  @Override
+	public String toString() {
+		// TODO Auto-generated method stub
+		return host + ":" + port;
+	}
   @Override
   public void provision() throws Exception {
     // no-op
@@ -58,7 +69,7 @@ public class GenericSolrNode implements SolrNode {
   
   @Override
   public int restart() throws Exception {
-	  Util.execute("./restartsolr.sh " + host + " " + user, Util.getWorkingDir());
+	  Util.execute(restartScript + " " + host + " " + user, Util.getWorkingDir());
 	  return 0;
   }
 
