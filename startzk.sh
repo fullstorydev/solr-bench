@@ -18,6 +18,7 @@ ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE rm -rf /tmp/zo
 ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE sudo pkill -9 java
 scp -i $BENCH_KEY -oStrictHostKeyChecking=no $ZK_TARBALL_PATH $BENCH_USER@$ZK_NODE:
 scp -i $BENCH_KEY -oStrictHostKeyChecking=no ${JDK_TARBALL} $BENCH_USER@$ZK_NODE:
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no zookeeper-env.sh $BENCH_USER@$ZK_NODE:
 
 
 ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE "
@@ -32,5 +33,6 @@ ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE "
 
 	cd \$ZK_DIR;
 	cp conf/zoo_sample.cfg conf/zoo.cfg;
+	cp ~/zookeeper-env.sh conf/.
     bin/zkServer.sh start
 "

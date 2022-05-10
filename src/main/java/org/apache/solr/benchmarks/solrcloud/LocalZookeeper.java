@@ -19,6 +19,7 @@ package org.apache.solr.benchmarks.solrcloud;
 
 import java.io.File;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.benchmarks.Util;
 
@@ -60,6 +61,13 @@ public class LocalZookeeper implements Zookeeper {
                 + Util.RUN_DIR, Util.RUN_DIR);
         log.info("After untarring, ZK dir is here: " + ZK_DIR);
         Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
+        
+        String jmxEnvs = "JMXLOCALONLY=false\n" + 
+        		"JMXDISABLE=false\n" + 
+        		"JMXPORT=4048\n" + 
+        		"JMXAUTH=false\n" + 
+        		"JMXSSL=false";
+        FileUtils.writeStringToFile(new File(ZK_DIR+"/conf/zookeeper-env.sh"), jmxEnvs, "UTF-8");
     } else {
     	throw new RuntimeException("ZK tarball not found at: " + ZK_TARBALL);
     }

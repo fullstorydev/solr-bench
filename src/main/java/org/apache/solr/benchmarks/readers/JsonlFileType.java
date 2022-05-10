@@ -11,6 +11,7 @@ import java.util.zip.GZIPInputStream;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.Utils;
+import org.tukaani.xz.XZInputStream;
 
 public class JsonlFileType implements DocsFileStreamer {
     final String type;
@@ -51,7 +52,9 @@ public class JsonlFileType implements DocsFileStreamer {
         } else if (fName.endsWith(".gz")) {
             GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(datasetFile));
             br = new BufferedReader(new InputStreamReader(gzip));
-
+        } else if (fName.endsWith(".xz")) {
+        	XZInputStream xz = new XZInputStream(new FileInputStream(datasetFile));
+        	br = new BufferedReader(new InputStreamReader(xz));
         }
         return br;
     }
