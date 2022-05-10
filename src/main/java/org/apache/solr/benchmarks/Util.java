@@ -39,7 +39,12 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanOperationInfo;
+import javax.management.ObjectName;
 
 import org.apache.log4j.Logger;
 import org.apache.solr.common.SolrException;
@@ -47,6 +52,8 @@ import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.MultiMapSolrParams;
 import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
+
+import com.j256.simplejmx.client.JmxClient;
 
 /**
  * This class provides utility methods for the package.
@@ -72,6 +79,26 @@ public class Util {
   public static final String DOWNLOAD_DIR = BASE_DIR + "Download" + File.separator;
   public static final String SOLR_DIR = RUN_DIR;
 
+  public static double getJmxCPULoad(String host, int port, String mbeanName, String attribName) throws Exception {
+		try (JmxClient client = new JmxClient(host, port);) {
+			Set<ObjectName> objectNames = client.getBeanNames();
+			for (ObjectName name : objectNames) {
+				MBeanAttributeInfo[] attributes = client.getAttributesInfo(name);
+				if (mbeanName.equals(name.toString())) {
+					for (MBeanAttributeInfo attrib: attributes) {
+						if (attrib.getName().equals(attribName)) {
+							Object obj = client.getAttribute(name, attrib.getName());
+							return (double)obj;
+						}
+					}
+				}
+			}
+		} catch (Exception ex) {
+			System.err.println("Exception fetching JMX. " + ex);
+		}
+		return -1;
+	}
+  
   /**
    * A method used for invoking a process with specific parameters.
    * 

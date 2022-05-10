@@ -181,6 +181,12 @@
 	    <version>1.9</version>
 	</dependency>
       
+    <dependency>
+	    <groupId>com.j256.simplejmx</groupId>
+	    <artifactId>simplejmx</artifactId>
+	    <version>1.19</version>
+    </dependency>
+      
    </dependencies>
 
    <build>

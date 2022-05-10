@@ -60,10 +60,16 @@ public class MetricsCollector implements Runnable {
 						URL url = new URL(cloud.getZookeeperAdminUrl() + "/commands/monitor");
 						JSONObject output = new JSONObject(IOUtils.toString(url, Charset.forName("UTF-8")));
 						for (String path: zkMetricsPaths) {
-							Long metric = output.getLong(path);
-							zkMetrics.get(path).add(metric);
+							if (path.startsWith("jmx/")) {
+								String parts[] = path.split("/");
+								double metric = Util.getJmxCPULoad(cloud.getZookeeper().getHost(), 4048, parts[1], parts[2]);
+								zkMetrics.get(path).add(metric);
+							} else {
+								Long metric = output.getLong(path);
+								zkMetrics.get(path).add(metric);
+							}
 						}
-					} catch (JSONException | IOException e1) {
+					} catch (Exception e1) {
 						log.error("Couldn't get metrics from " + cloud.getZookeeperAdminUrl(), e1);
 					}
 				}

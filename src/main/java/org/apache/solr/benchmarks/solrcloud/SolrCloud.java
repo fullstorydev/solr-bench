@@ -291,6 +291,10 @@ public class SolrCloud {
     return "http://" + zookeeper.getHost() + ":" + zookeeper.getAdminPort();
   }
 
+  public Zookeeper getZookeeper() {
+	  return zookeeper;
+  }
+
   /**
    * A method used for shutting down the solr cloud.
    * @throws Exception 
