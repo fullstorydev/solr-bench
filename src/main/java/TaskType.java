@@ -1,4 +1,5 @@
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
@@ -33,7 +34,7 @@ public class TaskType {
 		int collectionsLimit = -1;
 		
 		@JsonProperty("exclude-nodes")
-		List<Integer> excludeNodes;
+		List<Integer> excludeNodes = new ArrayList<>();
 
 	    @JsonProperty("collection-creation-params")
 	    public Map<String, String> collectionCreationParams;
