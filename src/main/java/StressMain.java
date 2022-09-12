@@ -380,6 +380,14 @@ public class StressMain {
 							break;
 						}
 
+						final String configSet[] = new String[1];
+						if (clusterStateBenchmark.configset != null) {
+							cloud.uploadConfigSet(clusterStateBenchmark.configset, true, clusterStateBenchmark.configset + ".SOLRBENCH");
+							configSet[0] = clusterStateBenchmark.configset + ".SOLRBENCH";
+						} else {
+							configSet[0] = "_default";
+						}
+
 						Callable callable = () -> {
 							Collection coll = status.getCluster().getCollections().get(name);
 							Set<Integer> nodes = new HashSet<>();
@@ -398,7 +406,7 @@ public class StressMain {
 							final int COLLECTION_TIMEOUT_SECS = 200;
 
 							try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(nodes.iterator().next()).getBaseUrl()).build();) {
-								Create create = Create.createCollection(name, coll.getShards().size(), 1).
+								Create create = Create.createCollection(name, configSet[0], coll.getShards().size(), 1).
 										setMaxShardsPerNode(coll.getShards().size()).
 										setCreateNodeSet(nodeSet);
 								create.setAsyncId(name);

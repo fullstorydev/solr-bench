@@ -7,7 +7,7 @@
         "replication-type": "cloud",
         "dataset-file": "ecommerce-events.json.gz",
         "file-format": "json",
-        "max-docs": 5000000,
+        "max-docs": 25000000,
         "batch-size": 25000,
         "id-field": "id",
         "setups": [
@@ -37,7 +37,7 @@
         "rpm": 3000,
         "total-count": 2000,
         "warm-count": 10,
-	      "query-node": 1
+	      "query-node": 2
       }
     },
     "restart-solr-node": {
@@ -118,20 +118,17 @@
     "provisioning-method": "local"
   },
     "repository": {
-	           "commit-id": "9fcd568ce5ca5509b7fd621051eed09c84d43ea5",
+	           "commit-id": "020c9cab2f9e053d6d3c0055c4118c6d354fe5e8",
 	           "description": "Solr 10x",
-	           "name": "solr-repository",
+	           "name": "fs-solr-repository",
 	           "package-subdir": "/solr/packaging/",
 	           "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
 	           "submodules": false,
-	           "url": "https://github.com/apache/solr",
+	           "url": "https://github.com/fullstorydev/solr",
 	           "user": "ishan"
 	    },
 	    "pre-download": ["https://home.apache.org/~ishan/ecommerce-events.json.gz"],
   "metrics": [
     "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
-  ],
-  "zk-metrics": [
-    "sum_collections_read_per_namespace", "sum_collections_write_per_namespace"
   ]
 }

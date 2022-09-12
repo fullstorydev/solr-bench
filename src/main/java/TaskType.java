@@ -33,6 +33,9 @@ public class TaskType {
 		@JsonProperty("collections-limit")
 		int collectionsLimit = -1;
 		
+	    @JsonProperty("configset")
+	    public String configset;
+
 		@JsonProperty("exclude-nodes")
 		List<Integer> excludeNodes = new ArrayList<>();
 

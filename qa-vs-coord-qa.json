@@ -1,0 +1,97 @@
+{
+  "task-types": {
+    "cluster-state-benchmark": {
+      "cluster-state-benchmark": {
+        "filename": "clusterstatus.json",
+        "collection-creation-params": {
+          "perReplicaState": "false"
+        },
+        "collections-limit": 1700,
+        "exclude-nodes": [1, 2],
+        "simulation-concurrency-fraction": 0.5
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    },
+    "querying": {
+      "query-benchmark": {
+        "name": "Facet queries",
+        "collection": "coll${INDEX}",
+        "query-file": "queries-ecommerce-heavy.json",
+        "min-threads": 2,
+        "max-threads": 2,
+        "json-query": true,
+        "shuffle": false,
+        "rpm": 3000,
+        "total-count": 10,
+        "warm-count": 2,
+        "query-node": 2
+      }
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "query-counter": 0,
+    "restart-counter": 1
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "task1": {
+      "type": "cluster-state-benchmark",
+      "instances": 1,
+      "concurrency": 1,
+      "mode": "sync"
+    },
+    "task2": {
+      "description": "Restart Solr node",
+      "instances": 11,
+      "concurrency": 12,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "task1",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
+    },
+    "task3": {
+      "type": "querying",
+      "instances": 1700,
+      "concurrency": 2,
+      "wait-for": "task2",
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${query-counter}"
+      },
+      "pre-task-evals": [
+          "inc(query-counter,1)"
+      ]
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 12,
+    "startup-params": "-m 3572m",
+    "startup-params-overrides": ["-m 2g -V -Doverseer.node=true", "-m 3572m -V -DSolrQueryAggregator=true"],
+    "provisioning-method": "local"
+  },
+  "repository": {
+    "commit-id": "ffcee23e9a04406c5db57ebed4ed81b6ac9e62c2",
+    "description": "Solr 8.8",
+          "name": "fs-repository",
+          "package-subdir": "/solr/package/",
+    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "submodules": false,
+  "url": "https://github.com/fullstorydev/lucene-solr",
+"user": "ishan"
+},
+"metrics": [
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+  ]
+}

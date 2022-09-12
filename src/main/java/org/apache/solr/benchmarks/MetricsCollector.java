@@ -100,7 +100,7 @@ public class MetricsCollector implements Runnable {
 								metrics.get(node.getNodeName()).get(path).add(metric);
 							} catch (JSONException e) {
 								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
-								log.debug("skipped metrics path {}:", path, e);
+								log.info("Skipped metrics path {}: json: " + json, path, e);
 								metrics.get(node.getNodeName()).get(path).add(-1.0);
 							}
 						} else { // else this response wasn't fetched
