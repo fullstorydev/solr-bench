@@ -135,7 +135,7 @@ fi
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
 echo_blue "Running Stress suite from working directory: $ORIG_WORKING_DIR"
-java -Xmx16g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    StressMain $CONFIGFILE
 
 # Grab GC logs

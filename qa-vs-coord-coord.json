@@ -82,13 +82,13 @@
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "9fcd568ce5ca5509b7fd621051eed09c84d43ea5",
+    "commit-id": "020c9cab2f9e053d6d3c0055c4118c6d354fe5e8",
     "description": "Solr 10x",
-    "name": "solr-repository",
+    "name": "fs-solr-repository",
     "package-subdir": "/solr/packaging/",
     "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
     "submodules": false,
-    "url": "https://github.com/apache/solr",
+    "url": "https://github.com/fullstorydev/solr",
     "user": "ishan"
 },
 "metrics": [
