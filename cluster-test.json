@@ -51,18 +51,17 @@
     "provisioning-method": "local"
   },
   "repository": {
-    "commit-id": "75eee877775db4b2fc9f07738cb068a20dae7e20",
-    "description": "Solr 8.7",
-    "name": "fs-repository",
-    "package-subdir": "/solr/package/",
-    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+    "commit-id": "84c803e80c3e1805378bb9d78f3d12001e92f95d",
+    "description": "Solr 10x",
+    "name": "fs-solr-repository",
+    "package-subdir": "/solr/packaging/",
+    "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
     "submodules": false,
-    "url": "https://github.com/fullstorydev/lucene-solr",
+    "url": "https://github.com/fullstorydev/solr",
     "user": "ishan"
   },
-  "metrics": [
-    "solr.node/solr.node/overseer.totalMessages",
-    "solr.node/solr.node/overseer.stateMessages",
-    "solr.node/solr.node/overseer.leaderMessages"
-  ]
+"metrics": [
+	    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+	      ]
+
 }
