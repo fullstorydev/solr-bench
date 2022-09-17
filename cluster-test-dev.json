@@ -23,7 +23,7 @@
     },
     "cluster-state-benchmark": {
       "cluster-state-benchmark": {
-        "filename": "clusterstatus_clusterstatus.json",
+        "filename": "clusterstatus.json.gz",
         "collection-creation-params": {
           "perReplicaState": "true"
         },

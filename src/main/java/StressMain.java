@@ -1,4 +1,5 @@
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
@@ -22,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -338,7 +340,11 @@ public class StressMain {
 				TaskType.ClusterStateBenchmark clusterStateBenchmark = type.clusterStateBenchmark;
 				log.info("starting cluster state task...");
 				try {
-					SolrClusterStatus status = new ObjectMapper().readValue(new File(clusterStateBenchmark.filename), SolrClusterStatus.class);
+					InputStream is = clusterStateBenchmark.filename.endsWith(".gz")? 
+							new GZIPInputStream(new FileInputStream(new File(clusterStateBenchmark.filename)))
+							: new FileInputStream(new File(clusterStateBenchmark.filename));
+					SolrClusterStatus status = new ObjectMapper().readValue(is, SolrClusterStatus.class);
+					is.close();
 					log.info("starting cluster state task... "+status);
 
 					long taskStart = System.currentTimeMillis();
