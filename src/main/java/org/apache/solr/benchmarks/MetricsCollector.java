@@ -85,7 +85,7 @@ public class MetricsCollector implements Runnable {
 						}
 					}
 					for (String path: metricsPaths) {
-						String[] elements = path.split("/");
+						String[] elements = path.split("(?<!\\\\)/");
 						String group = elements[0];
 						JSONObject json = resp.get(group);
 
@@ -94,13 +94,13 @@ public class MetricsCollector implements Runnable {
 								json = json.getJSONObject("metrics");
 								int n = elements.length;
 								for (int i = 1; i < n - 1; ++i) {
-									json = json.getJSONObject(elements[i]);
+									json = json.getJSONObject(elements[i].replace("\\/", "/"));
 								}
-								Double metric = json.getDouble(elements[n - 1]);
+								Double metric = json.getDouble(elements[n - 1].replace("\\/", "/"));
 								metrics.get(node.getNodeName()).get(path).add(metric);
 							} catch (JSONException e) {
 								// some key, e.g., solr.core.fsloadtest.shard1.replica_n1 may not be available immediately
-								log.info("Skipped metrics path {}: json: " + json, path, e);
+								log.debug("Skipped metrics path {}: json: " + json, path, e);
 								metrics.get(node.getNodeName()).get(path).add(-1.0);
 							}
 						} else { // else this response wasn't fetched

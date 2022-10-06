@@ -50,7 +50,7 @@ In the coordinator VM (GCP) or local machine (local mode), check out this solr-b
 
 ### Visualization (WIP)
 
-* `python2.7 -m SimpleHTTPServer`
+* `python2.7 -m SimpleHTTPServer` or `python -m http.server` (for python3)
 * Open http://localhost:8000/plot-stress.html (to view the graph of the metrics of last performed test)
 
 ### Plotting the results

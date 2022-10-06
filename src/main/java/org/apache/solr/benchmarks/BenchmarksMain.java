@@ -237,7 +237,7 @@ public class BenchmarksMain {
                     NamedList<Object> rsp = client.request(qr, collection);
                     printErrOutput(qr, rsp);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error("Failed to execute request: " + qr, e);
                 }
             };
         };
@@ -389,6 +389,8 @@ public class BenchmarksMain {
                 if (docs == null) shardVsDocs.put(targetSlice.getName(), docs = new ArrayList<>(benchmark.batchSize));
                 if (count % 1_000_000 == 0) System.out.println("\tDocs read: "+count+", indexed: "+(completed.get() * benchmark.batchSize)+", time: "+((System.currentTimeMillis() - start) / 1000));
                 if (count > benchmark.maxDocs) break;
+                // _version_ must be removed or adding doc will fail
+                line = line.replaceAll("\"_version_\":\\d*,*", "");
                 docs.add(line);
                 if (docs.size() >= benchmark.batchSize) {
                     shardVsDocs.remove(targetSlice.getName());
