@@ -100,5 +100,6 @@
   },
   "metrics": [
     "jvm/solr.jvm/memory.heap.usage"
-  ]
+  ],
+  "pre-download": ["https://home.apache.org/~ishan/ecommerce-events.json.gz"]
 }

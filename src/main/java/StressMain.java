@@ -29,6 +29,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.MetricsCollector;
+import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
 import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
@@ -62,6 +63,12 @@ public class StressMain {
 
 	public static void main(String[] args) throws Exception {
 		String configFile = args[0];
+
+		// Set the suite base directory from the configFile. All resources, like configsets, datasets,
+		// will be fetched off this path
+		String suiteBaseDir = new File(configFile).getAbsoluteFile().getParent().toString();
+		log.info("The base directory for the suite: " + suiteBaseDir);
+		System.setProperty("SUITE_BASE_DIRECTORY", suiteBaseDir);
 
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
@@ -341,8 +348,8 @@ public class StressMain {
 				log.info("starting cluster state task...");
 				try {
 					InputStream is = clusterStateBenchmark.filename.endsWith(".gz")? 
-							new GZIPInputStream(new FileInputStream(new File(clusterStateBenchmark.filename)))
-							: new FileInputStream(new File(clusterStateBenchmark.filename));
+							new GZIPInputStream(new FileInputStream(Util.resolveSuitePath(clusterStateBenchmark.filename)))
+							: new FileInputStream(Util.resolveSuitePath(clusterStateBenchmark.filename));
 					SolrClusterStatus status = new ObjectMapper().readValue(is, SolrClusterStatus.class);
 					is.close();
 					log.info("starting cluster state task... "+status);

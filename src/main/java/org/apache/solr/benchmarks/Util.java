@@ -408,4 +408,20 @@ public class Util {
 	  throw new SolrException(ErrorCode.BAD_REQUEST, "URLDecoder: Invalid digit (" + ((char) b) + ") in escape (%) pattern");
   }
 
+  public static File resolveSuitePath(String input) {
+	  if (input.startsWith("/")) {
+		  File file = new File(input);
+		  if (file.exists()) {
+			  return file; // this is an absolute path
+		  } else {
+			  throw new RuntimeException("Absolute path " + input + " doesn't exist.");
+		  }
+	  }
+	  File absPathFile = new File(System.getProperty("SUITE_BASE_DIRECTORY") + File.separator + input);
+	  if (absPathFile.exists()) {
+		  return absPathFile;
+	  } else {
+		  throw new RuntimeException("File " + input + " doesn't exist.");
+	  }
+  }
 }

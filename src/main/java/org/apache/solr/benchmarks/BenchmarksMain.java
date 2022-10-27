@@ -272,10 +272,10 @@ public class BenchmarksMain {
         
         BufferedReader br;
         if (benchmark.datasetFile.endsWith("gz")) {
-        	GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(benchmark.datasetFile));
+        	GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(Util.resolveSuitePath(benchmark.datasetFile)));
         	br = new BufferedReader(new InputStreamReader(gzis));
         } else {
-        	br = new BufferedReader(new FileReader(benchmark.datasetFile));
+        	br = new BufferedReader(new FileReader(Util.resolveSuitePath(benchmark.datasetFile)));
         }
         String line = br.readLine();
         List<String> headers = new ArrayList<String>(Arrays.asList(line.split("\\t")));
@@ -303,7 +303,7 @@ public class BenchmarksMain {
 
     	long start = System.currentTimeMillis();
 
-    	BufferedReader br = JsonlFileType.getBufferedReader(new File(benchmark.datasetFile));
+    	BufferedReader br = JsonlFileType.getBufferedReader(Util.resolveSuitePath(benchmark.datasetFile));
         ConcurrentUpdateSolrClient client = new ConcurrentUpdateSolrClient.Builder(baseUrl).withThreadCount(threads).build();
 
     	String line;
@@ -362,7 +362,7 @@ public class BenchmarksMain {
             }
             JsonRecordReader rdr = JsonRecordReader.getInst("/", Collections.singletonList(benchmark.idField+":/"+benchmark.idField));
             Map<String, List<String>> shardVsDocs = new HashMap<>();
-            File datasetFile = new File(benchmark.datasetFile);
+            File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
             BufferedReader br = JsonlFileType.getBufferedReader(datasetFile);
             count = 0;
 

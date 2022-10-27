@@ -23,10 +23,14 @@ download() {
 }
 
 ORIG_WORKING_DIR=`pwd`
-CONFIGFILE=$1
+CONFIGFILE=`realpath $1`
+CONFIGFILE_DIR=`dirname $CONFIGFILE`
+
+echo "Configfile: $CONFIGFILE"
+echo "Configfile dir: $CONFIGFILE_DIR"
 
 download $CONFIGFILE # download this file from GCS/HTTP, if necessary
-CONFIGFILE="${CONFIGFILE##*/}"
+# CONFIGFILE="${CONFIGFILE##*/}" nocommit: do this only for web/gcs downloaded files
 
 mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
 mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
@@ -98,7 +102,7 @@ terraform-gcp-provisioner() {
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
 wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz 
-for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
+for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $ORIG_WORKING_DIR; done
 
 # Clone/checkout the git repository and build Solr
 
@@ -135,7 +139,7 @@ fi
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
 echo_blue "Running Stress suite from working directory: $ORIG_WORKING_DIR"
-java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+java -Xmx12g -cp $ORIG_WORKING_DIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    StressMain $CONFIGFILE
 
 # Grab GC logs
