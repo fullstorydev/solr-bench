@@ -22,8 +22,25 @@ download() {
         # else, don't do anything
 }
 
+# parse the arguments
+for i in $@; do :; done
+CONFIGFILE=$i
+
+# commit
+while getopts "c:" option; do
+  case $option in
+    "c")
+      commitoverrides+=("$OPTARG")
+      ;;
+    *)
+      # any other arguments for future
+      ;;
+  esac
+done
+
+
 ORIG_WORKING_DIR=`pwd`
-CONFIGFILE=`realpath $1`
+CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
 echo "Configfile: $CONFIGFILE"
@@ -36,6 +53,12 @@ mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
 mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
 
 COMMIT=`jq -r '."repository"."commit-id"' $CONFIGFILE`
+if [[ "" != ${commitoverrides[0]} ]]
+then
+    COMMIT=${commitoverrides[0]}
+fi
+
+echo "Commit id: $COMMIT"
 REPOSRC=`jq -r '."repository"."url"' $CONFIGFILE`
 LOCALREPO=`pwd`/SolrNightlyBenchmarksWorkDirectory/Download/`jq -r '."repository"."name"' $CONFIGFILE`
 BUILDCOMMAND=`jq -r '."repository"."build-command"' $CONFIGFILE`
