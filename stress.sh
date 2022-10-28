@@ -204,6 +204,15 @@ fi
 #     gsutil cp logs-${NOW}.zip `jq -r '.["results-upload-location"]' $CONFIGFILE`
 #fi
 
+# Rename the result files for local test
+if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     mkdir -p $CONFIGFILE_DIR/results
+     cp $CONFIGFILE $CONFIGFILE_DIR/results/configs-$(basename $CONFIGFILE)-$COMMIT.json
+     cp $BASEDIR/results-stress.json $CONFIGFILE_DIR/results/results-$(basename $CONFIGFILE)-$COMMIT.json
+     cp $BASEDIR/metrics-stress.json $CONFIGFILE_DIR/results/metrics-$(basename $CONFIGFILE)-$COMMIT.json
+fi
+
 # Cleanup
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
