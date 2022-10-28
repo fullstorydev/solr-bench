@@ -53,7 +53,7 @@
   "repository": {
     "commit-id": "dfde16a004206cc92e21cc5a6cad9030fbe13c20",
     "description": "Solr 10x",
-    "name": "fs-solr-repository",
+    "name": "solr-repository",
     "package-subdir": "/solr/packaging/",
     "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
     "submodules": false,
