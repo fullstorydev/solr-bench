@@ -143,7 +143,7 @@ then
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
      fi
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
-     if [[ "0" != "$?" ]]; then echo "Failed to checkout $COMMIT..."; exit; fi
+     if [[ "0" != "$?" ]]; then echo "Failed to checkout $COMMIT..."; exit 1; fi
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
 
