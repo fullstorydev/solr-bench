@@ -38,8 +38,8 @@ while getopts "c:" option; do
   esac
 done
 
-
 ORIG_WORKING_DIR=`pwd`
+BASEDIR=$(realpath $(dirname "$0"))
 CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
@@ -90,7 +90,7 @@ terraform-gcp-provisioner() {
      ssh-keygen -f terraform/id_rsa -N ""
 
      # Provision instances using Terraform
-     cd $ORIG_WORKING_DIR/terraform
+     cd $BASEDIR/terraform
      terraform init 
      terraform apply --auto-approve
 
@@ -99,11 +99,11 @@ terraform-gcp-provisioner() {
      sleep 30
 
      # Start ZK & Solr on provisioned instances
-     cd $ORIG_WORKING_DIR
+     cd $BASEDIR
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
      export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
-     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
+     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.6.3-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
      export BENCH_USER=`jq -r '."cluster"."terraform-gcp-config"."user"' $CONFIGFILE`
      export BENCH_KEY="terraform/id_rsa"
@@ -125,11 +125,11 @@ terraform-gcp-provisioner() {
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
 wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz 
-for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $ORIG_WORKING_DIR; done
+for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $BASEDIR; done
 
 # Clone/checkout the git repository and build Solr
 
-if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
+if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
 then
      echo_blue "Building Solr package for $COMMIT"
      if [ ! -d $LOCALREPO_VC_DIR ]
@@ -149,10 +149,10 @@ then
      cd $LOCALREPO
      PACKAGE_PATH=`find . -name "solr*tgz" | grep -v src`
      echo_blue "Package found here: $PACKAGE_PATH"
-     cp $PACKAGE_PATH $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
+     cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 fi
 
-cd $ORIG_WORKING_DIR
+cd $BASEDIR
 
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
@@ -160,9 +160,9 @@ then
 fi
 
 # Run the benchmarking suite
-cd $ORIG_WORKING_DIR
-echo_blue "Running Stress suite from working directory: $ORIG_WORKING_DIR"
-java -Xmx12g -cp $ORIG_WORKING_DIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+cd $BASEDIR
+echo_blue "Running Stress suite from working directory: $BASEDIR"
+java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    StressMain $CONFIGFILE
 
 # Grab GC logs
@@ -170,7 +170,7 @@ NOW=`date +"%Y-%d-%m_%H.%M.%S"`
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      echo_blue "Pulling logs"
-     cd $ORIG_WORKING_DIR
+     cd $BASEDIR
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
         SOLR_NODE=${line//\"/}
@@ -181,7 +181,7 @@ then
      done
 
      echo_blue "Removing the hostname entry from ~/.ssh/known_hosts, so that another run can be possible afterwards"
-     cd $ORIG_WORKING_DIR
+     cd $BASEDIR
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
         SOLR_NODE=${line//\"/}
@@ -192,7 +192,7 @@ then
 fi
 
 # Results upload (results.json), if needed
-#cd $ORIG_WORKING_DIR
+#cd $BASEDIR
 #if [[ "null" != `jq -r '.["results-upload-location"]' $CONFIGFILE` ]]
 #then
 #     # Results uploading only supported for GCS buckets for now
@@ -204,7 +204,7 @@ fi
 # Cleanup
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
-     cd $ORIG_WORKING_DIR/terraform
+     cd $BASEDIR/terraform
      terraform destroy --auto-approve
      rm id_rsa*
 fi
