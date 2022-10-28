@@ -43,6 +43,8 @@ BASEDIR=$(realpath $(dirname "$0"))
 CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
+cd $BASEDIR
+
 echo "Configfile: $CONFIGFILE"
 echo "Configfile dir: $CONFIGFILE_DIR"
 
