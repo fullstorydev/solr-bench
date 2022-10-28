@@ -63,6 +63,7 @@ public class StressMain {
 
 	public static void main(String[] args) throws Exception {
 		String configFile = args[0];
+		String commit = args[1];
 
 		// Set the suite base directory from the configFile. All resources, like configsets, datasets,
 		// will be fetched off this path
@@ -72,6 +73,8 @@ public class StressMain {
 
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
+		
+		workflow.repo.commitId = commit;
 
 		String solrPackagePath = BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);

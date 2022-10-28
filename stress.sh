@@ -166,7 +166,7 @@ fi
 cd $BASEDIR
 echo_blue "Running Stress suite from working directory: $BASEDIR"
 java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
-   StressMain $CONFIGFILE
+   StressMain $CONFIGFILE $COMMIT
 
 # Grab GC logs
 NOW=`date +"%Y-%d-%m_%H.%M.%S"`
