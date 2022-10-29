@@ -211,6 +211,7 @@ then
      cp $CONFIGFILE $CONFIGFILE_DIR/results/configs-$(basename $CONFIGFILE)-$COMMIT.json
      cp $BASEDIR/results-stress.json $CONFIGFILE_DIR/results/results-$(basename $CONFIGFILE)-$COMMIT.json
      cp $BASEDIR/metrics-stress.json $CONFIGFILE_DIR/results/metrics-$(basename $CONFIGFILE)-$COMMIT.json
+     rm $BASEDIR/results-stress.json $BASEDIR/metrics-stress.json
 fi
 
 # Cleanup

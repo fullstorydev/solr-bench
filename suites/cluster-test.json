@@ -4,7 +4,7 @@
       "cluster-state-benchmark": {
         "filename": "clusterstatus.json.gz",
         "collection-creation-params": {
-          "perReplicaState": "true"
+          "perReplicaState": "false"
         },
         "collections-limit": 1000,
         "simulation-concurrency-fraction": 0.5
