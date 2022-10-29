@@ -2,7 +2,7 @@
   "task-types": {
     "cluster-state-benchmark": {
       "cluster-state-benchmark": {
-        "filename": "clusterstatus.json.gz",
+        "filename": "clusterstatus-small-1000.json.gz",
         "collection-creation-params": {
           "perReplicaState": "false"
         },
