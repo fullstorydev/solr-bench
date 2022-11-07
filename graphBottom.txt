@@ -1,0 +1,22 @@
+        ];
+    
+        chartData.addRows(data1);
+    
+        var chart = new    
+          google.visualization.LineChart(document.getElementById('visualization'));
+
+        var options = {
+             title: "%s",                            
+        };
+        
+        chart.draw(chartData,options);
+    
+    }
+</script>
+</head>
+
+<body>
+    <!--Div that will hold the pie chart-->
+    <div id="visualization"></div>
+</body>
+</html>
