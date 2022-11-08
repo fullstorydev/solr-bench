@@ -17,6 +17,7 @@
 
 <body>
     <!--Div that will hold the pie chart-->
+    <p>Powered by SearchScale and FullStory.</p>
     <div id="visualization"></div>
 </body>
 </html>

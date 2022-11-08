@@ -1,10 +1,11 @@
 cd SolrNightlyBenchmarksWorkDirectory/Download/solr-repository
+git reset --hard; git clean -fdx
 git checkout branch_9x
 git pull
 
 #git log --since="25 August 2022" --until="29 October 2022" |head -n 25
 
-for commit in `git log --since="1 July 2022" --until="4 November 2022" --pretty=format:"%H"`;
+for commit in `git log --since="19 October 2022" --until="30 October 2022" --pretty=format:"%H"` --reverse;
 do echo; echo "Running $commit"
 
 /home/ishan/code/solr-bench/cleanup.sh

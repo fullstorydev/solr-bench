@@ -43,6 +43,8 @@ BASEDIR=$(realpath $(dirname "$0"))
 CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
+PATCHURL="https://github.com/apache/solr/commit/b33161d0cdd976fc0c3dc78c4afafceb4db671cf.diff"
+
 cd $BASEDIR
 
 echo "Configfile: $CONFIGFILE"
@@ -142,10 +144,24 @@ then
           cd $LOCALREPO
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
      fi
+
+     # remove local changes, if any
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git reset --hard
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clean -fdx
+
+     # checkout to the commit point
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
      if [[ "0" != "$?" ]]; then echo "Failed to checkout $COMMIT..."; exit 1; fi
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
+
+     
+     if [[ "$PATCHURL" != "" ]]; 
+     then
+          echo "Applying patch"
+          curl $PATCHURL | git apply -v --index
+          if [[ "0" != "$?" ]]; then echo "Failed to apply patch."; else echo "Applied patch"; fi
+     fi
 
      # Build Solr package
      bash -c "$BUILDCOMMAND"
