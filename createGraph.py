@@ -16,7 +16,7 @@ graphData = ""
 for c in commits:
     #[ new Date(2314, 2, 15), 4, 'dfde16a004206cc92e21cc5a6cad9030fbe13c20',  7, 'dfde16a004206cc92e21cc5a6cad9030fbe13c20'],
     ts = time.strftime("%d %b %Y", time.gmtime(c.committed_date))
-    tsGraph = time.strftime("new Date(%Y, %m, %d, %H, %M)", time.gmtime(c.committed_date))
+    tsGraph = time.strftime("new Date(%Y, %m - 1, %d, %H, %M)", time.gmtime(c.committed_date))
     
     resultsFilename = "suites/results/results-"+testname+"-"+str(c)+".json"
     taskTimes = []
