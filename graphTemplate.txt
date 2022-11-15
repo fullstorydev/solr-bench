@@ -26,7 +26,25 @@
             var chart = new google.visualization.LineChart(document.getElementById(element));
 
             var options = {
-                title: title,                            
+                title: title,
+                hAxis: {
+                    title: 'Commit date',
+                    titleTextStyle: {
+                    color: '#333'
+                    },
+                    slantedText: true,
+                    slantedTextAngle: 80
+                },
+                vAxis: {
+                    title: 'Time (seconds)',
+                    minValue: 0
+                },
+                explorer: {
+                    actions: ['dragToZoom', 'rightClickToReset'],
+                    axis: 'horizontal',
+                    keepInBounds: true,
+                    maxZoomIn: 4.0
+                },
             };        
             chart.draw(chartData, options);
         }
