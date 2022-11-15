@@ -4,6 +4,9 @@ import time
 import os
 import math
 
+testname = "cluster-test.json"
+branches = ["branch_9_1", "branch_9x"]
+repoFolder = "SolrNightlyBenchmarksWorkDirectory/Download/solr-repository"
 
 def getGraphData(testname, branch, repoFolder):
     repo = Repo(repoFolder)
@@ -29,25 +32,15 @@ def getGraphData(testname, branch, repoFolder):
                     end   = max(end  , instance["end-time"])
                 total = end - start
                 taskTimes.append(total)
-                #print("Time taken for " + task + ": "+str(total))
             if c.message.find("\n") == -1:
                 len = 800
             else:
                 len = c.message.find("\n")
             msg = c.message.replace("\n", "\t")[0: len].replace("'", "")
-            #print("Message: "+msg)
-            tooltip = ts +": " + str(c) + ": " + msg
-            #print(tooltip)
-            line = "[ " + tsGraph + ", " + str(taskTimes[0]) + ", '" +tooltip+"', " + str(taskTimes[1]) + ", '" + tooltip + "'],"
+            tooltip = str(c) + ": " + msg
+            line = "[ " + tsGraph + ", " + str(taskTimes[0]) + ", '" +str(taskTimes[0])+": "+tooltip+"', " + str(taskTimes[1]) + ", '" + str(taskTimes[1])+": "+tooltip + "'],"
             graphData = graphData + line+"\n"
-            #print(line)
-
-        #print(ts + "\t\t"+str(c))
     return graphData
-
-testname = "cluster-test.json"
-branches = ["branch_9_1", "branch_9x"]
-repoFolder = "SolrNightlyBenchmarksWorkDirectory/Download/solr-repository"
 
 data = []
 
@@ -75,15 +68,6 @@ for branch in branches:
 
 with open('graphTemplate.txt', 'r') as file:
     template = file.read()
-
-#print (template % (styles, snippets, divisions))
-'''
-with open('graphTop.txt', 'r') as file:
-    top = file.read()
-with open('graphBottom.txt', 'r') as file:
-    bottom = file.read()
-
-'''
 
 with open(testname + ".html", "w") as text_file:
     text_file.write(template % (styles, snippets, divisions))
