@@ -43,7 +43,7 @@ BASEDIR=$(realpath $(dirname "$0"))
 CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
-PATCHURL="https://github.com/apache/solr/commit/b33161d0cdd976fc0c3dc78c4afafceb4db671cf.diff"
+#PATCHURL="https://patch-diff.githubusercontent.com/raw/apache/solr/pull/1169.diff"
 
 cd $BASEDIR
 
