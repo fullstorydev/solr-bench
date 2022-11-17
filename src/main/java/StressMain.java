@@ -270,13 +270,24 @@ public class StressMain {
 				SolrNode node = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
 				log.info("Restarting " + node.getNodeName());
 
+				long stopTime = -1000, startTime = -1000, recoveryTime = -1000;
 				try {
-					node.restart();
+					if (node instanceof LocalSolrNode) {
+					    stopTime = System.currentTimeMillis();
+					    node.stop();
+					    stopTime = System.currentTimeMillis() - stopTime;
+					    startTime = System.currentTimeMillis();
+					    node.stop();
+					    startTime = System.currentTimeMillis() - startTime;
+					} else {
+						node.restart();
+					}
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
 
 				if (type.awaitRecoveries) {
+				    recoveryTime = System.currentTimeMillis();
 					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
 						int numInactive = 0;
 						do {
@@ -285,10 +296,17 @@ public class StressMain {
 					} catch (Exception ex) {
 						ex.printStackTrace();
 					}
+					recoveryTime = System.currentTimeMillis() - recoveryTime;
 				}
 				long taskEnd = System.currentTimeMillis();
 
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+				finalResults.get(taskName).add(Map.of(
+						"total-time", (taskEnd-taskStart)/1000.0, 
+						"start-time", (taskStart- executionStart)/1000.0, 
+						"node-shutdown", stopTime/1000.0,
+						"node-startup", startTime/1000.0,
+						"node-recovery", recoveryTime/1000.0,
+						"end-time", (taskEnd- executionStart)/1000.0));
 
 			} else if (type.indexBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.indexBenchmark.datasetFile);
