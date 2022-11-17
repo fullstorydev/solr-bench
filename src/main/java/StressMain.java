@@ -270,7 +270,7 @@ public class StressMain {
 				SolrNode node = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
 				log.info("Restarting " + node.getNodeName());
 
-				long stopTime = -1000, startTime = -1000, recoveryTime = -1000;
+				long stopTime = -1000, startTime = -1000;
 				try {
 					if (node instanceof LocalSolrNode) {
 					    stopTime = System.currentTimeMillis();
@@ -287,7 +287,7 @@ public class StressMain {
 				}
 
 				if (type.awaitRecoveries) {
-				    recoveryTime = System.currentTimeMillis();
+				    startTime += System.currentTimeMillis();
 					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
 						int numInactive = 0;
 						do {
@@ -296,7 +296,7 @@ public class StressMain {
 					} catch (Exception ex) {
 						ex.printStackTrace();
 					}
-					recoveryTime = System.currentTimeMillis() - recoveryTime;
+					startTime = System.currentTimeMillis() - startTime;
 				}
 				long taskEnd = System.currentTimeMillis();
 
@@ -305,7 +305,6 @@ public class StressMain {
 						"start-time", (taskStart- executionStart)/1000.0, 
 						"node-shutdown", stopTime/1000.0,
 						"node-startup", startTime/1000.0,
-						"node-recovery", recoveryTime/1000.0,
 						"end-time", (taskEnd- executionStart)/1000.0));
 
 			} else if (type.indexBenchmark != null) {
