@@ -277,7 +277,7 @@ public class StressMain {
 					    node.stop();
 					    stopTime = System.currentTimeMillis() - stopTime;
 					    startTime = System.currentTimeMillis();
-					    node.stop();
+					    node.start();
 					    startTime = System.currentTimeMillis() - startTime;
 					} else {
 						node.restart();
