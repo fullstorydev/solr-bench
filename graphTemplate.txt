@@ -16,11 +16,10 @@
         function drawChart(title, element, data) {
             var chartData = new google.visualization.DataTable();
             chartData.addColumn('date', 'Commit date'); // Implicit series 1 data col.
-            chartData.addColumn('number', 'Task1'); // Implicit domain label col.
-            chartData.addColumn({type:'string', role:'tooltip'});
-            chartData.addColumn('number', 'Task2'); // Implicit domain label col.
-            chartData.addColumn({type:'string', role:'tooltip'});
-        
+            //chartData.addColumn('number', 'Task1'); chartData.addColumn({type:'string', role:'tooltip'});
+            //chartData.addColumn('number', 'Task2'); chartData.addColumn({type:'string', role:'tooltip'});
+%s
+
             chartData.addRows(data);
         
             var chart = new google.visualization.LineChart(document.getElementById(element));
