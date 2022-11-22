@@ -301,9 +301,16 @@ public class StressMain {
 				}
 				long heap = -1;
 				try {
-					URL heapUrl = new URL("http://"+node.getNodeName() + "/api/node/heap");
-					JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, Charset.forName("UTF-8")));
-					heap = obj.getLong("heap");
+					long minHeap = Long.MAX_VALUE;
+					for (int i=0; i<5; i++) {
+						URL heapUrl = new URL("http://"+node.getNodeName() + "/api/node/heap");
+						JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, Charset.forName("UTF-8")));
+						heap = obj.getLong("heap");
+						minHeap = Math.min(minHeap, heap);
+						Thread.sleep(1000);
+					}
+					heap = minHeap;
+					
 				} catch (Exception ex) {}
 				long taskEnd = System.currentTimeMillis();
 
