@@ -297,7 +297,7 @@ public class StressMain {
 					} catch (Exception ex) {
 						ex.printStackTrace();
 					}
-					startTime = System.currentTimeMillis() - startTime;
+					startTime = startTime - System.currentTimeMillis();
 				}
 				long heap = -1;
 				try {
@@ -310,7 +310,7 @@ public class StressMain {
 						Thread.sleep(1000);
 					}
 					heap = minHeap;
-					
+
 				} catch (Exception ex) {}
 				long taskEnd = System.currentTimeMillis();
 
@@ -445,7 +445,7 @@ public class StressMain {
 
 							String nodeSet = "";
 							for (int n: nodes) {
-								nodeSet += cloud.nodes.get(n).getNodeName() + 
+								nodeSet += cloud.nodes.get(n).getNodeName() +
 										(cloud.nodes.get(n).getNodeName().endsWith("_solr")? "": "_solr") +",";
 							}
 							nodeSet = nodeSet.substring(0, nodeSet.length()-1);
