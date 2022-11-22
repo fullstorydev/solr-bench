@@ -44,6 +44,7 @@ import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
 import org.apache.solr.common.util.Pair;
 import org.apache.zookeeper.KeeperException;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -298,6 +299,12 @@ public class StressMain {
 					}
 					startTime = System.currentTimeMillis() - startTime;
 				}
+				long heap = -1;
+				try {
+					URL heapUrl = new URL("http://"+node.getNodeName() + "/api/node/heap");
+					JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, Charset.forName("UTF-8")));
+					heap = obj.getLong("heap");
+				} catch (Exception ex) {}
 				long taskEnd = System.currentTimeMillis();
 
 				finalResults.get(taskName).add(Map.of(
@@ -305,6 +312,7 @@ public class StressMain {
 						"start-time", (taskStart- executionStart)/1000.0, 
 						"node-shutdown", stopTime/1000.0,
 						"node-startup", startTime/1000.0,
+						"heap-mb", heap==-1? -1: heap/1024.0/1024.0,
 						"end-time", (taskEnd- executionStart)/1000.0));
 
 			} else if (type.indexBenchmark != null) {

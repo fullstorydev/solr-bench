@@ -5,7 +5,7 @@ git pull
 
 #git log --since="25 August 2022" --until="29 October 2022" |head -n 25
 
-for commit in `git log --since="1 October 2021" --until="23 October 2023" --pretty=format:"%H"| shuf`;
+for commit in `git log --since="10 October 2022" --until="22 November 2022" --pretty=format:"%H"|shuf`;
 do echo; echo "Running $commit"
 
 if [ -f "/home/ishan/code/solr-bench/suites/results/results-cluster-test.json-$commit.json" ]; then
@@ -13,7 +13,7 @@ if [ -f "/home/ishan/code/solr-bench/suites/results/results-cluster-test.json-$c
 else
     /home/ishan/code/solr-bench/cleanup.sh
     /home/ishan/code/solr-bench/stress.sh -c $commit /home/ishan/code/solr-bench/suites/cluster-test.json
-    cd -; python createGraph.py && cp cluster-test.json.html /var/www/html; cd -
+    cd -; python createGraph.py && cp cluster-test.json.html /var/www/html/cluster-test-heap.html; cd -
 fi
 
 done

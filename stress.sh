@@ -44,7 +44,9 @@ CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
 #PATCHURL="https://patch-diff.githubusercontent.com/raw/apache/solr/pull/1169.diff"
-PATCHURL="https://github.com/apache/solr/commit/b33161d0cdd976fc0c3dc78c4afafceb4db671cf.diff"
+PATCHURL2="https://github.com/apache/solr/commit/b33161d0cdd976fc0c3dc78c4afafceb4db671cf.diff"
+#PATCHURL="https://termbin.com/tcpd"
+PATCHURL="https://termbin.com/7r9v"
 
 cd $BASEDIR
 
@@ -162,6 +164,8 @@ then
           echo "Applying patch"
           curl $PATCHURL | git apply -v --index
           if [[ "0" != "$?" ]]; then echo "Failed to apply patch."; else echo "Applied patch"; fi
+          curl $PATCHURL2 | git apply -v --index
+          if [[ "0" != "$?" ]]; then echo "Failed to apply patch 2."; else echo "Applied patch 2"; fi
      fi
 
      # Build Solr package
