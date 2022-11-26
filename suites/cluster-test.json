@@ -25,13 +25,14 @@
   },
   "execution-plan": {
     "task1": {
+      "description": "Create 1000 collections of various numShards, rf=1",
       "type": "cluster-state-benchmark",
       "instances": 1,
       "concurrency": 1,
       "mode": "sync"
     },
     "task2": {
-      "description": "Restart Solr node",
+      "description": "Restart 7/8 Solr nodes",
       "instances": 7,
       "concurrency": 2,
       "type": "restart-solr-node",
