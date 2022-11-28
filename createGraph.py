@@ -67,11 +67,11 @@ def getGraphData(testname, branch, repoFolder):
 
             # chartData.addColumn('number', 'Task1'); chartData.addColumn({type:'string', role:'tooltip'});
             if len(taskNames) > 0:
-                headerLine = ""
+                headerLine = "{type: 'date', id:'Commit date'},\n"
                 for name in taskNames:
-                    headerLine = headerLine + 'chartData.addColumn("number", "'+name+'"); chartData.addColumn({type:"string", role:"tooltip"});'
+                    headerLine = headerLine + "{type: 'number', id: '"+name+"'}, {type: 'string', role:'tooltip'},\n"
                 #print("Header line: " + headerLine)
-            
+            headerLine = "[\n" + headerLine + "]"           
             
             msg = c.message.replace("\n", "\t")[0: length].replace("'", "")
             tooltip = str(c) + ": " + msg
@@ -92,9 +92,6 @@ for branch in branches:
     headers.append(headerLine)
 print("Headers: "+str(headers))
 
-with open('graphTop.txt', 'r') as file:
-    template = file.read()
-
 styles = ""
 for branch in branches:
     styles = styles + "#"+branch+"  { width: 100%; height: 80%; }\n"
@@ -111,12 +108,24 @@ for branch in branches:
     divisions = divisions + "<p><div id=\"%s\"></div></p>\n" % (branch)
 
 
-with open('graphTemplate.txt', 'r') as file:
-    template = file.read()
 
 headerLine = ""
 for h in headers:
     if h != "":
         headerLine = h
+
+charts = ""
+for i in range(len(branches)):
+    branch = branches[i]
+    graphData = data[i]
+    chartDataTemplate = "[ '%s', '%s', 'Commit date', 'Time (seconds)',\n %s ,\n [ %s ] ]"
+    chartLine = chartDataTemplate % (branch, branch, headerLine, graphData)
+
+    charts = charts + chartLine + ", \n"
+    
+
+with open('graphTemplate.txt', 'r') as file:
+    template = file.read()
+
 with open(testname + ".html", "w") as text_file:
-    text_file.write(template % (styles, snippets, headerLine, divisions))
+    text_file.write(template % (styles, charts, divisions))
