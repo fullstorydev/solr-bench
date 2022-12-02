@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -88,6 +87,17 @@ public class StressMain {
 			solrCloud.shutdown(true);
 		}
 	}
+	static class Task {
+		final String name;
+		final Callable callable;
+		final ExecutorService exe;
+		public Task(String name, Callable callable, ExecutorService exe) {
+			this.name=  name;
+			this.callable=  callable;
+			this.exe =  exe;
+
+		}
+	}
 
 	private static void executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException {
 		Map<String, AtomicInteger> globalVariables = new ConcurrentHashMap<String, AtomicInteger>();
@@ -121,7 +131,7 @@ public class StressMain {
 		}
 
 
-		List<Pair<String, Pair<Callable, ExecutorService>>> commonTasks = new ArrayList();
+		List<Task> commonTasks = new ArrayList<>();
 
 		for (String taskName: workflow.executionPlan.keySet()) {
 			TaskInstance instance = workflow.executionPlan.get(taskName);
@@ -152,7 +162,7 @@ public class StressMain {
 				} else {
 					// Don't submit them right away, but instead add to a list, shuffle the list and then submit them.
 					// Doing so ensures that different types of tasks are executed at similar points in time.
-					commonTasks.add(new Pair<>(taskName, new Pair<>(c, executor)));
+					commonTasks.add( new Task(taskName,c, executor));
 				}
 			}
 
@@ -162,11 +172,9 @@ public class StressMain {
 
 		Collections.shuffle(commonTasks);
 		log.info("Order of operations submitted via common threadpools: "+commonTasks);
-		for (Pair<String, Pair<Callable, ExecutorService>> task: commonTasks) {
-			String taskName = task.first();
-			Callable c = task.second().first();
-			ExecutorService ex = task.second().second();
-			taskFutures.get(taskName).add(ex.submit(c));
+		for (Task task: commonTasks) {
+			taskFutures.get(task.name)
+					.add(task.exe.submit(task.callable));
 		}
 
 		for (String tp: commonThreadpools.keySet())
@@ -235,14 +243,14 @@ public class StressMain {
 							Set<String> inactive = new HashSet<>();
 							ClusterState state = client.getClusterStateProvider().getClusterState();
 							for (String coll: state.getCollectionsMap().keySet()) {
-								PRS prs = new PRS(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient());
+								PerReplicaStates prs = PerReplicaStates.fetch(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient(), null);
 								for (Slice shard: state.getCollection(coll).getActiveSlices()) {
 									for (Replica replica: shard.getReplicas()) {
 										if (replica.getState() != Replica.State.ACTIVE) {
 											if (replica.getNodeName().contains(node.port)) {
 												numInactive++;
 												inactive.add(coll+"_"+shard.getName());
-												System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.getState(replica.getName()));
+												System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.get(replica.getName()).state);
 											}
 										}
 									}
@@ -642,37 +650,6 @@ public class StressMain {
 		}
 		Collections.shuffle(slices);
 		return slices;
-	}
-
-	private static class PRS {
-
-		private final String path;
-		private final SolrZkClient zkClient;
-		private List<String> children;
-
-
-		private PRS(String path, SolrZkClient zkClient) {
-			this.path = path;
-			this.zkClient = zkClient;
-		}
-
-		public String getState(String replica) throws Exception{
-			if(children == null) {
-				children = zkClient.getChildren(path, null, true);
-			}
-			for (String child : children) {
-				if(child.startsWith(replica)) {
-					return child;
-				}
-			}
-			return null;
-
-		}
-
-		public boolean isActive(String replica) throws Exception {
-			String st = getState(replica);
-			return st != null && st.contains(":A");
-		}
 	}
 
 	private static String resolveInteger(String cmd, Map<String, Integer> vars) {
