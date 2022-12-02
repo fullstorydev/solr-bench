@@ -58,7 +58,8 @@ This will plot a graph into an html file that plots values of each test on a lin
 
 ####  dependencies on mac
  Mac requires a few tools to run this script. install the following 
-1. `pip3 install gitpython`
+1. `brew install coreutils` 
+2. `pip3 install gitpython`
 
 ## Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
