@@ -6,6 +6,7 @@ import java.lang.invoke.MethodHandles;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -101,10 +102,10 @@ public class StressMain {
 		MetricsCollector metricsCollector = null;
 		Thread metricsThread = null;
 
-		Map<String, List<Future>> taskFutures = new HashMap<String, List<Future>>();
+		Map<String, List<Future>> taskFutures = new HashMap<>();
 		Map<String, ExecutorService> taskExecutors = new HashMap<String, ExecutorService>();
 
-		Map<String, List<Map>> finalResults = new ConcurrentHashMap<String, List<Map>>();
+		Map<String, List<Map>> finalResults = new ConcurrentHashMap<>();
 
 		if (workflow.metrics != null) {
 			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, 2);
@@ -127,7 +128,7 @@ public class StressMain {
 			TaskType type = workflow.taskTypes.get(instance.type);
 			System.out.println(taskName+" is of type: "+new ObjectMapper().writeValueAsString(type));
 
-			taskFutures.put(taskName, new ArrayList<Future>());
+			taskFutures.put(taskName, new ArrayList<>());
 
 			ExecutorService executor;
 
@@ -151,7 +152,7 @@ public class StressMain {
 				} else {
 					// Don't submit them right away, but instead add to a list, shuffle the list and then submit them.
 					// Doing so ensures that different types of tasks are executed at similar points in time.
-					commonTasks.add(new Pair<String, Pair<Callable, ExecutorService>>(taskName, new Pair<Callable, ExecutorService>(c, executor)));
+					commonTasks.add(new Pair<>(taskName, new Pair<>(c, executor)));
 				}
 			}
 
@@ -304,7 +305,7 @@ public class StressMain {
 					long minHeap = Long.MAX_VALUE;
 					for (int i=0; i<5; i++) {
 						URL heapUrl = new URL("http://"+node.getNodeName() + "/api/node/heap");
-						JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, Charset.forName("UTF-8")));
+						JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, StandardCharsets.UTF_8));
 						heap = obj.getLong("heap");
 						minHeap = Math.min(minHeap, heap);
 						Thread.sleep(1000);
@@ -333,7 +334,7 @@ public class StressMain {
 				log.info("Global variables: "+ instance.parameters);
 				log.info("Indexing benchmarks for collection: "+collectionName);
 
-				Map<String, Map> results = new HashMap<String, Map>();
+				Map<String, Map> results = new HashMap<>();
 				results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
 				long taskStart = System.currentTimeMillis();
 				try {
@@ -359,7 +360,7 @@ public class StressMain {
 				log.info("Global variables: "+ instance.parameters);
 				log.info("Query benchmarks for collection: "+collectionName);
 
-				Map<String, Map> results = new HashMap<String, Map>();
+				Map<String, Map> results = new HashMap<>();
 				results.put("query-benchmarks", new LinkedHashMap<String, List<Map>>());
 				long taskStart = System.currentTimeMillis();
 				try {
@@ -517,7 +518,7 @@ public class StressMain {
 				try {
 					HttpURLConnection connection = (HttpURLConnection) new URL(command).openConnection();
 					responseCode = connection.getResponseCode();
-					String output = IOUtils.toString((InputStream)connection.getContent(), Charset.forName("UTF-8"));
+					String output = IOUtils.toString((InputStream)connection.getContent(), StandardCharsets.UTF_8);
 					log.info("Output ("+responseCode+"): "+output);
 				} catch (Exception ex) {
 					ex.printStackTrace();
