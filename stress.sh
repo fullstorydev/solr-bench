@@ -79,7 +79,7 @@ while read i; do
         GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
     fi
 
-    if [[ `git cat-file -t $COMMIT` == "commit" ]]
+    if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
     then
         REPOSRC=$_REPOSRC
         LOCALREPO=$_LOCALREPO
