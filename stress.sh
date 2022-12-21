@@ -66,7 +66,7 @@ while read i; do
     then
         COMMIT=`echo $i | jq -r '."commit-id"'`
     fi
-    _LOCALREPO=`pwd`/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
+    _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
     _REPOSRC=`echo $i | jq -r '."url"'`
     _LOCALREPO_VC_DIR=$REPO/.git
     
