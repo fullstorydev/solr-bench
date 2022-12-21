@@ -75,9 +75,7 @@ public class StressMain {
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
 		
-		workflow.repo.commitId = commit;
-
-		String solrPackagePath = BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
+		String solrPackagePath = BenchmarksMain.getSolrPackagePath(commit, workflow.solrPackage);
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
