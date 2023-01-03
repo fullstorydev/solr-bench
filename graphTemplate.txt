@@ -129,6 +129,11 @@ function drawChart(title, element, xaxis, yaxis, branchColumns, branchRows) {
             columns.push(seriesMap[i].roleColumns[j]);
         }
     }
+
+    var view = chart.getView() || {};
+    view.columns = columns;
+    chart.setView(view);
+    chart.draw();
     
     chart.setOption('series', series);
     
