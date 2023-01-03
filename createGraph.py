@@ -67,9 +67,9 @@ def getGraphData(testname, branch, repoFolder):
 
             # chartData.addColumn('number', 'Task1'); chartData.addColumn({type:'string', role:'tooltip'});
             if len(taskNames) > 0:
-                headerLine = "{type: 'date', id:'Commit date'},\n"
+                headerLine = "{type: 'date', label:'Commit date'},\n"
                 for name in taskNames:
-                    headerLine = headerLine + "{type: 'number', id: '"+name+"'}, {type: 'string', role:'tooltip'},\n"
+                    headerLine = headerLine + "{type: 'number', label: '"+name+"'}, {type: 'string', role:'tooltip'},\n"
                 #print("Header line: " + headerLine)
             headerLine = "[\n" + headerLine + "]"           
             
