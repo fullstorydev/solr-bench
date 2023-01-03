@@ -190,7 +190,7 @@ buildsolr() {
      # Build Solr package
      bash -c "$BUILDCOMMAND"
      cd $LOCALREPO
-     PACKAGE_PATH=`find . -name "solr*tgz" | grep -v src`
+     PACKAGE_PATH=`pwd`/`find . -name "solr*tgz" | grep -v src|head -1`
      echo_blue "Package found here: $PACKAGE_PATH"
      cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 }

@@ -13,7 +13,7 @@ while read i; do
     if [[ $_BUILDCOMMAND == *"gradlew"*  ]]; then
         PREFIX="releases/solr/9"
     else
-        PREFIX="releases/lucene-solr/8"
+        PREFIX="releases/lucene-solr/8.11"
     fi
     for tag in `git tag|grep "$PREFIX"`; do    
         echo "Tag: $tag"
@@ -25,9 +25,10 @@ while read i; do
         if [ -f "$BASEDIR/suites/results/results-$CONFIGFILE-$COMMIT.json" ]; then
             echo "Result file already exists for $COMMIT"
         else
+            echo "Testing $COMMIT for tag $tag"
             $BASEDIR/cleanup.sh
             $BASEDIR/stress.sh -c $COMMIT $BASEDIR/suites/$CONFIGFILE
-            cd $BASEDIR; python createGraphBranches.py && cp $CONFIGFILE.html /var/www/html
+            #cd $BASEDIR; python createGraphBranches.py && cp $CONFIGFILE.html /var/www/html; cd -
         fi
     done
 done <<< "$(jq -c '.["repositories"][]' suites/$CONFIGFILE)"
