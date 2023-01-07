@@ -8,8 +8,8 @@
         "replication-type": "cloud",
         "dataset-file": "ecommerce-events.json.gz",
         "file-format": "json",
-        "max-docs": 20000,
-        "batch-size": 5000,
+        "max-docs": 20000000,
+        "batch-size": 50000,
         "id-field": "id",
         "setups": [
           {
@@ -35,7 +35,7 @@
         "json-query": true,
         "shuffle": false,
         "rpm": 3000,
-        "total-count": 200,
+        "total-count": 20000,
         "warm-count": 20
       }
     },
