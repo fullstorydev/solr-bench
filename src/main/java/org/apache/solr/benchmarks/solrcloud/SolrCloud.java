@@ -76,11 +76,12 @@ public class SolrCloud {
 
   final Cluster cluster;
   private final String solrPackagePath;
+  private final boolean shouldUploadConfigSet;
 
   public SolrCloud(Cluster cluster, String solrPackagePath) throws Exception {
     this.cluster = cluster;
     this.solrPackagePath = solrPackagePath;
-    
+    this.shouldUploadConfigSet = !"existing".equalsIgnoreCase(cluster.provisioningMethod);
     log.info("Provisioning method: " + cluster.provisioningMethod);
   }
 
@@ -180,6 +181,13 @@ public class SolrCloud {
     	for (String host: getSolrNodesFromVagrant()) {
     		nodes.add(new GenericSolrNode(host, null)); // TODO fix username for vagrant
     	}
+    } else if ("existing".equalsIgnoreCase(cluster.provisioningMethod)) {
+        System.out.println("Solr nodes: " + cluster.solrNodes);
+        System.out.println("ZK node: " + cluster.zkHost + ":" + cluster.zkPort);
+        zookeeper = new GenericZookeeper(cluster.zkHost, cluster.zkPort, cluster.zkAdminPort);
+        for (Cluster.Node node: cluster.solrNodes) {
+            nodes.add(new GenericSolrNode(node.host, node.port, node.qa, null));
+        }
     }
 
 
@@ -334,6 +342,10 @@ public class SolrCloud {
         zookeeper.cleanup();
       }
     }
+  }
+
+  public boolean shouldUploadConfigSet() {
+      return shouldUploadConfigSet;
   }
 
   public void uploadConfigSet(String configsetFile, boolean shareConfigset, String configsetZkName) throws Exception {
