@@ -39,18 +39,21 @@ public class LocalZookeeper implements Zookeeper {
   public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.6.3-bin.tar.gz";
   public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.3-bin";
   public static final String ZK_COMMAND = "bin/zkServer.sh";
-  private final String adminPort;
-  private final Integer zkPort;
+
+  private static final int DEFAULT_ADMIN_PORT = 8080;
+  private static final int DEFAULT_ZK_PORT = 2181;
+  private final int adminPort;
+  private final int zkPort;
 
   /**
    * Constructor.
    *
    * @throws Exception
    */
-  LocalZookeeper(Integer zkPort, String adminPort) throws Exception {
+  LocalZookeeper(Integer zkPort, Integer adminPort) throws Exception {
     super();
-    this.adminPort = adminPort;
-    this.zkPort = zkPort;
+    this.adminPort = adminPort != null ? adminPort : DEFAULT_ADMIN_PORT;
+    this.zkPort = zkPort != null ? zkPort : DEFAULT_ZK_PORT;
     this.init();
   }
 
@@ -69,32 +72,28 @@ public class LocalZookeeper implements Zookeeper {
                 + Util.RUN_DIR, Util.RUN_DIR);
         log.info("After untarring, ZK dir is here: " + ZK_DIR);
 
-        if (zkPort == null && adminPort == null) {
-          Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
-        } else {
-          List<String> output = new ArrayList<>();
-          boolean hasClientPort = false;
-          boolean hasAdminPort = false;
-          for (String line : FileUtils.readLines(Path.of(ZK_DIR, "conf", "zoo_sample.cfg").toFile())) {
-            if (zkPort != null && line.trim().startsWith("clientPort")) {
-              hasClientPort = true;
-              output.add("clientPort=" + zkPort);
-            } else if (adminPort != null && line.trim().startsWith("admin.serverPort")) {
-              hasClientPort = true;
-              output.add("admin.serverPort=" + adminPort);
-            } else {
-              output.add(line);
-            }
-          }
-          if (zkPort != null && !hasClientPort) {
+        List<String> output = new ArrayList<>();
+        boolean hasClientPort = false;
+        boolean hasAdminPort = false;
+        for (String line : FileUtils.readLines(Path.of(ZK_DIR, "conf", "zoo_sample.cfg").toFile())) {
+          if (line.trim().startsWith("clientPort")) {
+            hasClientPort = true;
             output.add("clientPort=" + zkPort);
-          }
-          if (adminPort != null && !hasAdminPort) {
+          } else if (line.trim().startsWith("admin.serverPort")) {
+            hasClientPort = true;
             output.add("admin.serverPort=" + adminPort);
+          } else {
+            output.add(line);
           }
-          Path cfgPath = Path.of(ZK_DIR, "conf", "zoo.cfg");
-          FileUtils.writeLines(cfgPath.toFile(), output);
         }
+        if (!hasClientPort) {
+          output.add("clientPort=" + zkPort);
+        }
+        if (!hasAdminPort) {
+          output.add("admin.serverPort=" + adminPort);
+        }
+        Path cfgPath = Path.of(ZK_DIR, "conf", "zoo.cfg");
+        FileUtils.writeLines(cfgPath.toFile(), output);
 
         String jmxEnvs = "JMXLOCALONLY=false\n" + 
         		"JMXDISABLE=false\n" + 
@@ -139,13 +138,13 @@ public class LocalZookeeper implements Zookeeper {
    * @return
    */
   public String getPort() {
-    return "2181";
+    return String.valueOf(zkPort);
   }
 
   @Override
   public String getAdminPort() {
 	  // TODO Auto-generated method stub
-	  return "8080";
+	  return String.valueOf(adminPort);
   }
 
 }

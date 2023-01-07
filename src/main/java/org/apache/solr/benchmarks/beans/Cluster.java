@@ -43,6 +43,6 @@ public class Cluster {
   public Integer zkPort;
 
   @JsonProperty("zk-admin-port")
-  public String zkAdminPort;
+  public Integer zkAdminPort;
 
 }
