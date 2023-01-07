@@ -18,6 +18,10 @@
 package org.apache.solr.benchmarks.solrcloud;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
@@ -35,14 +39,18 @@ public class LocalZookeeper implements Zookeeper {
   public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.6.3-bin.tar.gz";
   public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.3-bin";
   public static final String ZK_COMMAND = "bin/zkServer.sh";
+  private final String adminPort;
+  private final Integer zkPort;
 
   /**
    * Constructor.
    *
    * @throws Exception
    */
-  LocalZookeeper() throws Exception {
+  LocalZookeeper(Integer zkPort, String adminPort) throws Exception {
     super();
+    this.adminPort = adminPort;
+    this.zkPort = zkPort;
     this.init();
   }
 
@@ -60,8 +68,34 @@ public class LocalZookeeper implements Zookeeper {
         Util.execute("tar -xf " + ZK_TARBALL + " -C "
                 + Util.RUN_DIR, Util.RUN_DIR);
         log.info("After untarring, ZK dir is here: " + ZK_DIR);
-        Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
-        
+
+        if (zkPort == null && adminPort == null) {
+          Util.execute("cp "+ZK_DIR+"/conf/zoo_sample.cfg "+ZK_DIR+"/conf/zoo.cfg", Util.RUN_DIR);
+        } else {
+          List<String> output = new ArrayList<>();
+          boolean hasClientPort = false;
+          boolean hasAdminPort = false;
+          for (String line : FileUtils.readLines(Path.of(ZK_DIR, "conf", "zoo_sample.cfg").toFile())) {
+            if (zkPort != null && line.trim().startsWith("clientPort")) {
+              hasClientPort = true;
+              output.add("clientPort=" + zkPort);
+            } else if (adminPort != null && line.trim().startsWith("admin.serverPort")) {
+              hasClientPort = true;
+              output.add("admin.serverPort=" + adminPort);
+            } else {
+              output.add(line);
+            }
+          }
+          if (zkPort != null && !hasClientPort) {
+            output.add("clientPort=" + zkPort);
+          }
+          if (adminPort != null && !hasAdminPort) {
+            output.add("admin.serverPort=" + adminPort);
+          }
+          Path cfgPath = Path.of(ZK_DIR, "conf", "zoo.cfg");
+          FileUtils.writeLines(cfgPath.toFile(), output);
+        }
+
         String jmxEnvs = "JMXLOCALONLY=false\n" + 
         		"JMXDISABLE=false\n" + 
         		"JMXPORT=4048\n" + 

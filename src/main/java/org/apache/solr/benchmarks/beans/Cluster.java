@@ -34,6 +34,15 @@ public class Cluster {
   public Map<String, Object> vagrantConfig;
 
   @JsonProperty("provisioning-method")
-  public String provisioningMethod;  
+  public String provisioningMethod;
+
+  @JsonProperty("zk-host")
+  public String zkHost;
+
+  @JsonProperty("zk-port")
+  public Integer zkPort;
+
+  @JsonProperty("zk-admin-port")
+  public String zkAdminPort;
 
 }
