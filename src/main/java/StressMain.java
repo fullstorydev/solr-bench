@@ -66,7 +66,7 @@ public class StressMain {
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
 
-		String solrPackagePath = BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
+		String solrPackagePath = cluster.provisioningMethod.equalsIgnoreCase("existing") ? null : BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
@@ -179,6 +179,25 @@ public class StressMain {
 			metricsCollector.metrics.put("zookeeper", metricsCollector.zkMetrics);
 			new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
 		}
+		exportToGrafana(finalResults);
+	}
+
+	private static void exportToGrafana(Map<String, List<Map>> finalResults) {
+		for (Map.Entry<String, List<Map>> entry : finalResults.entrySet()) {
+			String taskName = entry.getKey();
+			List<Map> metrics = entry.getValue();
+			for (int i = 0 ; i < metrics.size(); i++) {
+				String iteration = taskName + "-" + i;
+				//get the timestamps
+				for (Object metricKey : metrics.get(i).entrySet()) {
+					if (metricKey instanceof String && ((String) metricKey).endsWith("-timestamp")) {
+
+					}
+				}
+
+			}
+		}
+
 	}
 
 	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, long executionStart, String taskName, TaskInstance instance, TaskType type) {
@@ -249,7 +268,8 @@ public class StressMain {
 				}
 				long taskEnd = System.currentTimeMillis();
 
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
 			} else if (type.restartSolrNode != null) {
 				log.info("Restarting node: "+type.restartSolrNode);
@@ -278,7 +298,8 @@ public class StressMain {
 				}
 				long taskEnd = System.currentTimeMillis();
 
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
 			} else if (type.indexBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.indexBenchmark.datasetFile);
@@ -303,7 +324,9 @@ public class StressMain {
 				log.info("Results: "+results.get("indexing-benchmarks"));
 				try {
 					String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
-					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+					finalResults.get(taskName).add(Map.of(
+							"total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
 					//ex.printStackTrace();
 				}
@@ -332,7 +355,8 @@ public class StressMain {
 					String totalTime = String.valueOf(taskEnd - taskStart);
 
 					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
-							"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()));
+							"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue(),
+							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
@@ -453,7 +477,8 @@ public class StressMain {
 
 					long taskEnd = System.currentTimeMillis();
 					log.info("Task took time: "+(taskEnd-taskStart)/1000.0+" seconds.");
-					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
@@ -481,7 +506,8 @@ public class StressMain {
 					ex.printStackTrace();
 				}
 				long taskEnd = System.currentTimeMillis();
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode));
+				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode,
+						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 			}
 			long end = System.currentTimeMillis();
 

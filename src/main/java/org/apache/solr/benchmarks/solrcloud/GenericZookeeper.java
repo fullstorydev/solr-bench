@@ -29,10 +29,10 @@ public class GenericZookeeper implements Zookeeper {
 		this(host, DEFAULT_ZK_PORT, DEFAULT_ADMIN_PORT);
 	}
 
-	public GenericZookeeper(String host, int zkPort, int adminPort) {
+	public GenericZookeeper(String host, Integer zkPort, Integer adminPort) {
 		this.host = host;
-		this.zkPort = String.valueOf(zkPort);
-		this.adminPort = String.valueOf(adminPort);
+		this.zkPort = String.valueOf(zkPort != null ? zkPort : DEFAULT_ZK_PORT);
+		this.adminPort = String.valueOf(adminPort != null ? adminPort : DEFAULT_ADMIN_PORT);
 	}
 
 	private void init() throws Exception {

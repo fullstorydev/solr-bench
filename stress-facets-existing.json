@@ -15,12 +15,13 @@
           {
             "setup-name": "cloud_3x1",
             "collection": "ecommerce-events",
-            "configset": "conf_ecommerce_events",
+            "configset": "_default",
             "replication-factor": 1,
             "shards": 3,
             "min-threads": 6,
             "max-threads": 6,
-            "thread-step": 1
+            "thread-step": 1,
+            "share-configset" : true
           }
         ]
       }
@@ -84,13 +85,15 @@
   "cluster": {
     "num-solr-nodes": 3,
     "startup-params": "-m 2g -V",
-    "provisioning-method": "local"
+    "provisioning-method": "existing",
+    "solr-nodes" : [
+      { "host" :  "localhost", "port" : 8983 },
+      { "host" :  "localhost", "port" : 28983 }
+    ],
+    "zk-host": "localhost",
+    "zk-port": 2181
   },
-  "solr-package": "https://archive.apache.org/dist/lucene/solr/8.8.1/solr-8.8.1.tgz",
   "metrics": [
     "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
-  ],
-  "zk-metrics": [
-    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
   ]
 }
