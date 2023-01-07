@@ -90,7 +90,7 @@ public class SolrCloud {
    */
   public void init() throws Exception {
     if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
-      zookeeper = new LocalZookeeper();
+      zookeeper = new LocalZookeeper(cluster.zkPort, cluster.zkAdminPort);
       int initValue = zookeeper.start();
       if (initValue != 0) {
         log.error("Failed to start Zookeeper!");
