@@ -136,8 +136,8 @@ terraform-gcp-provisioner() {
      cd $BASEDIR
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
-     export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
-     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.6.3-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.4-bin.tar.gz"
+     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.6.4-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
      export BENCH_USER=`jq -r '."cluster"."terraform-gcp-config"."user"' $CONFIGFILE`
      export BENCH_KEY="terraform/id_rsa"
@@ -197,7 +197,7 @@ buildsolr() {
 
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz 
+wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.4-bin.tar.gz 
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $BASEDIR; done
 
 # Clone/checkout the git repository and build Solr
