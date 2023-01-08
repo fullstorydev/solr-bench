@@ -35,7 +35,7 @@
         "json-query": true,
         "shuffle": false,
         "rpm": 3000,
-        "total-count": 20000,
+        "total-count": 5000,
         "warm-count": 20
       }
     },
@@ -75,7 +75,8 @@
       ]
     },
     "task3": {
-      "type": "Querying with Facet queries",
+      "description": "Querying with facet queries",
+      "type": "querying",
       "instances": 1,
       "concurrency": 1,
       "wait-for": "task2",

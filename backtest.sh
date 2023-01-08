@@ -5,7 +5,7 @@ git pull
 
 #git log --since="25 August 2022" --until="29 October 2022" |head -n 25
 
-for testname in "cluster-test.json" "stress-facets-local.json"
+for testname in "stress-facets-local.json" "cluster-test.json"
 do
     for commit in `git log --since="1 September 2022" --until="1 December 2024" --pretty=format:"%H"| shuf`;
     do echo; echo "Running $commit"
