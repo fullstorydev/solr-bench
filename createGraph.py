@@ -6,10 +6,12 @@ import math
 import collections
 import argparse
 
-parser = argparse.ArgumentParser()
-args = parser.parse_args()
+parser = argparse.ArgumentParser(description='Description of your program')
+parser.add_argument('-t','--test', help='Name of the test file', required=True)
+args = vars(parser.parse_args())
 
-testname = args.test
+testname = args['test']
+print("Test name: "+testname)
 branches = ["branch_9x", "branch_9_1"]
 repoFolder = "SolrNightlyBenchmarksWorkDirectory/Download/solr-repository"
 
@@ -45,11 +47,22 @@ def getGraphData(testname, branch, repoFolder):
                     for key in instance:
                         if key == "start-time" or key == "end-time" or key == "total-time":
                             continue
-                        if key not in otherTimingsCounts.keys():
-                            otherTimingsCounts[key] = 0
-                            otherTimingsSums[key] = 0
-                        otherTimingsSums[key] = otherTimingsSums[key] + instance[key]
-                        otherTimingsCounts[key] = otherTimingsCounts[key] + 1
+                        
+                        if type(instance[key]) == list:
+                            for subkeyindex in range(len(instance[key])):
+                                for subkey in instance[key][subkeyindex]:
+                                    compositekey = key+"_"+str(subkeyindex)+"_"+subkey
+                                    if compositekey not in otherTimingsCounts.keys():
+                                        otherTimingsCounts[compositekey] = 0
+                                        otherTimingsSums[compositekey] = 0
+                                    otherTimingsSums[compositekey] = otherTimingsSums[compositekey] + instance[key][subkeyindex][subkey]
+                                    otherTimingsCounts[compositekey] = otherTimingsCounts[compositekey] + 1
+                        else:
+                            if key not in otherTimingsCounts.keys():
+                                otherTimingsCounts[key] = 0
+                                otherTimingsSums[key] = 0
+                            otherTimingsSums[key] = otherTimingsSums[key] + instance[key]
+                            otherTimingsCounts[key] = otherTimingsCounts[key] + 1
                 #print("Sums: "+str(otherTimingsSums))
                 #print("Counts: "+str(otherTimingsCounts))
 

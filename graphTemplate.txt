@@ -93,7 +93,9 @@ function drawChart(title, element, xaxis, yaxis, branchColumns, branchRows) {
     var seriesMap = [];
     for (i=0; i<data.getNumberOfColumns()/2-1; i++) {
         var disp = true;
-        if (branchColumns[i*2+1]["label"] == "task2: heap-mb") disp = false;
+        if (branchColumns[i*2+1]["label"] == "task2: heap-mb" || (branchColumns[i*2+1]["label"]).indexOf("timings_") != -1) {
+            disp = false;
+        }
         var ser = {column: i*2+1, roleColumns: [i*2+2], display: disp};
         seriesMap.push(ser);
     }
