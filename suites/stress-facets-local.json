@@ -55,6 +55,7 @@
   "execution-plan": {
     "task1": {
       "type": "indexing",
+      "description": "Indexing events",
       "instances": 1,
       "concurrency": 1,
       "mode": "sync"
@@ -74,7 +75,7 @@
       ]
     },
     "task3": {
-      "type": "querying",
+      "type": "Querying with Facet queries",
       "instances": 1,
       "concurrency": 1,
       "wait-for": "task2",
