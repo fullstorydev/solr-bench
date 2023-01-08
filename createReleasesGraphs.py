@@ -169,7 +169,7 @@ def getGraphData(testname, branch, repoFolder):
 
 data = []
 headers = []
-branches = ["ApacheSolr"]
+branches = ["cluster_test_json"]
 
 #for branch in branches:
 #    headerLine, graphData = getGraphData(testname, branch, repoFolder)
