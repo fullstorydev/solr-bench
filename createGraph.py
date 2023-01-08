@@ -4,8 +4,12 @@ import time
 import os
 import math
 import collections
+import argparse
 
-testname = "cluster-test.json"
+parser = argparse.ArgumentParser()
+args = parser.parse_args()
+
+testname = args.test
 branches = ["branch_9x", "branch_9_1"]
 repoFolder = "SolrNightlyBenchmarksWorkDirectory/Download/solr-repository"
 
