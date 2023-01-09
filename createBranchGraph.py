@@ -28,6 +28,8 @@ def getGraphData(testname, branch, repoFolder):
         tsGraph = time.strftime("new Date(%Y, %m - 1, %d, %H, %M, 0, 0)", time.gmtime(c.committed_date))
         
         resultsFilename = "suites/results/results-" + testname + "-" + str(c) + ".json"
+        configFilename  = "suites/results/configs-" + testname + "-" + str(c) + ".json"
+
         taskNames = []
         taskTimes = []
         if (os.path.exists(resultsFilename)):
@@ -71,7 +73,10 @@ def getGraphData(testname, branch, repoFolder):
 
                 total = end - start
                 
-                taskNames.append(task)
+                configs = json.load(open(configFilename))
+                description = configs["execution-plan"][task]["description"]
+                #print(description)
+                taskNames.append(task + " (" + description + ")")
                 taskTimes.append(total)
             if c.message.find("\n") == -1:
                 length = 800
