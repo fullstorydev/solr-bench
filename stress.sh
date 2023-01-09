@@ -25,8 +25,8 @@ download() {
 ORIG_WORKING_DIR=`pwd`
 CONFIGFILE=$1
 
-download $CONFIGFILE # download this file from GCS/HTTP, if necessary
-CONFIGFILE="${CONFIGFILE##*/}"
+#download $CONFIGFILE # download this file from GCS/HTTP, if necessary
+#CONFIGFILE="${CONFIGFILE##*/}"
 
 mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
 mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
