@@ -287,7 +287,7 @@ public class StressMain {
 				}
 
 				if (type.awaitRecoveries) {
-					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
+					try (CloudSolrClient client = buildSolrClient(cloud)) {
 						int numInactive = 0;
 						do {
 							numInactive = getNumInactiveReplicas(node, client);
@@ -519,6 +519,10 @@ public class StressMain {
 		return c;
 	}
 
+	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
+		return new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).withZkChroot(cloud.getZookeeperChroot()).build();
+	}
+
 	private static int getNumInactiveReplicas(SolrNode node, CloudSolrClient client)
 			throws KeeperException, InterruptedException, IOException {
 		int numInactive;
@@ -556,7 +560,7 @@ public class StressMain {
 			Workflow.Validation validationDefinition = workflow.validations.get(v);
 			if (validationDefinition.numInactiveReplicas != null) {
 				// get num inactive replicas
-				try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
+				try (CloudSolrClient client = buildSolrClient(cloud);) {
 					int numInactive = getNumInactiveReplicas(null, client);
 					log.info("Validation: inactive replicas are " + numInactive);
 					if (numInactive > validationDefinition.numInactiveReplicas) {
@@ -583,7 +587,7 @@ public class StressMain {
 		}
 
 		if (type.command.contains("RANDOM_COLLECTION")) {
-			try(CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build()) {
+			try(CloudSolrClient client = buildSolrClient(cloud)) {
 				log.info("Trying to get list of collections: ");
 				Thread.sleep(500);
 				//List<Slice> slices = getActiveSlicedShuffled(client, collection);
@@ -600,7 +604,7 @@ public class StressMain {
 
 
 		if (type.command.contains("RANDOM_SHARD")) {
-			try(CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build()) {
+			try(CloudSolrClient client = buildSolrClient(cloud)) {
 				collection = collection==null? params.get("COLLECTION"): collection;
 				if (collection == null) {
 					throw new RuntimeException("To use RANDOM_SHARD, you must provide a 'COLLECTION' or use ${RANDOM_COLLECTION} parameter.");

@@ -91,7 +91,7 @@ public class SolrCloud {
    */
   public void init() throws Exception {
     if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
-      zookeeper = new LocalZookeeper(cluster.zkPort, cluster.zkAdminPort);
+      zookeeper = new LocalZookeeper(cluster.zkPort, cluster.zkAdminPort, cluster.zkChroot);
       int initValue = zookeeper.start();
       if (initValue != 0) {
         log.error("Failed to start Zookeeper!");
@@ -184,7 +184,7 @@ public class SolrCloud {
     } else if ("existing".equalsIgnoreCase(cluster.provisioningMethod)) {
         System.out.println("Solr nodes: " + cluster.solrNodes);
         System.out.println("ZK node: " + cluster.zkHost + ":" + cluster.zkPort);
-        zookeeper = new GenericZookeeper(cluster.zkHost, cluster.zkPort, cluster.zkAdminPort);
+        zookeeper = new GenericZookeeper(cluster.zkHost, cluster.zkPort, cluster.zkAdminPort, cluster.zkChroot);
         for (Cluster.Node node: cluster.solrNodes) {
             nodes.add(new GenericSolrNode(node.host, node.port, node.qa, null));
         }
@@ -287,6 +287,10 @@ public class SolrCloud {
    */
   public String getZookeeperUrl() {
     return zookeeper.getHost() + ":" + zookeeper.getPort();
+  }
+
+  public String getZookeeperChroot() {
+      return zookeeper.getChroot();
   }
 
   /**

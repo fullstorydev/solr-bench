@@ -45,15 +45,18 @@ public class LocalZookeeper implements Zookeeper {
   private final int adminPort;
   private final int zkPort;
 
+  private final String chroot;
+
   /**
    * Constructor.
    *
    * @throws Exception
    */
-  LocalZookeeper(Integer zkPort, Integer adminPort) throws Exception {
+  LocalZookeeper(Integer zkPort, Integer adminPort, String chroot) throws Exception {
     super();
     this.adminPort = adminPort != null ? adminPort : DEFAULT_ADMIN_PORT;
     this.zkPort = zkPort != null ? zkPort : DEFAULT_ZK_PORT;
+    this.chroot = chroot;
     this.init();
   }
 
@@ -146,5 +149,9 @@ public class LocalZookeeper implements Zookeeper {
 	  // TODO Auto-generated method stub
 	  return String.valueOf(adminPort);
   }
+
+    public String getChroot() {
+        return chroot;
+    }
 
 }

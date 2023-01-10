@@ -25,14 +25,17 @@ public class GenericZookeeper implements Zookeeper {
 	private final String host;
 	private final String zkPort;
 	private final String adminPort;
+	private final String chroot;
+
 	public GenericZookeeper(String host) {
-		this(host, DEFAULT_ZK_PORT, DEFAULT_ADMIN_PORT);
+		this(host, DEFAULT_ZK_PORT, DEFAULT_ADMIN_PORT, null);
 	}
 
-	public GenericZookeeper(String host, Integer zkPort, Integer adminPort) {
+	public GenericZookeeper(String host, Integer zkPort, Integer adminPort, String chroot) {
 		this.host = host;
 		this.zkPort = String.valueOf(zkPort != null ? zkPort : DEFAULT_ZK_PORT);
 		this.adminPort = String.valueOf(adminPort != null ? adminPort : DEFAULT_ADMIN_PORT);
+		this.chroot = chroot;
 	}
 
 	private void init() throws Exception {
@@ -63,4 +66,8 @@ public class GenericZookeeper implements Zookeeper {
 		return adminPort;
 	}
 
+	@Override
+	public String getChroot() {
+		return chroot;
+	}
 }

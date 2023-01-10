@@ -45,6 +45,9 @@ public class Cluster {
   @JsonProperty("zk-admin-port")
   public Integer zkAdminPort;
 
+  @JsonProperty("zk-chroot")
+  public String zkChroot;
+
   @JsonProperty("solr-nodes")
   public List<Node> solrNodes;
 

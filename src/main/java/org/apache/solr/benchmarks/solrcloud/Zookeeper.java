@@ -14,4 +14,6 @@ public interface Zookeeper {
 
   public String getAdminPort();
 
+  public String getChroot();
+
 }
