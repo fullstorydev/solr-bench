@@ -97,7 +97,11 @@ terraform-gcp-provisioner() {
 
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz 
+
+if [ "existing" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
+then
+  wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz
+fi
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
 # Clone/checkout the git repository and build Solr
