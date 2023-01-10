@@ -102,7 +102,7 @@ for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
 # Clone/checkout the git repository and build Solr
 
-if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
+if [ "existing" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ] && [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
 then
      echo_blue "Building Solr package for $COMMIT"
      if [ ! -d $LOCALREPO_VC_DIR ]
