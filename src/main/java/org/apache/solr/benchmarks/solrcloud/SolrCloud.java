@@ -186,7 +186,7 @@ public class SolrCloud {
         System.out.println("ZK node: " + cluster.zkHost + ":" + cluster.zkPort);
         zookeeper = new GenericZookeeper(cluster.zkHost, cluster.zkPort, cluster.zkAdminPort, cluster.zkChroot);
         for (Cluster.Node node: cluster.solrNodes) {
-            nodes.add(new GenericSolrNode(node.host, node.port, node.qa, null));
+            nodes.add(new GenericSolrNode(node.host, node.port,  null));
         }
     }
 

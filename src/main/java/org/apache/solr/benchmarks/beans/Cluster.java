@@ -58,15 +58,11 @@ public class Cluster {
     @JsonProperty("port")
     public Integer port;
 
-    @JsonProperty("qa")
-    public boolean qa = false;
-
     @Override
     public String toString() {
       return "Node{" +
               "host='" + host + '\'' +
               ", port=" + port +
-              ", qa=" + qa +
               '}';
     }
   }
