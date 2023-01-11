@@ -81,7 +81,7 @@ public class SolrCloud {
   public SolrCloud(Cluster cluster, String solrPackagePath) throws Exception {
     this.cluster = cluster;
     this.solrPackagePath = solrPackagePath;
-    this.shouldUploadConfigSet = !"existing".equalsIgnoreCase(cluster.provisioningMethod);
+    this.shouldUploadConfigSet = !"external".equalsIgnoreCase(cluster.provisioningMethod);
     log.info("Provisioning method: " + cluster.provisioningMethod);
   }
 
@@ -91,7 +91,7 @@ public class SolrCloud {
    */
   public void init() throws Exception {
     if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
-      zookeeper = new LocalZookeeper(cluster.zkPort, cluster.zkAdminPort, cluster.zkChroot);
+      zookeeper = new LocalZookeeper();
       int initValue = zookeeper.start();
       if (initValue != 0) {
         log.error("Failed to start Zookeeper!");
@@ -181,12 +181,12 @@ public class SolrCloud {
     	for (String host: getSolrNodesFromVagrant()) {
     		nodes.add(new GenericSolrNode(host, null)); // TODO fix username for vagrant
     	}
-    } else if ("existing".equalsIgnoreCase(cluster.provisioningMethod)) {
-        System.out.println("Solr nodes: " + cluster.solrNodes);
-        System.out.println("ZK node: " + cluster.zkHost + ":" + cluster.zkPort);
-        zookeeper = new GenericZookeeper(cluster.zkHost, cluster.zkPort, cluster.zkAdminPort, cluster.zkChroot);
-        for (Cluster.Node node: cluster.solrNodes) {
-            nodes.add(new GenericSolrNode(node.host, node.port,  null));
+    } else if ("external".equalsIgnoreCase(cluster.provisioningMethod)) {
+        System.out.println("Solr nodes: " + cluster.externalSolrConfig.solrNodes);
+        System.out.println("ZK node: " + cluster.externalSolrConfig.zkHost + ":" + cluster.externalSolrConfig.zkPort);
+        zookeeper = new GenericZookeeper(cluster.externalSolrConfig.zkHost, cluster.externalSolrConfig.zkPort, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
+        for (Cluster.Node node: cluster.externalSolrConfig.solrNodes) {
+            nodes.add(new ExternalSolrNode(node.host, node.port,  cluster.externalSolrConfig.restartScript));
         }
     }
 

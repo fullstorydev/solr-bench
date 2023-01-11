@@ -29,16 +29,16 @@ public class GenericSolrNode implements SolrNode {
 
   private final String user;
   private static final int DEFAULT_PORT = 8983;
-  private final String host;
-  private final int port;
+  protected final String host;
+  protected final int port;
 
-  public GenericSolrNode(String host, int port, String user) throws Exception {
+  public GenericSolrNode(String host, int port, String user) {
     this.host = host;
     this.port = port;
     this.user = user;
   }
 
-  public GenericSolrNode(String host, String user) throws Exception {
+  public GenericSolrNode(String host, String user) {
     this(host, DEFAULT_PORT, null);
   }
 

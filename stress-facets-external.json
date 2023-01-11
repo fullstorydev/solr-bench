@@ -85,15 +85,20 @@
   "cluster": {
     "num-solr-nodes": 3,
     "startup-params": "-m 2g -V",
-    "provisioning-method": "existing",
-    "solr-nodes" : [
-      { "host" :  "localhost", "port" : 8983 },
-      { "host" :  "localhost", "port" : 28983 }
-    ],
-    "zk-host": "localhost",
-    "zk-port": 2181
-  },
-  "metrics": [
-    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
-  ]
+    "provisioning-method": "external",
+    "external-solr-config" : {
+      "solr-nodes": [
+        {
+          "host": "localhost",
+          "port": 8983
+        },
+        {
+          "host": "localhost",
+          "port": 28983
+        }
+      ],
+      "zk-host": "127.0.0.1",
+      "zk-port": 2181
+    }
+  }
 }

@@ -97,36 +97,34 @@ terraform-gcp-provisioner() {
 
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-
-if [ "existing" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
-then
-  wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz
-fi
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
 
-# Clone/checkout the git repository and build Solr
-
-if [ "existing" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ] && [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
+if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
 then
-     echo_blue "Building Solr package for $COMMIT"
-     if [ ! -d $LOCALREPO_VC_DIR ]
-     then
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $REPOSRC $LOCALREPO
-          cd $LOCALREPO
-     else
-          cd $LOCALREPO
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
-     fi
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
+  wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz
+# Clone/checkout the git repository and build Solr
+  if  [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
+  then
+       echo_blue "Building Solr package for $COMMIT"
+       if [ ! -d $LOCALREPO_VC_DIR ]
+       then
+            GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $REPOSRC $LOCALREPO
+            cd $LOCALREPO
+       else
+            cd $LOCALREPO
+            GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+       fi
+       GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
+       GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init
+       GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
 
-     # Build Solr package
-     bash -c "$BUILDCOMMAND"
-     cd $LOCALREPO
-     PACKAGE_PATH=`find . -name "solr*tgz" | grep -v src`
-     echo_blue "Package found here: $PACKAGE_PATH"
-     cp $PACKAGE_PATH $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
+       # Build Solr package
+       bash -c "$BUILDCOMMAND"
+       cd $LOCALREPO
+       PACKAGE_PATH=`find . -name "solr*tgz" | grep -v src`
+       echo_blue "Package found here: $PACKAGE_PATH"
+       cp $PACKAGE_PATH $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
+  fi
 fi
 
 cd $ORIG_WORKING_DIR
