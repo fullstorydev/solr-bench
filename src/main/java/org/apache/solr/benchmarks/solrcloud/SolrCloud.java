@@ -183,10 +183,12 @@ public class SolrCloud {
     	}
     } else if ("external".equalsIgnoreCase(cluster.provisioningMethod)) {
         System.out.println("Solr nodes: " + cluster.externalSolrConfig.solrNodes);
-        System.out.println("ZK node: " + cluster.externalSolrConfig.zkHost + ":" + cluster.externalSolrConfig.zkPort);
-        zookeeper = new GenericZookeeper(cluster.externalSolrConfig.zkHost, cluster.externalSolrConfig.zkPort, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
-        for (Cluster.Node node: cluster.externalSolrConfig.solrNodes) {
-            nodes.add(new ExternalSolrNode(node.host, node.port,  cluster.externalSolrConfig.restartScript));
+        System.out.println("ZK node: " + cluster.externalSolrConfig.zkHost);
+        String[] tokens = cluster.externalSolrConfig.zkHost.split(":");
+        zookeeper = new GenericZookeeper(tokens[0], Integer.parseInt(tokens[1]), cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
+        for (String nodeName: cluster.externalSolrConfig.solrNodes) {
+            tokens = nodeName.split(":");
+            nodes.add(new ExternalSolrNode(tokens[0], Integer.parseInt(tokens[1]),  cluster.externalSolrConfig.restartScript));
         }
     }
 

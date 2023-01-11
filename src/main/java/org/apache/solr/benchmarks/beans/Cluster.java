@@ -43,9 +43,6 @@ public class Cluster {
     @JsonProperty("zk-host")
     public String zkHost;
 
-    @JsonProperty("zk-port")
-    public Integer zkPort;
-
     @JsonProperty("zk-admin-port")
     public Integer zkAdminPort;
 
@@ -53,25 +50,8 @@ public class Cluster {
     public String zkChroot;
 
     @JsonProperty("solr-nodes")
-    public List<Node> solrNodes;
+    public List<String> solrNodes;
     @JsonProperty("restart-script")
     public String restartScript;
   }
-
-  public static class Node {
-    @JsonProperty("host")
-    public String host;
-
-    @JsonProperty("port")
-    public Integer port;
-
-    @Override
-    public String toString() {
-      return "Node{" +
-              "host='" + host + '\'' +
-              ", port=" + port +
-              '}';
-    }
-  }
-
 }
