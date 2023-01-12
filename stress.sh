@@ -24,6 +24,7 @@ download() {
 
 ORIG_WORKING_DIR=`pwd`
 CONFIGFILE=$1
+SOLR_BENCH_JAR=$2
 
 #download $CONFIGFILE # download this file from GCS/HTTP, if necessary
 #CONFIGFILE="${CONFIGFILE##*/}"
@@ -137,8 +138,14 @@ fi
 # Run the benchmarking suite
 cd $ORIG_WORKING_DIR
 echo_blue "Running Stress suite from working directory: $ORIG_WORKING_DIR"
-java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+
+if [ -z "$SOLR_BENCH_JAR" ] #then no explicit jar provided
+then
+  java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    StressMain $CONFIGFILE
+else
+  java -Xmx12g -cp ${SOLR_BENCH_JAR}:. StressMain $CONFIGFILE
+fi
 
 # Grab GC logs
 NOW=`date +"%Y-%d-%m_%H.%M.%S"`
