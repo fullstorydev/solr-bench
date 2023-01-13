@@ -271,33 +271,50 @@ public class StressMain {
 				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
-			} else if (type.restartSolrNode != null) {
-				log.info("Restarting node: "+type.restartSolrNode);
+			} else if (type.restartSolrNode != null || type.restartAllNodes) {
+				log.info("Restarting node(s)");
 
-				String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
-				long taskStart = System.currentTimeMillis();
-				log.info("Restarting node "+Integer.valueOf(nodeIndex));
-				SolrNode node = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
-				log.info("Restarting " + node.getNodeName());
-
-				try {
-					node.restart();
-				} catch (Exception ex) {
-					ex.printStackTrace();
+				List<SolrNode> restartNodes = new ArrayList<>();
+				if (type.restartAllNodes) {
+					restartNodes = new ArrayList<>(cloud.nodes);
+				} else {
+					String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
+					SolrNode restartNode = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
+					restartNodes = Collections.singletonList(restartNode);
 				}
 
-				if (type.awaitRecoveries) {
-					try (CloudSolrClient client = buildSolrClient(cloud)) {
-						int numInactive = 0;
-						do {
-							numInactive = getNumInactiveReplicas(node, client);
-						} while (numInactive > 0);
-					} catch (Exception ex) {
-						ex.printStackTrace();
+				long taskStart = System.currentTimeMillis();
+				ExecutorService executor = null;
+				try {
+					executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(taskName + "-restart-thread-pool").build());
+					for (SolrNode restartNode : restartNodes) {
+						executor.submit(() -> {
+							log.info("Restarting " + restartNode.getNodeName());
+							try {
+								restartNode.restart();
+							} catch (Exception ex) {
+								ex.printStackTrace();
+							}
+							if (type.awaitRecoveries) {
+								try (CloudSolrClient client = buildSolrClient(cloud)) {
+									int numInactive = 0;
+									do {
+										numInactive = getNumInactiveReplicas(restartNode, client);
+									} while (numInactive > 0);
+								} catch (Exception ex) {
+									ex.printStackTrace();
+								}
+							}
+							log.info("Finished restarting " + restartNode.getNodeName());
+						});
+					}
+				} finally {
+					if (executor != null) {
+						executor.shutdown();
+						executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 					}
 				}
 				long taskEnd = System.currentTimeMillis();
-
 				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 

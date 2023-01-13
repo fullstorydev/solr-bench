@@ -47,6 +47,9 @@ public class TaskType {
 	@JsonProperty("restart-solr-node")
 	String restartSolrNode;
 
+	@JsonProperty("restart-all-nodes")
+	boolean restartAllNodes = false;
+
 	// Typically used with restart:
 	@JsonProperty("await-recoveries")
 	boolean awaitRecoveries = false;
