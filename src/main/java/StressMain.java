@@ -272,15 +272,16 @@ public class StressMain {
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
 			} else if (type.restartSolrNode != null || type.restartAllNodes) {
-				log.info("Restarting node(s)");
 
-				List<SolrNode> restartNodes = new ArrayList<>();
+				List<SolrNode> restartNodes;
 				if (type.restartAllNodes) {
 					restartNodes = new ArrayList<>(cloud.nodes);
+					log.info("Restarting " + restartNodes.size() + " node(s)");
 				} else {
 					String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
 					SolrNode restartNode = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
 					restartNodes = Collections.singletonList(restartNode);
+					log.info("Restarting single node");
 				}
 
 				long taskStart = System.currentTimeMillis();
