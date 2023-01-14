@@ -7,7 +7,7 @@ import collections
 
 #nocommit: cleanup, consolidate with the createGraphs.py
 
-testname = "cluster-test.json"
+testname = "stress-facets-local.json"
 branches = ["branch_9x", "branch_9_1"]
 repoFolder = "SolrNightlyBenchmarksWorkDirectory/Download/solr-repository"
 repoFolderOld = "SolrNightlyBenchmarksWorkDirectory/Download/git-repository"
@@ -56,11 +56,26 @@ def getReleasesGraphData(testname, repoFolders):
                     for key in instance:
                         if key == "start-time" or key == "end-time" or key == "total-time":
                             continue
-                        if key not in otherTimingsCounts.keys():
-                            otherTimingsCounts[key] = 0
-                            otherTimingsSums[key] = 0
-                        otherTimingsSums[key] = otherTimingsSums[key] + instance[key]
-                        otherTimingsCounts[key] = otherTimingsCounts[key] + 1
+#                        if key not in otherTimingsCounts.keys():
+#                            otherTimingsCounts[key] = 0
+#                            otherTimingsSums[key] = 0
+#                        otherTimingsSums[key] = otherTimingsSums[key] + instance[key]
+#                        otherTimingsCounts[key] = otherTimingsCounts[key] + 1
+                        if type(instance[key]) == list:
+                            for subkeyindex in range(len(instance[key])):
+                                for subkey in instance[key][subkeyindex]:
+                                    compositekey = key+"_"+str(subkeyindex)+"_"+subkey
+                                    if compositekey not in otherTimingsCounts.keys():
+                                        otherTimingsCounts[compositekey] = 0
+                                        otherTimingsSums[compositekey] = 0
+                                    otherTimingsSums[compositekey] = otherTimingsSums[compositekey] + instance[key][subkeyindex][subkey]
+                                    otherTimingsCounts[compositekey] = otherTimingsCounts[compositekey] + 1
+                        else:
+                            if key not in otherTimingsCounts.keys():
+                                otherTimingsCounts[key] = 0
+                                otherTimingsSums[key] = 0
+                            otherTimingsSums[key] = otherTimingsSums[key] + instance[key]
+                            otherTimingsCounts[key] = otherTimingsCounts[key] + 1
                 #print("Sums: "+str(otherTimingsSums))
                 #print("Counts: "+str(otherTimingsCounts))
 
@@ -169,7 +184,7 @@ def getGraphData(testname, branch, repoFolder):
 
 data = []
 headers = []
-branches = ["cluster_test_json"]
+branches = ["test_facets_local_json"]
 
 #for branch in branches:
 #    headerLine, graphData = getGraphData(testname, branch, repoFolder)

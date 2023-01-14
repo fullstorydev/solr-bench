@@ -7,7 +7,7 @@ git pull
 
 for testname in "stress-facets-local.json" "cluster-test.json"
 do
-    for commit in `git log --since="1 September 2022" --until="1 December 2024" --pretty=format:"%H"| shuf`;
+    for commit in `git log --since="1 September 2022" --until="1 January 2029" --pretty=format:"%H"| shuf`;
     do echo; echo "Running $commit"
 
     if [ -f "/home/ishan/code/solr-bench/suites/results/results-$testname-$commit.json" ]; then
@@ -16,7 +16,8 @@ do
         echo "Trying commit: $commit"
         /home/ishan/code/solr-bench/cleanup.sh
         /home/ishan/code/solr-bench/stress.sh -c $commit /home/ishan/code/solr-bench/suites/$testname
-        cd -; python createGraph.py --test $testname && cp $testname.html /var/www/html/$testname.html; cd -
+        #cd -; python createGraph.py --test $testname && cp $testname.html /var/www/html/$testname.html; cd -
+	cd -; python createBranchGraph.py -b branch_9x; cp branch*html /var/www/html; cd -
     fi
 
     done

@@ -1,5 +1,10 @@
-CONFIGFILE="cluster-test.json"
+#CONFIGFILE="cluster-test.json"
 BASEDIR=$(realpath $(dirname "$0"))
+
+for CONFIGFILE in  "stress-facets-local.json"
+do
+
+cd $BASEDIR
 
 while read i; do
     _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
@@ -33,3 +38,5 @@ while read i; do
     done
 done <<< "$(jq -c '.["repositories"][]' suites/$CONFIGFILE)"
 
+
+done
