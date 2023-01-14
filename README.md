@@ -10,23 +10,43 @@ Benchmarking & stress test for standard operations (indexing, querying, collecti
 
 #### GNU/Linux
 
-TBD
+##### Local Mode
+
+Ubuntu/Debian:
+
+    # Install JDK 11, make sure it is the default JDK. Following is a potential way to install the right JDK:
+    sudo apt install openjdk-11-jdk
+
+    sudo apt install wget unzip zip ant ivy lsof git netcat make maven jq
+    
+Fedora/RHEL:
+
+    # Install JDK 11, make sure it is the default JDK. Following is a potential way to install the right JDK:
+    sudo yum install  java-11-openjdk-devel
+
+    sudo yum install wget unzip zip ant ivy lsof git nc make maven jq
+
+
+##### GCP Mode
+If running on GCP, spin up a coordinator VM where this suite will run from. Make sure to use a service account for that VM that has permissions to create other VMs.
+
+The VM should have the following:
+* Maven and other tools for building `apt install wget unzip zip ant ivy lsof git netcat make openjdk-11-jdk maven jq` (for Ubuntu/Debian) or `sudo yum install wget unzip zip ant ivy lsof git nc make java-11-openjdk-devel maven jq` (for Redhat/CentOS/Fedora)
+* Terraform. `wget https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip; sudo unzip terraform_0.12.26_linux_amd64.zip -d /usr/local/bin`
+
 
 #### Mac OS
 
-TBD
+TBD (PRs welcome!)
 
 ### Running the suite
 
 In the coordinator VM, check out this solr-bench repository.
 
 1. `mvn clean compile assembly:single`
-2. `./cleanup.sh && ./stress.sh <config-file>`
+2. `./cleanup.sh && ./stress.sh -c <commit> <config-file>`
 
-Example: `./cleanup.sh ./stress.sh suites/cluster-test.json`
-
-Multiple runs can be performed by editing the `<config-file>` and modifying the value `repository/commit-id` .
-
+Example: `./cleanup.sh ./stress.sh -c dfde16a004206cc92e21cc5a6cad9030fbe13c20 suites/stress-facets-local.json`
 
 
 #### Available tests
@@ -35,16 +55,13 @@ note: This is subject to change
 ```
 
 1. `cluster-test.json` : Creates an 8 node cluster and create 1000 collections of various `numShards` and measure shutdown & restart performance
-2. --TODO add more--
+2. `stress-facets-local.json` : Indexes 20 million documents from an ecommerce events dataset, issues 5k facet queries against it.
+
 ### Results
 
 * Results are available after the benchmark in `./suites/results/results-\<configfile\>-\<commit-id\>.json` file. 
 
 ### Datasets
-
-TBD
-
-### Examples
 
 TBD
 
@@ -57,7 +74,8 @@ Test results can be visualized in charts using the following command.
 This will plot a graph into an html file that plots values of each test on a line chart `./suites/results/<config-file>.html`. The HTML file can be directly opened in a browser
 
 ####  dependencies on mac
- Mac requires a few tools to run this script. install the following 
+Mac OS requires a few tools to run this script. Install the following:
+
 1. `brew install coreutils` 
 2. `pip3 install gitpython`
 
