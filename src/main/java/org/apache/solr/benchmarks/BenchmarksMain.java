@@ -150,11 +150,10 @@ public class BenchmarksMain {
 		for (QueryBenchmark benchmark : queryBenchmarks) {
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
 
-
+        log.info("Querying on : " + solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl());
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-
-		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
+HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,
