@@ -27,7 +27,7 @@ public class QueryGenerator {
 
     public QueryGenerator(QueryBenchmark queryBenchmark) throws IOException {
         this.queryBenchmark = queryBenchmark;
-        File file = new File(queryBenchmark.queryFile);
+        File file = Util.resolveSuitePath(queryBenchmark.queryFile);
         if (queryBenchmark.queryFile.endsWith(".tar.gz")) {
             queries = new ArrayList<>();
             TarGzFileReader.readFilesFromZip(

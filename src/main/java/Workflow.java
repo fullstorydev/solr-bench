@@ -12,8 +12,8 @@ public class Workflow {
 	@JsonProperty("cluster")
 	public Cluster cluster;
 
-	@JsonProperty("repository")
-	public Repository repo;
+	@JsonProperty("repositories")
+	public List<Repository> repos;
 
 	@JsonProperty("solr-package")
 	public String solrPackage;

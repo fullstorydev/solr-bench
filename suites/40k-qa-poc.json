@@ -58,7 +58,7 @@
   "execution-plan": {
     "task1": {
       "type": "indexing",
-      "instances": 2500,
+      "instances": 500,
       "concurrency": 20,
       "mode": "sync",
       "parameters": {
@@ -85,7 +85,7 @@
     },
     "task3": {
       "type": "querying",
-      "instances": 2500,
+      "instances": 500,
       "concurrency": 16,
       "wait-for": "task2",
       "mode": "sync",
@@ -98,7 +98,7 @@
     },
     "task4": {
       "type": "querying",
-      "instances": 2500,
+      "instances": 500,
       "concurrency": 16,
       "wait-for": "task3",
       "mode": "sync",
@@ -127,6 +127,7 @@
           "url": "https://github.com/fullstorydev/lucene-solr",
         "user": "ishan"
     },
+  "pre-download": ["https://home.apache.org/~ishan/ecommerce-events.json.gz"],
   "metrics": [
     "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
   ],

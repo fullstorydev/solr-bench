@@ -342,7 +342,7 @@ public class SolrCloud {
     log.info("Configset: " +configsetZkName+
             " does not exist. creating... ");
 
-    File f = new File(configsetFile + ".zip");
+    File f = Util.resolveSuitePath((configsetFile + ".zip"));
 
     if (!f.exists()) {
       throw new RuntimeException("Could not find configset file: " + configsetFile);

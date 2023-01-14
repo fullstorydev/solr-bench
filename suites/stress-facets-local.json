@@ -1,4 +1,5 @@
 {
+  "pre-download": ["https://home.apache.org/~ishan/ecommerce-events.json.gz"],
   "task-types": {
     "indexing": {
       "index-benchmark": {
@@ -7,7 +8,7 @@
         "replication-type": "cloud",
         "dataset-file": "ecommerce-events.json.gz",
         "file-format": "json",
-        "max-docs": 50000000,
+        "max-docs": 20000000,
         "batch-size": 50000,
         "id-field": "id",
         "setups": [
@@ -17,8 +18,8 @@
             "configset": "conf_ecommerce_events",
             "replication-factor": 1,
             "shards": 3,
-            "min-threads": 8,
-            "max-threads": 8,
+            "min-threads": 6,
+            "max-threads": 6,
             "thread-step": 1
           }
         ]
@@ -28,13 +29,13 @@
       "query-benchmark": {
         "name": "Facet queries",
         "collection": "ecommerce-events",
-        "query-file": "queries-ecommerce.json",
+        "query-file": "facets2.json",
         "min-threads": 1,
         "max-threads": 1,
         "json-query": true,
         "shuffle": false,
         "rpm": 3000,
-        "total-count": 10000,
+        "total-count": 5000,
         "warm-count": 20
       }
     },
@@ -54,6 +55,7 @@
   "execution-plan": {
     "task1": {
       "type": "indexing",
+      "description": "Indexing events",
       "instances": 1,
       "concurrency": 1,
       "mode": "sync"
@@ -73,6 +75,7 @@
       ]
     },
     "task3": {
+      "description": "Querying with facet queries",
       "type": "querying",
       "instances": 1,
       "concurrency": 1,
@@ -82,23 +85,36 @@
   },
   "cluster": {
     "num-solr-nodes": 3,
-    "jdk-url": "https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz",
-    "jdk-tarball": "openjdk-11.0.2_linux-x64_bin.tar.gz",
-    "jdk-directory": "jdk-11.0.2",
-    "startup-params": "-m 12g",
+    "startup-params": "-m 2g -V",
     "provisioning-method": "local"
   },
-  "repository": {
-    "commit-id": "01c4381d6f960429ccd02c674b94b9338c79c290",
-    "description": "Solr 8.10",
-    "name": "git-repository",
-    "package-subdir": "/solr/package/",
-    "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
-    "submodules": false,
-    "url": "https://github.com/apache/lucene-solr",
-    "user": "ishan"
-  },
+  "repositories": [
+    {
+      "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+      "description": "Solr 8.4",
+      "name": "git-repository",
+      "package-subdir": "/solr/package/",
+      "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+      "submodules": false,
+      "url": "https://github.com/apache/lucene-solr",
+      "user": "ishan"
+    },
+    { 
+      "commit-id": "dfde16a004206cc92e21cc5a6cad9030fbe13c20",
+      "description": "Solr 10x",
+      "name": "solr-repository",
+      "package-subdir": "/solr/packaging/",
+      "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
+      "submodules": false,
+      "url": "https://github.com/apache/solr",
+      "user": "ishan"
+    }
+
+  ],
   "metrics": [
-    "jvm/solr.jvm/memory.heap.usage"
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+  ],
+  "zk-metrics": [
+    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
   ]
 }

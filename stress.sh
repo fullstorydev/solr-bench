@@ -22,21 +22,82 @@ download() {
         # else, don't do anything
 }
 
+# parse the arguments
+for i in $@; do :; done
+CONFIGFILE=$i
+
+# commit
+while getopts "c:" option; do
+  case $option in
+    "c")
+      commitoverrides+=("$OPTARG")
+      ;;
+    *)
+      # any other arguments for future
+      ;;
+  esac
+done
+
 ORIG_WORKING_DIR=`pwd`
-CONFIGFILE=$1
+BASEDIR=$(realpath $(dirname "$0"))
+CONFIGFILE=`realpath $CONFIGFILE`
+CONFIGFILE_DIR=`dirname $CONFIGFILE`
+
+#PATCHURL="https://patch-diff.githubusercontent.com/raw/apache/solr/pull/1169.diff"
+PATCHURL2="https://github.com/apache/solr/commit/b33161d0cdd976fc0c3dc78c4afafceb4db671cf.diff"
+#PATCHURL="https://termbin.com/tcpd"
+PATCHURL="https://termbin.com/7r9v"
+
+cd $BASEDIR
+
+echo "Configfile: $CONFIGFILE"
+echo "Configfile dir: $CONFIGFILE_DIR"
 
 download $CONFIGFILE # download this file from GCS/HTTP, if necessary
-CONFIGFILE="${CONFIGFILE##*/}"
+# CONFIGFILE="${CONFIGFILE##*/}" nocommit: do this only for web/gcs downloaded files
 
 mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
 mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
 
-COMMIT=`jq -r '."repository"."commit-id"' $CONFIGFILE`
-REPOSRC=`jq -r '."repository"."url"' $CONFIGFILE`
-LOCALREPO=`pwd`/SolrNightlyBenchmarksWorkDirectory/Download/`jq -r '."repository"."name"' $CONFIGFILE`
-BUILDCOMMAND=`jq -r '."repository"."build-command"' $CONFIGFILE`
-PACKAGE_DIR=`jq -r '."repository"."package-subdir"' $CONFIGFILE`
-LOCALREPO_VC_DIR=$LOCALREPO/.git
+COMMIT=${commitoverrides[0]}
+
+while read i; do
+    if [[ "" == $COMMIT ]]
+    then
+        COMMIT=`echo $i | jq -r '."commit-id"'`
+    fi
+    _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
+    _REPOSRC=`echo $i | jq -r '."url"'`
+    _LOCALREPO_VC_DIR=$REPO/.git
+    
+    if [ ! -d $_LOCALREPO_VC_DIR ]
+    then
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
+          cd $_LOCALREPO
+    else
+        cd $_LOCALREPO
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+    fi
+
+    if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
+    then
+        REPOSRC=$_REPOSRC
+        LOCALREPO=$_LOCALREPO
+        BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
+        PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
+        LOCALREPO_VC_DIR=$_LOCALREPO/.git
+        break
+    fi
+done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
+
+cd $BASEDIR
+
+if [[ "" == $REPOSRC ]]
+then
+    echo "$COMMIT not found in any configured repositories."
+    exit 1
+fi
+
 GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
 export SOLR_TARBALL_NAME="solr-$COMMIT.tgz"
@@ -63,7 +124,7 @@ terraform-gcp-provisioner() {
      ssh-keygen -f terraform/id_rsa -N ""
 
      # Provision instances using Terraform
-     cd $ORIG_WORKING_DIR/terraform
+     cd $BASEDIR/terraform
      terraform init 
      terraform apply --auto-approve
 
@@ -72,11 +133,11 @@ terraform-gcp-provisioner() {
      sleep 30
 
      # Start ZK & Solr on provisioned instances
-     cd $ORIG_WORKING_DIR
+     cd $BASEDIR
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
-     export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
-     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.4-bin.tar.gz"
+     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.6.4-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
      export BENCH_USER=`jq -r '."cluster"."terraform-gcp-config"."user"' $CONFIGFILE`
      export BENCH_KEY="terraform/id_rsa"
@@ -95,15 +156,7 @@ terraform-gcp-provisioner() {
      done
 }
 
-# Download the pre-requisites
-download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.3/apache-zookeeper-3.6.3-bin.tar.gz 
-for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do download $i; done
-
-# Clone/checkout the git repository and build Solr
-
-if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
-then
+buildsolr() {
      echo_blue "Building Solr package for $COMMIT"
      if [ ! -d $LOCALREPO_VC_DIR ]
      then
@@ -113,19 +166,47 @@ then
           cd $LOCALREPO
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
      fi
+
+     # remove local changes, if any
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git reset --hard
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clean -fdx
+
+     # checkout to the commit point
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
+     if [[ "0" != "$?" ]]; then echo "Failed to checkout $COMMIT..."; exit 1; fi
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
+
+     
+     if [[ "$PATCHURL" != "" ]]; 
+     then
+          echo "Applying patch"
+          curl $PATCHURL | git apply -v --index
+          if [[ "0" != "$?" ]]; then echo "Failed to apply patch."; else echo "Applied patch"; fi
+          curl $PATCHURL2 | git apply -v --index
+          if [[ "0" != "$?" ]]; then echo "Failed to apply patch 2."; else echo "Applied patch 2"; fi
+     fi
 
      # Build Solr package
      bash -c "$BUILDCOMMAND"
      cd $LOCALREPO
-     PACKAGE_PATH=`find . -name "solr*tgz" | grep -v src`
+     PACKAGE_PATH=`pwd`/`find . -name "solr*tgz" | grep -v src|head -1`
      echo_blue "Package found here: $PACKAGE_PATH"
-     cp $PACKAGE_PATH $ORIG_WORKING_DIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
+     cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
+}
+
+# Download the pre-requisites
+download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
+wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.4/apache-zookeeper-3.6.4-bin.tar.gz 
+for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $BASEDIR; done
+
+# Clone/checkout the git repository and build Solr
+if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
+then
+     buildsolr
 fi
 
-cd $ORIG_WORKING_DIR
+cd $BASEDIR
 
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
@@ -133,17 +214,17 @@ then
 fi
 
 # Run the benchmarking suite
-cd $ORIG_WORKING_DIR
-echo_blue "Running Stress suite from working directory: $ORIG_WORKING_DIR"
-java -Xmx12g -cp org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
-   StressMain $CONFIGFILE
+cd $BASEDIR
+echo_blue "Running Stress suite from working directory: $BASEDIR"
+java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+   StressMain $CONFIGFILE $COMMIT
 
 # Grab GC logs
 NOW=`date +"%Y-%d-%m_%H.%M.%S"`
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      echo_blue "Pulling logs"
-     cd $ORIG_WORKING_DIR
+     cd $BASEDIR
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
         SOLR_NODE=${line//\"/}
@@ -154,7 +235,7 @@ then
      done
 
      echo_blue "Removing the hostname entry from ~/.ssh/known_hosts, so that another run can be possible afterwards"
-     cd $ORIG_WORKING_DIR
+     cd $BASEDIR
      for line in `terraform output -state=terraform/terraform.tfstate -json solr_node_details|jq '.[] | .name'`
      do
         SOLR_NODE=${line//\"/}
@@ -165,7 +246,7 @@ then
 fi
 
 # Results upload (results.json), if needed
-#cd $ORIG_WORKING_DIR
+#cd $BASEDIR
 #if [[ "null" != `jq -r '.["results-upload-location"]' $CONFIGFILE` ]]
 #then
 #     # Results uploading only supported for GCS buckets for now
@@ -174,10 +255,20 @@ fi
 #     gsutil cp logs-${NOW}.zip `jq -r '.["results-upload-location"]' $CONFIGFILE`
 #fi
 
+# Rename the result files for local test
+if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     mkdir -p $CONFIGFILE_DIR/results
+     cp $CONFIGFILE $CONFIGFILE_DIR/results/configs-$(basename $CONFIGFILE)-$COMMIT.json
+     cp $BASEDIR/results-stress.json $CONFIGFILE_DIR/results/results-$(basename $CONFIGFILE)-$COMMIT.json
+     cp $BASEDIR/metrics-stress.json $CONFIGFILE_DIR/results/metrics-$(basename $CONFIGFILE)-$COMMIT.json
+     rm $BASEDIR/results-stress.json $BASEDIR/metrics-stress.json
+fi
+
 # Cleanup
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
-     cd $ORIG_WORKING_DIR/terraform
+     cd $BASEDIR/terraform
      terraform destroy --auto-approve
      rm id_rsa*
 fi
