@@ -112,6 +112,10 @@ public class Util {
     logger.debug("Working dir: " + workingDirectoryPath);
     File workingDirectory = new File(workingDirectoryPath);
 
+	if (!workingDirectory.exists()) {
+		logger.info("Working dir [" + workingDirectoryPath + "] not yet exists, creating...");
+		workingDirectory.mkdirs();
+	}
     workingDirectory.setExecutable(true);
 
     Runtime rt = Runtime.getRuntime();
