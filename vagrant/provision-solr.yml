@@ -5,13 +5,13 @@
 
   - name: Java | Ensure Oracle Java 11 is installed
     unarchive:
-      src: "files/jdk-8u241-linux-x64.tar.gz"
+      src: "files/jdk-8u341-linux-x64.tar.gz"
       dest: "/opt"
   - shell: echo JAVA_HOME is $JAVA_HOME
     environment:
-      JAVA_HOME: /opt/jdk1.8.0_241
+      JAVA_HOME: /opt/jdk1.8.0_341
   - name: Setup Java Home
-    shell: "echo 'export JAVA_HOME=/opt/jdk1.8.0_241; export PATH=$PATH:$JAVA_HOME/bin' >> /home/vagrant/.bashrc"
+    shell: "echo 'export JAVA_HOME=/opt/jdk1.8.0_341; export PATH=$PATH:$JAVA_HOME/bin' >> /home/vagrant/.bashrc"
   - name: Generate hosts file
     template:
       src: "templates/hosts"

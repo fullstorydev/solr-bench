@@ -12,16 +12,16 @@ echo_blue "Starting Zookeeper on $ZK_NODE"
 echo_blue "Checking SSH agent..."
 ssh-add -L
 
-ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $ZK_NODE uptime
-ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE rm -rf *zook* 
-ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE rm -rf /tmp/zookeeper 
-ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE sudo pkill -9 java
-scp -i $BENCH_KEY -oStrictHostKeyChecking=no $ZK_TARBALL_PATH $BENCH_USER@$ZK_NODE:
-scp -i $BENCH_KEY -oStrictHostKeyChecking=no ${JDK_TARBALL} $BENCH_USER@$ZK_NODE:
-scp -i $BENCH_KEY -oStrictHostKeyChecking=no zookeeper-env.sh $BENCH_USER@$ZK_NODE:
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $ZK_NODE uptime
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $BENCH_USER@$ZK_NODE rm -rf *zook* 
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $BENCH_USER@$ZK_NODE rm -rf /tmp/zookeeper 
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $BENCH_USER@$ZK_NODE sudo pkill -9 java
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $ZK_TARBALL_PATH $BENCH_USER@$ZK_NODE:
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${JDK_TARBALL} $BENCH_USER@$ZK_NODE:
+scp -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null zookeeper-env.sh $BENCH_USER@$ZK_NODE:
 
 
-ssh -i $BENCH_KEY -oStrictHostKeyChecking=no $BENCH_USER@$ZK_NODE "
+ssh -i $BENCH_KEY -oStrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $BENCH_USER@$ZK_NODE "
 	export JDK_TARBALL=$JDK_TARBALL;
 	tar -xf $JDK_TARBALL; 
 	export JDK_DIR=\`tar tf $JDK_TARBALL | head -1| cut -d '/' -f 1\`;

@@ -5,9 +5,12 @@ VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
-  config.vm.box = "generic/ubuntu1804"
+  config.vm.box = "generic/ubuntu2204"
+  config.ssh.insert_key = false
 
-  memory_mb = 2048
+  memory_mb = 8192
+  cpus = 2
+
   zk = JSON.parse(File.read(File.join(File.dirname(__FILE__), 'zk-servers.json')))
   zk_version = JSON.parse(File.read(File.join(File.dirname(__FILE__), 'zk_version.json')))
   solr = JSON.parse(File.read(File.join(File.dirname(__FILE__), 'solr-servers.json')))
@@ -42,6 +45,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       host.vm.hostname = short_name
       host.vm.provider :virtualbox do |vb|
         vb.customize ["modifyvm", :id, "--memory", memory_mb]
+        vb.cpus = cpus
       end
 
       # Put the public key

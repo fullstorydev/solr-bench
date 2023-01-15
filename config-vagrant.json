@@ -1,28 +1,17 @@
 {
   "cluster": {
-    "jdk-url": "http://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u241-linux-x64.tar.gz",
-    "jdk-tarball": "jdk-8u241-linux-x64.tar.gz",
-    "jdk-directory": "jdk1.8.0_241",
+    "jdk-url": "https://enos.itcollege.ee/~jpoial/allalaadimised/jdk8/jdk-8u341-linux-x64.tar.gz",
+    "jdk-tarball": "jdk-8u341-linux-x64.tar.gz",
+    "jdk-directory": "jdk1.8.0_341",
     "startup-params": "-m 1g",
     "provisioning-method": "vagrant",
     "vagrant-config": {
-      "project_id": "bold-gadget-222718",
-      "zookeeper_machine_type": "n1-standard-2",
-      "zookeeper_disk_type": "pd-ssd",
       "solr_node_count": 3,
-      "solr_machine_type": "n1-standard-4",
-      "solr_disk_type": "pd-ssd",
-      "tags": [
-        "benchmarking",
-        "solr",
-        "temp"
-      ],
-      "public_key_path": "id_rsa.pub",
       "user": "vagrant"
     }
   },
   "repository": {
-    "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+    "commit-id": "c209a8738f4ecbef954102188a715f5e7e165666",
     "description": "Solr 8.4",
     "name": "git-repository",
     "package-subdir": "/solr/package/",

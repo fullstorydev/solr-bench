@@ -102,11 +102,11 @@ vagrant-provisioner() {
      export ZK_NODE_COUNT=1
 
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
-     export ZK_TARBALL_NAME="apache-zookeeper-3.6.1-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.6.3-bin.tar.gz"
 
      echo_blue "Solr servers: $SOLR_NODE_COUNT"
-     bash -c 'printf "["; for ((i=1; i<$SOLR_NODE_COUNT; i++)); do printf "$i,"; done; printf $SOLR_NODE_COUNT; printf "]"' | jq 'map({"name":("solr-"+(.|tostring)), "ip": ("192.168.5."+((.+100)|tostring))}) | map( {(.name): .ip}  )|add' > vagrant/solr-servers.json
-     bash -c 'printf "["; for ((i=1; i<$ZK_NODE_COUNT; i++));   do printf "$i,"; done; printf $ZK_NODE_COUNT;   printf "]"' | jq 'map({"name":("zk-"+(.|tostring)), "ip": ("192.168.5."+((.+ 50)|tostring))}) | map( {(.name): .ip}  )|add' > vagrant/zk-servers.json
+     bash -c 'printf "["; for ((i=1; i<$SOLR_NODE_COUNT; i++)); do printf "$i,"; done; printf $SOLR_NODE_COUNT; printf "]"' | jq 'map({"name":("solr-"+(.|tostring)), "ip": ("192.168.56."+((.+100)|tostring))}) | map( {(.name): .ip}  )|add' > vagrant/solr-servers.json
+     bash -c 'printf "["; for ((i=1; i<$ZK_NODE_COUNT; i++));   do printf "$i,"; done; printf $ZK_NODE_COUNT;   printf "]"' | jq 'map({"name":("zk-"+(.|tostring)), "ip": ("192.168.56."+((.+ 50)|tostring))}) | map( {(.name): .ip}  )|add' > vagrant/zk-servers.json
 
      # Generate temporary ssh keys
      rm vagrant/id_rsa*
@@ -116,10 +116,14 @@ vagrant-provisioner() {
      cp $JDK_TARBALL vagrant/files
      cp $ZK_TARBALL_NAME vagrant/files
 
+     echo_blue "Starting vagrant..."
+
      # Provision instances using Terraform
      cd $ORIG_WORKING_DIR/vagrant
      vagrant destroy -f
      vagrant up --provider virtualbox 
+
+     echo "Vagrant should've started by now!"
 
      echo_blue "NOCOMMIT this should work till here"
      # Start Solr on provisioned instances
@@ -127,7 +131,7 @@ vagrant-provisioner() {
 
      export SOLR_STARTUP_PARAMS=`jq -r '."cluster"."startup-params"' $CONFIGFILE`
      export ZK_NODE=`jq -r ".[]" vagrant/zk-servers.json`
-     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.1-bin.tar.gz"
+     export ZK_TARBALL_PATH="$ORIG_WORKING_DIR/apache-zookeeper-3.6.3-bin.tar.gz"
      export BENCH_USER="vagrant"
      export BENCH_KEY="vagrant/id_rsa"
 
@@ -231,12 +235,6 @@ if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE
 then
      cd $ORIG_WORKING_DIR/terraform
      terraform destroy --auto-approve
-fi
-if [ "vagrant" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
-then
-     cd $ORIG_WORKING_DIR/vagrant
-     vagrant destroy -f
-     rm id_rsa*
 fi
 if [ "vagrant" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
