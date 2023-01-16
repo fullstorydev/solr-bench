@@ -244,6 +244,13 @@ then
      ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      ssh-keygen -R "$ZK_NODE"
 fi
+if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+then
+     echo_blue "Collecting logs"
+     mkdir -p $BASE_DIR/suites/results/logs
+     zip $BASE_DIR/suites/results/logs/logs-${FILE##*/}-$COMMIT.zip $BASE_DIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
+     rm -rf $BASE_DIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
+fi
 
 # Results upload (results.json), if needed
 #cd $BASEDIR

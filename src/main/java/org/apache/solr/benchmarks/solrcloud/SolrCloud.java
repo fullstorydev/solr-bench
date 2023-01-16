@@ -311,23 +311,14 @@ public class SolrCloud {
           }
       }
 
-      //cleanup configsets created , if any
-      /*for (String configset : configsets) {
-        try (HttpSolrClient hsc = createClient()) {
-          try {
-            new ConfigSetAdminRequest.Delete().setConfigSetName(configset).process(hsc);
-          } catch (Exception e) {
-            //failed but continue
-            e.printStackTrace();
-          }
-        }
-      }*/
-
       // Collect logs
       if (cluster.provisioningMethod.equalsIgnoreCase("local")) {
     	  for (SolrNode node: nodes) {
     		  LocalSolrNode localNode = (LocalSolrNode) node;
-    		  String tarCommand = "tar -cf " + Util.RUN_DIR + "logs-"+localNode.port+".tar " + localNode.baseDirectory + "server/logs/*";
+    		  String tarfile = Util.RUN_DIR + "logs-"+localNode.port+".tar";
+    		  if (new File(tarfile).exists()) new File(tarfile).delete();
+    		  String tarCommand = "tar -cf " + tarfile + " -C " + localNode.binDirectory.substring(0, localNode.binDirectory.length()-4) + "server/logs .";
+    		  log.info("Trying command: " + tarCommand);
     		  Util.execute(tarCommand, Util.getWorkingDir());
     	  }
       }
