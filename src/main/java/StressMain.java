@@ -305,29 +305,32 @@ public class StressMain {
 
 				long taskStart = System.currentTimeMillis();
 				ExecutorService executor = null;
-				AtomicLong totalStopTime = new AtomicLong();
-				AtomicLong totalStartTime = new AtomicLong();
+				ConcurrentHashMap<String, Long> shutdownTimes = new ConcurrentHashMap<>();
+				ConcurrentHashMap<String, Long> startTimes = new ConcurrentHashMap<>();
+				ConcurrentHashMap<String, Long> minHeaps = new ConcurrentHashMap<>();
 				try {
 					executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(taskName + "-restart-thread-pool").build());
 					for (SolrNode restartNode : restartNodes) {
 						executor.submit(() -> {
-							log.info("Restarting " + restartNode.getNodeName());
+							String nodeName = restartNode.getNodeName();
+							log.info("Restarting " + nodeName);
+							long marker = System.currentTimeMillis();
 							try {
 								if (restartNode instanceof LocalSolrNode) {
-									long marker = System.currentTimeMillis();
 									restartNode.stop();
-									totalStopTime.addAndGet(System.currentTimeMillis() - marker);
+									shutdownTimes.put(nodeName, System.currentTimeMillis() - marker);
 									marker = System.currentTimeMillis();
 									restartNode.start();
-									totalStartTime.addAndGet(System.currentTimeMillis() - marker);
+									startTimes.put(nodeName, System.currentTimeMillis() - marker);
 								} else {
 									restartNode.restart();
+									startTimes.put(nodeName, System.currentTimeMillis() - marker); //for non local node, we only have the restart (stop+start) time
 								}
 							} catch (Exception ex) {
 								ex.printStackTrace();
 							}
 							if (type.awaitRecoveries) {
-								long marker = System.currentTimeMillis();
+								marker = System.currentTimeMillis();
 								try (CloudSolrClient client = buildSolrClient(cloud)) {
 									int numInactive = 0;
 									do {
@@ -336,11 +339,22 @@ public class StressMain {
 								} catch (Exception ex) {
 									ex.printStackTrace();
 								}
-								if (restartNode instanceof LocalSolrNode) {
-									totalStartTime.addAndGet(System.currentTimeMillis() - marker);
-								}
+								startTimes.put(nodeName, startTimes.getOrDefault(nodeName, 0L) + (System.currentTimeMillis() - marker));
 							}
 							log.info("Finished restarting " + restartNode.getNodeName());
+
+							try {
+								long minHeap = Long.MAX_VALUE;
+								for (int i=0; i<5; i++) {
+									URL heapUrl = new URL("http://"+restartNode.getNodeName() + "/api/node/heap");
+									JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, StandardCharsets.UTF_8));
+									long heap = obj.getLong("heap");
+									minHeap = Math.min(minHeap, heap);
+									Thread.sleep(1000);
+								}
+								minHeaps.put(nodeName, minHeap);
+
+							} catch (Exception ex) {}
 						});
 					}
 				} finally {
@@ -349,29 +363,37 @@ public class StressMain {
 						executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 					}
 				}
-				long heap = -1;
-				try {
-					long minHeap = Long.MAX_VALUE;
-					for (int i=0; i<5; i++) {
-						URL heapUrl = new URL("http://"+node.getNodeName() + "/api/node/heap");
-						JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, StandardCharsets.UTF_8));
-						heap = obj.getLong("heap");
-						minHeap = Math.min(minHeap, heap);
-						Thread.sleep(1000);
-					}
-					heap = minHeap;
 
-				} catch (Exception ex) {}
 				long taskEnd = System.currentTimeMillis();
-				finalResults.get(taskName).add(Map.of(
-						"total-time", (taskEnd-taskStart)/1000.0,
-						"start-time", (taskStart- executionStart)/1000.0,
-						"node-shutdown", stopTime/1000.0,
-						"node-startup", startTime/1000.0,
-						"heap-mb", heap==-1? -1: heap/1024.0/1024.0,
-						"end-time", (taskEnd- executionStart)/1000.0,
-						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
+				long totalMinHeap = 0;
+				for (Long minHeap : minHeaps.values()) {
+					totalMinHeap += minHeap;
+				}
+				long totalShutdown = 0;
+				for (Long shutdownTime : shutdownTimes.values()) {
+					totalShutdown += shutdownTime;
+				}
+				long totalStart = 0;
+				for (Long startTime : startTimes.values()) {
+					totalStart += startTime;
+				}
+
+				Map result = new HashMap(Map.of("total-time", (taskEnd-taskStart)/1000.0, //time taken to execute this task
+								"node-shutdown", totalShutdown/1000.0/restartNodes.size(),//average time it takes to stop a node
+								"node-startup", totalStart/1000.0/restartNodes.size(), //average time it takes to start a node
+								"heap-mb", minHeaps.size() == 0 ? -1: totalMinHeap/1024.0/1024.0/minHeaps.size(), //average min heap after restart
+								"wait-time", (taskStart- executionStart)/1000.0, //time from the Workflow execution start to this task execution start
+								"end-time", (taskEnd- executionStart)/1000.0, //time from the Workflow is being executed to this task execution end
+								"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
+				if (restartNodes.size() > 1) {
+					result.put("node-shutdown-by-node", shutdownTimes);
+					result.put("node-startup-by-node", startTimes);
+					result.put("heap-mb-by-node", minHeaps);
+				}
+
+				finalResults.get(taskName).add(result);
 			} else if (type.indexBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.indexBenchmark.datasetFile);
 
