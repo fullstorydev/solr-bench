@@ -247,9 +247,9 @@ fi
 if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      echo_blue "Collecting logs"
-     mkdir -p $BASE_DIR/suites/results/logs
-     zip $BASE_DIR/suites/results/logs/logs-${FILE##*/}-$COMMIT.zip $BASE_DIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
-     rm -rf $BASE_DIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
+     mkdir -p $BASEDIR/suites/results/logs
+     zip $BASEDIR/suites/results/logs/logs-${FILE##*/}-$COMMIT.zip $BASEDIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
+     rm -rf $BASEDIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
 fi
 
 # Results upload (results.json), if needed
