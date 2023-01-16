@@ -182,14 +182,27 @@ public class SolrCloud {
     		nodes.add(new GenericSolrNode(host, null)); // TODO fix username for vagrant
     	}
     } else if ("external".equalsIgnoreCase(cluster.provisioningMethod)) {
-        System.out.println("Solr nodes: " + cluster.externalSolrConfig.solrNodes);
         System.out.println("ZK node: " + cluster.externalSolrConfig.zkHost);
         String[] tokens = cluster.externalSolrConfig.zkHost.split(":");
         zookeeper = new GenericZookeeper(tokens[0], Integer.parseInt(tokens[1]), cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
-        for (String nodeName: cluster.externalSolrConfig.solrNodes) {
-            tokens = nodeName.split(":");
-            nodes.add(new ExternalSolrNode(tokens[0], Integer.parseInt(tokens[1]),  cluster.externalSolrConfig.restartScript));
+
+        try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).build();) {
+          Set<String> liveNodes = client.getZkStateReader().getClusterState().getLiveNodes();
+          for (String liveNode: liveNodes) {
+            nodes.add(new ExternalSolrNode(
+                    liveNode.split("_solr")[0].split(":")[0],
+                    Integer.valueOf(liveNode.split("_solr")[0].split(":")[1]),
+                    cluster.externalSolrConfig.sshUserName,
+                    cluster.externalSolrConfig.restartScript));
+          }
+
         }
+        log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper);
+
+//        for (String nodeName: cluster.externalSolrConfig.solrNodes) {
+//            tokens = nodeName.split(":");
+//            nodes.add(new ExternalSolrNode(tokens[0], Integer.parseInt(tokens[1]),  cluster.externalSolrConfig.restartScript));
+//        }
     }
 
 

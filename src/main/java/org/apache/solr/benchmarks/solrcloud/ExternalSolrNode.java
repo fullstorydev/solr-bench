@@ -28,14 +28,14 @@ public class ExternalSolrNode extends GenericSolrNode {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final String restartScript;
 
-  public ExternalSolrNode(String host, int port, String restartScript) {
-    super(host, port, null);
+  public ExternalSolrNode(String host, int port, String user, String restartScript) {
+    super(host, port, user);
     this.restartScript = restartScript;
   }
 
   @Override
   public int restart() throws Exception {
-    Util.execute(restartScript + " " + host, Util.getWorkingDir());
+    Util.execute(restartScript + " " + host + " " + (user != null ? user : ""), Util.getWorkingDir());
     return 0;
   }
 }

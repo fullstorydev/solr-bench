@@ -27,7 +27,7 @@ public class GenericSolrNode implements SolrNode {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final String user;
+  protected final String user;
   private static final int DEFAULT_PORT = 8983;
   protected final String host;
   protected final int port;

@@ -49,9 +49,10 @@ public class Cluster {
     @JsonProperty("zk-chroot")
     public String zkChroot;
 
-    @JsonProperty("solr-nodes")
-    public List<String> solrNodes;
     @JsonProperty("restart-script")
     public String restartScript;
+
+    @JsonProperty("ssh-username")
+    public String sshUserName;
   }
 }
