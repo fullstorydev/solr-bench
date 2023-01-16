@@ -71,7 +71,7 @@ public class BenchmarksMain {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     // nocommit: this should goto Utils
-    public static String getSolrPackagePath(Repository repo, String solrPackageUrl) {
+    public static String getSolrPackagePath(String commit, String solrPackageUrl) {
     	if (solrPackageUrl != null) {
     		String filename = solrPackageUrl.split("/")[solrPackageUrl.split("/").length-1];
     		if (new File(filename).exists() == false) {
@@ -79,68 +79,14 @@ public class BenchmarksMain {
     		}
     		return filename; // this file is in current working dir
     	}
-    	if (repo!=null) {
-    		String filename = Util.DOWNLOAD_DIR + "solr-"+repo.commitId+".tgz";
+    	if (commit != null) {
+    		String filename = Util.DOWNLOAD_DIR + "solr-"+commit+".tgz";
     		if (new File(filename).exists() == false) {
-    			throw new RuntimeException("File not found: "+filename+", was expecting the package with commit="+repo.commitId+" would've been built.");
+    			throw new RuntimeException("File not found: "+filename+", was expecting the package with commit=" + commit + " would've been built.");
     		}
     		return filename;
     	}
     	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration");
-    }
-    
-    public static void main(String[] args) throws Exception {
-
-        Configurator.setRootLevel(Level.INFO);
-
-        String configFile = args[0];
-
-        Configuration config = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Configuration.class);
-        Cluster cluster = config.cluster;
-
-        String solrPackagePath = getSolrPackagePath(config.repo, config.solrPackage);
-        SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
-
-        MetricsCollector metricsCollector = null;
-        Thread metricsThread = null;
-        
-        try {
-            solrCloud.init();
-            log.info("SolrCloud initialized...");
-
-            Map<String, Map> results = new LinkedHashMap<String, Map>();
-            results.put("indexing-benchmarks", new LinkedHashMap<Map, List<Map>>());
-            results.put("query-benchmarks", new LinkedHashMap<Map, List<Map>>());
-
-            // Start metrics collection
-            if (config.metrics != null) {
-            	metricsCollector = new MetricsCollector(solrCloud, Collections.emptyList(), config.metrics, 2);
-            	metricsThread = new Thread(metricsCollector);
-            	metricsThread.start();
-            	results.put("solr-metrics", metricsCollector.metrics);
-            }
-
-            // Indexing benchmarks
-            log.info("Starting indexing benchmarks...");
-
-            runIndexingBenchmarks(config.indexBenchmarks, solrCloud, results);
-
-            // Query benchmarks
-            runQueryBenchmarks(config.queryBenchmarks, null, solrCloud, results);
-
-            // Stop metrics collection
-            if (config.metrics != null) {
-            	metricsCollector.stop();
-            }
-            // Write results to a file
-            results.put("configuration", Util.map("configuration", config));
-            System.out.println("Final results: "+results);
-            new ObjectMapper().writeValue(new File("results.json"), results);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            solrCloud.shutdown(true);
-        }
     }
 
 	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
@@ -150,10 +96,11 @@ public class BenchmarksMain {
 		for (QueryBenchmark benchmark : queryBenchmarks) {
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
 
-        log.info("Querying on : " + solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl());
+
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
+
+		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,
@@ -273,10 +220,10 @@ HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark
         
         BufferedReader br;
         if (benchmark.datasetFile.endsWith("gz")) {
-        	GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(benchmark.datasetFile));
+        	GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(Util.resolveSuitePath(benchmark.datasetFile)));
         	br = new BufferedReader(new InputStreamReader(gzis));
         } else {
-        	br = new BufferedReader(new FileReader(benchmark.datasetFile));
+        	br = new BufferedReader(new FileReader(Util.resolveSuitePath(benchmark.datasetFile)));
         }
         String line = br.readLine();
         List<String> headers = new ArrayList<String>(Arrays.asList(line.split("\\t")));
@@ -304,7 +251,7 @@ HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark
 
     	long start = System.currentTimeMillis();
 
-    	BufferedReader br = JsonlFileType.getBufferedReader(new File(benchmark.datasetFile));
+    	BufferedReader br = JsonlFileType.getBufferedReader(Util.resolveSuitePath(benchmark.datasetFile));
         ConcurrentUpdateSolrClient client = new ConcurrentUpdateSolrClient.Builder(baseUrl).withThreadCount(threads).build();
 
     	String line;
@@ -363,7 +310,7 @@ HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark
             }
             JsonRecordReader rdr = JsonRecordReader.getInst("/", Collections.singletonList(benchmark.idField+":/"+benchmark.idField));
             Map<String, List<String>> shardVsDocs = new HashMap<>();
-            File datasetFile = new File(benchmark.datasetFile);
+            File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
             BufferedReader br = JsonlFileType.getBufferedReader(datasetFile);
             count = 0;
 

@@ -1,0 +1,119 @@
+<html>
+<head>
+    <style>
+#branch_9x  { width: 100%; height: 80%; }
+#branch_9_1  { width: 100%; height: 80%; }
+
+    </style>
+    
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+        google.load("visualization", "1", {packages:["corechart"]});
+        google.setOnLoadCallback(startup);
+
+        function startup() {
+        const tasks = ["task1", "task2: heap-mb", "task2: node-shutdown", "task2: node-startup", "task2"];
+        var branch_9x_data =
+        [
+            [ new Date(2022, 11 - 1, 11, 19, 02, 0, 0),
+            156.241,'156.241: d7f3659a9d35e21c77136d1f131cc4c846d5a8c6: SOLR-16132: Smoketester stop gpg-agent after use (#1176)',
+            -1.0,'-1.0: d7f3659a9d35e21c77136d1f131cc4c846d5a8c6: SOLR-16132: Smoketester stop gpg-agent after use (#1176)',
+            6.803200000000001, '6.803200000000001: d7f3659a9d35e21c77136d1f131cc4c846d5a8c6: SOLR-16132: Smoketester stop gpg-agent after use (#1176)',
+            18.5548, '18.5548: d7f3659a9d35e21c77136d1f131cc4c846d5a8c6: SOLR-16132: Smoketester stop gpg-agent after use (#1176)',
+            314.841, '314.841: d7f3659a9d35e21c77136d1f131cc4c846d5a8c6: SOLR-16132: Smoketester stop gpg-agent after use (#1176)' ],
+
+            [ new Date(2022, 11 - 1, 13, 23, 09, 0, 0),
+            138.096,'138.096: 1b3b02d72c9b980083918e171d80f64ed2c58f5c: Revert "SOLR-16512 : Eliminate noggit JSONWriter.Writable from Solr classes (#1159)"',
+            -1.0, '-1.0: 1b3b02d72c9b980083918e171d80f64ed2c58f5c: Revert "SOLR-16512 : Eliminate noggit JSONWriter.Writable from Solr classes (#1159)"',
+            5.361, '5.361: 1b3b02d72c9b980083918e171d80f64ed2c58f5c: Revert "SOLR-16512 : Eliminate noggit JSONWriter.Writable from Solr classes (#1159)"',
+            26.239600000000003, '26.239600000000003: 1b3b02d72c9b980083918e171d80f64ed2c58f5c: Revert "SOLR-16512 : Eliminate noggit JSONWriter.Writable from Solr classes (#1159)"',
+                288.912, '288.912: 1b3b02d72c9b980083918e171d80f64ed2c58f5c: Revert "SOLR-16512 : Eliminate noggit JSONWriter.Writable from Solr classes (#1159)"'],
+        ];
+
+    var select = document.getElementById('task_selector');
+    for (let i = 0; i < tasks.length; i++) {
+      var opt = document.createElement('option');
+      opt.innerHTML = tasks[i];
+      opt.value = i;
+      select.appendChild(opt);
+
+    }
+  initChart(branch_9x_data, tasks);
+}
+   
+        function initChart(data, tasks) {
+         let select = document.getElementById('task_selector');
+              select.addEventListener('change', function () {
+              if(this.value != -1) {
+                var idx = 1 +  (this.value * 2);
+                var new_tasks = [tasks[idx -1]];
+                var new_data = [];
+                for (let i = 0; i < data.length; i++) {
+                    var c = data[i];
+                    var commit = [c[0]];
+                    commit.push(c[idx]);
+                    commit.push(c[idx+1]);
+                    new_data.push(commit);
+                }
+                drawChart("cluster-test.json (branch_9x)", "branch_9x", new_data, new_tasks);
+            } else {
+               drawChart("cluster-test.json (branch_9x)", "branch_9x", data, tasks);
+            }
+        });
+         drawChart("cluster-test.json (branch_9x)", "branch_9x", data, tasks);
+        }
+
+
+        function drawChart(title, element, data, tasks) {
+
+            var chartData = new google.visualization.DataTable();
+            chartData.addColumn('date', 'Commit date'); // Implicit series 1 data col.
+
+            for (let i = 0; i < tasks.length; i++) {
+               chartData.addColumn("number", tasks[i]);
+               chartData.addColumn({type:"string", role:"tooltip"});
+            }
+
+            chartData.addRows(data);
+            var chart = new google.visualization.LineChart(document.getElementById(element));
+            var options = {
+                title: title,
+                hAxis: {
+                    title: 'Commit date',
+                    titleTextStyle: {
+                    color: '#333'
+                    },
+                    slantedText: true,
+                    slantedTextAngle: 80
+                },
+                vAxis: {
+                    title: 'Time (seconds)',
+                    minValue: 0
+                },
+                explorer: {
+                    actions: ['dragToZoom', 'rightClickToReset'],
+                    axis: 'horizontal',
+                    keepInBounds: true,
+                    maxZoomIn: 4.0
+                },
+            };
+            chart.draw(chartData, options);
+        }
+
+    </script>
+    </head>
+
+    <body>
+    <center>Powered by FullStory and SearchScale</center>
+    <form action="">
+        Tasks to show:
+        <select id="task_selector">
+            <option selected=selected value="-1">all</option>
+        </select>
+    </form>
+<p><div id="branch_9x"></div></p>
+<p><div id="branch_9_1"></div></p>
+
+    </body>
+</html>
+

@@ -33,7 +33,7 @@ public class LocalSolrNode implements SolrNode {
 
   public String baseDirectory;
   public final String port;
-  private String binDirectory;
+  public String binDirectory;
   private final Zookeeper zookeeper;
   private final String solrPackagePath;
   private final String startupParams;

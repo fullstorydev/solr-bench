@@ -1,0 +1,28 @@
+<html>
+<head>
+    <style>
+        #visualization {
+            width: 80%;
+            height: 100%;
+        }   
+    </style>
+    
+    <!--Load the AJAX API-->
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script type="text/javascript">
+    
+    google.load("visualization", "1", {packages:["corechart"]});
+    google.setOnLoadCallback(drawChart);
+
+    function drawChart() {
+
+        var chartData = new google.visualization.DataTable();
+
+        chartData.addColumn('date', 'Commit date'); // Implicit series 1 data col.
+        chartData.addColumn('number', 'Task1'); // Implicit domain label col.
+        chartData.addColumn({type:'string', role:'tooltip'});
+        chartData.addColumn('number', 'Task2'); // Implicit domain label col.
+        chartData.addColumn({type:'string', role:'tooltip'});
+
+        var data1 = [
+

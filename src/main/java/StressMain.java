@@ -5,7 +5,7 @@ import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,12 +23,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.MetricsCollector;
+import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
 import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
@@ -43,6 +45,7 @@ import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
 import org.apache.solr.common.util.Pair;
 import org.apache.zookeeper.KeeperException;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,11 +65,18 @@ public class StressMain {
 
 	public static void main(String[] args) throws Exception {
 		String configFile = args[0];
+		String commit = args[1];
+
+		// Set the suite base directory from the configFile. All resources, like configsets, datasets,
+		// will be fetched off this path
+		String suiteBaseDir = new File(configFile).getAbsoluteFile().getParent().toString();
+		log.info("The base directory for the suite: " + suiteBaseDir);
+		System.setProperty("SUITE_BASE_DIRECTORY", suiteBaseDir);
 
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
 
-		String solrPackagePath = cluster.provisioningMethod.equalsIgnoreCase("external") ? null : BenchmarksMain.getSolrPackagePath(workflow.repo, workflow.solrPackage);
+		String solrPackagePath = cluster.provisioningMethod.equalsIgnoreCase("external") ? null : BenchmarksMain.getSolrPackagePath(commit, workflow.solrPackage);
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
@@ -74,6 +84,17 @@ public class StressMain {
 		} finally {
 			log.info("Shutting down...");
 			solrCloud.shutdown(true);
+		}
+	}
+	static class Task {
+		final String name;
+		final Callable callable;
+		final ExecutorService exe;
+		public Task(String name, Callable callable, ExecutorService exe) {
+			this.name=  name;
+			this.callable=  callable;
+			this.exe =  exe;
+
 		}
 	}
 
@@ -90,10 +111,10 @@ public class StressMain {
 		MetricsCollector metricsCollector = null;
 		Thread metricsThread = null;
 
-		Map<String, List<Future>> taskFutures = new HashMap<String, List<Future>>();
+		Map<String, List<Future>> taskFutures = new HashMap<>();
 		Map<String, ExecutorService> taskExecutors = new HashMap<String, ExecutorService>();
 
-		Map<String, List<Map>> finalResults = new ConcurrentHashMap<String, List<Map>>();
+		Map<String, List<Map>> finalResults = new ConcurrentHashMap<>();
 
 		if (workflow.metrics != null) {
 			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, 2);
@@ -109,14 +130,14 @@ public class StressMain {
 		}
 
 
-		List<Pair<String, Pair<Callable, ExecutorService>>> commonTasks = new ArrayList();
+		List<Task> commonTasks = new ArrayList<>();
 
 		for (String taskName: workflow.executionPlan.keySet()) {
 			TaskInstance instance = workflow.executionPlan.get(taskName);
 			TaskType type = workflow.taskTypes.get(instance.type);
 			System.out.println(taskName+" is of type: "+new ObjectMapper().writeValueAsString(type));
 
-			taskFutures.put(taskName, new ArrayList<Future>());
+			taskFutures.put(taskName, new ArrayList<>());
 
 			ExecutorService executor;
 
@@ -140,7 +161,7 @@ public class StressMain {
 				} else {
 					// Don't submit them right away, but instead add to a list, shuffle the list and then submit them.
 					// Doing so ensures that different types of tasks are executed at similar points in time.
-					commonTasks.add(new Pair<String, Pair<Callable, ExecutorService>>(taskName, new Pair<Callable, ExecutorService>(c, executor)));
+					commonTasks.add( new Task(taskName,c, executor));
 				}
 			}
 
@@ -150,11 +171,9 @@ public class StressMain {
 
 		Collections.shuffle(commonTasks);
 		log.info("Order of operations submitted via common threadpools: "+commonTasks);
-		for (Pair<String, Pair<Callable, ExecutorService>> task: commonTasks) {
-			String taskName = task.first();
-			Callable c = task.second().first();
-			ExecutorService ex = task.second().second();
-			taskFutures.get(taskName).add(ex.submit(c));
+		for (Task task: commonTasks) {
+			taskFutures.get(task.name)
+					.add(task.exe.submit(task.callable));
 		}
 
 		for (String tp: commonThreadpools.keySet())
@@ -242,14 +261,14 @@ public class StressMain {
 							Set<String> inactive = new HashSet<>();
 							ClusterState state = client.getClusterStateProvider().getClusterState();
 							for (String coll: state.getCollectionsMap().keySet()) {
-								PRS prs = new PRS(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient());
+								PerReplicaStates prs = PerReplicaStates.fetch(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient(), null);
 								for (Slice shard: state.getCollection(coll).getActiveSlices()) {
 									for (Replica replica: shard.getReplicas()) {
 										if (replica.getState() != Replica.State.ACTIVE) {
 											if (replica.getNodeName().contains(node.port)) {
 												numInactive++;
 												inactive.add(coll+"_"+shard.getName());
-												System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.getState(replica.getName()));
+												System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.get(replica.getName()).state);
 											}
 										}
 									}
@@ -286,17 +305,29 @@ public class StressMain {
 
 				long taskStart = System.currentTimeMillis();
 				ExecutorService executor = null;
+				AtomicLong totalStopTime = new AtomicLong();
+				AtomicLong totalStartTime = new AtomicLong();
 				try {
 					executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(taskName + "-restart-thread-pool").build());
 					for (SolrNode restartNode : restartNodes) {
 						executor.submit(() -> {
 							log.info("Restarting " + restartNode.getNodeName());
 							try {
-								restartNode.restart();
+								if (restartNode instanceof LocalSolrNode) {
+									long marker = System.currentTimeMillis();
+									restartNode.stop();
+									totalStopTime.addAndGet(System.currentTimeMillis() - marker);
+									marker = System.currentTimeMillis();
+									restartNode.start();
+									totalStartTime.addAndGet(System.currentTimeMillis() - marker);
+								} else {
+									restartNode.restart();
+								}
 							} catch (Exception ex) {
 								ex.printStackTrace();
 							}
 							if (type.awaitRecoveries) {
+								long marker = System.currentTimeMillis();
 								try (CloudSolrClient client = buildSolrClient(cloud)) {
 									int numInactive = 0;
 									do {
@@ -304,6 +335,9 @@ public class StressMain {
 									} while (numInactive > 0);
 								} catch (Exception ex) {
 									ex.printStackTrace();
+								}
+								if (restartNode instanceof LocalSolrNode) {
+									totalStartTime.addAndGet(System.currentTimeMillis() - marker);
 								}
 							}
 							log.info("Finished restarting " + restartNode.getNodeName());
@@ -315,8 +349,27 @@ public class StressMain {
 						executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 					}
 				}
+				long heap = -1;
+				try {
+					long minHeap = Long.MAX_VALUE;
+					for (int i=0; i<5; i++) {
+						URL heapUrl = new URL("http://"+node.getNodeName() + "/api/node/heap");
+						JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, StandardCharsets.UTF_8));
+						heap = obj.getLong("heap");
+						minHeap = Math.min(minHeap, heap);
+						Thread.sleep(1000);
+					}
+					heap = minHeap;
+
+				} catch (Exception ex) {}
 				long taskEnd = System.currentTimeMillis();
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+				finalResults.get(taskName).add(Map.of(
+						"total-time", (taskEnd-taskStart)/1000.0,
+						"start-time", (taskStart- executionStart)/1000.0,
+						"node-shutdown", stopTime/1000.0,
+						"node-startup", startTime/1000.0,
+						"heap-mb", heap==-1? -1: heap/1024.0/1024.0,
+						"end-time", (taskEnd- executionStart)/1000.0,
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
 			} else if (type.indexBenchmark != null) {
@@ -330,7 +383,7 @@ public class StressMain {
 				log.info("Global variables: "+ instance.parameters);
 				log.info("Indexing benchmarks for collection: "+collectionName);
 
-				Map<String, Map> results = new HashMap<String, Map>();
+				Map<String, Map> results = new HashMap<>();
 				results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
 				long taskStart = System.currentTimeMillis();
 				try {
@@ -358,7 +411,7 @@ public class StressMain {
 				log.info("Global variables: "+ instance.parameters);
 				log.info("Query benchmarks for collection: "+collectionName);
 
-				Map<String, Map> results = new HashMap<String, Map>();
+				Map<String, Map> results = new HashMap<>();
 				results.put("query-benchmarks", new LinkedHashMap<String, List<Map>>());
 				long taskStart = System.currentTimeMillis();
 				try {
@@ -383,8 +436,8 @@ public class StressMain {
 				log.info("starting cluster state task...");
 				try {
 					InputStream is = clusterStateBenchmark.filename.endsWith(".gz")? 
-							new GZIPInputStream(new FileInputStream(new File(clusterStateBenchmark.filename)))
-							: new FileInputStream(new File(clusterStateBenchmark.filename));
+							new GZIPInputStream(new FileInputStream(Util.resolveSuitePath(clusterStateBenchmark.filename)))
+							: new FileInputStream(Util.resolveSuitePath(clusterStateBenchmark.filename));
 					SolrClusterStatus status = new ObjectMapper().readValue(is, SolrClusterStatus.class);
 					is.close();
 					log.info("starting cluster state task... "+status);
@@ -445,7 +498,7 @@ public class StressMain {
 
 							String nodeSet = "";
 							for (int n: nodes) {
-								nodeSet += cloud.nodes.get(n).getNodeName() + 
+								nodeSet += cloud.nodes.get(n).getNodeName() +
 										(cloud.nodes.get(n).getNodeName().endsWith("_solr")? "": "_solr") +",";
 							}
 							nodeSet = nodeSet.substring(0, nodeSet.length()-1);
@@ -518,7 +571,7 @@ public class StressMain {
 				try {
 					HttpURLConnection connection = (HttpURLConnection) new URL(command).openConnection();
 					responseCode = connection.getResponseCode();
-					String output = IOUtils.toString((InputStream)connection.getContent(), Charset.forName("UTF-8"));
+					String output = IOUtils.toString((InputStream)connection.getContent(), StandardCharsets.UTF_8);
 					log.info("Output ("+responseCode+"): "+output);
 				} catch (Exception ex) {
 					ex.printStackTrace();
@@ -647,37 +700,6 @@ public class StressMain {
 		}
 		Collections.shuffle(slices);
 		return slices;
-	}
-
-	private static class PRS {
-
-		private final String path;
-		private final SolrZkClient zkClient;
-		private List<String> children;
-
-
-		private PRS(String path, SolrZkClient zkClient) {
-			this.path = path;
-			this.zkClient = zkClient;
-		}
-
-		public String getState(String replica) throws Exception{
-			if(children == null) {
-				children = zkClient.getChildren(path, null, true);
-			}
-			for (String child : children) {
-				if(child.startsWith(replica)) {
-					return child;
-				}
-			}
-			return null;
-
-		}
-
-		public boolean isActive(String replica) throws Exception {
-			String st = getState(replica);
-			return st != null && st.contains(":A");
-		}
 	}
 
 	private static String resolveInteger(String cmd, Map<String, Integer> vars) {

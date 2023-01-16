@@ -2,65 +2,82 @@
 
 A comprehensive Solr performance benchmark and stress test framework.
 
-Benchmarking & stress test for standard operations (indexing, querying) for a specified Solr build.
+Benchmarking & stress test for standard operations (indexing, querying, collection operations, restarting nodes) or advanced tests (e.g. simulating GC pauses etc.) for a specified Solr build.
 
 ## Benchmarking
 
 ### Prerequisites
 
-If running on GCP, spin up a coordinator VM where this suite will run from. Make sure to use a service account that has permissions to create other VMs.
+#### GNU/Linux
+
+##### Local Mode
+
+Ubuntu/Debian:
+
+    # Install JDK 11, make sure it is the default JDK. Following is a potential way to install the right JDK:
+    sudo apt install openjdk-11-jdk
+
+    sudo apt install wget unzip zip ant ivy lsof git netcat make maven jq
+    
+Fedora/RHEL:
+
+    # Install JDK 11, make sure it is the default JDK. Following is a potential way to install the right JDK:
+    sudo yum install  java-11-openjdk-devel
+
+    sudo yum install wget unzip zip ant ivy lsof git nc make maven jq
+
+
+##### GCP Mode
+If running on GCP, spin up a coordinator VM where this suite will run from. Make sure to use a service account for that VM that has permissions to create other VMs.
 
 The VM should have the following:
 * Maven and other tools for building `apt install wget unzip zip ant ivy lsof git netcat make openjdk-11-jdk maven jq` (for Ubuntu/Debian) or `sudo yum install wget unzip zip ant ivy lsof git nc make java-11-openjdk-devel maven jq` (for Redhat/CentOS/Fedora)
 * Terraform. `wget https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip; sudo unzip terraform_0.12.26_linux_amd64.zip -d /usr/local/bin`
-* Vagrant. Ensure that virtualization is enabled in your BIOS. Install the pre-requisites: `sudo yum install VirtualBox vagrant ansible`. Run `VBoxManage --version` to make sure VirtualBox is installed properly (it may prompt you to install kernel drivers, just follow as suggested there). To adjust the instance memory, edit the vagrant/Vagrant file.
+
+
+#### Mac OS
+
+TBD (PRs welcome!)
 
 ### Running the suite
 
 In the coordinator VM, check out this solr-bench repository.
 
-     1. mvn clean compile assembly:single
-     2. ./cleanup.sh && ./start.sh <config-file>
+1. `mvn clean compile assembly:single`
+2. `./cleanup.sh && ./stress.sh -c <commit> <config-file>`
 
-Example: config.json (GCP), config-local.json (Local mode, it builds Solr from source), config-prebuilt (Local mode, uses provided tgz file). For GCP, you need to modify the "terraform-gcp-config" to provide a valid "project_id". For local, the JDK is downloaded but not used and instead the system installed JDK/JRE is used.
+Example: `./cleanup.sh ./stress.sh -c dfde16a004206cc92e21cc5a6cad9030fbe13c20 suites/stress-facets-local.json`
+
+
+#### Available tests
+```
+note: This is subject to change
+```
+
+1. `cluster-test.json` : Creates an 8 node cluster and create 1000 collections of various `numShards` and measure shutdown & restart performance
+2. `stress-facets-local.json` : Indexes 20 million documents from an ecommerce events dataset, issues 5k facet queries against it.
 
 ### Results
 
-* Results are available after the benchmark in results-\<timestamp\>.json file.
+* Results are available after the benchmark in `./suites/results/results-\<configfile\>-\<commit-id\>.json` file. 
 
 ### Datasets
 
-* One can use either TSV files or JSONL files for indexing. Use "tsv" or "json" for the "file-format" section.
-* The configset should be zipped, and "index-benchmarks" section should have the name of the file (without the .zip) as "configset".
-* The query file should have GET parameters that will be queried against /select.
-* Lucene's benchmarks dataset can be found here:  http://people.apache.org/~mikemccand/enwiki-20120502-lines-1k.txt.lzma
-
-## Stress tests
-
-In the coordinator VM (GCP) or local machine (local mode), check out this solr-bench repository.
-
-     1. mvn clean compile assembly:single
-     2. ./cleanup.sh && ./stress.sh <config-file>
-
-### Examples
-
-* rolling-83.json: Local mode, for test of rolling restarts
-* stress-ecommerce-[local/gcp].json: Local or GCP mode, for time series events dataset. Please download the dataset from https://home.apache.org/~ishan/ecommerce-events.json.gz before running the test. Dataset source: https://www.kaggle.com/mkechinov/ecommerce-behavior-data-from-multi-category-store
-* delay-local.json: Local mode, for Airlines delays dataset. Please download the dataset from http://185.14.187.116/delay.json.gz before running the test.
+TBD
 
 ### Visualization (WIP)
 
-* `python2.7 -m SimpleHTTPServer` or `python -m http.server` (for python3)
-* Open http://localhost:8000/plot-stress.html (to view the graph of the metrics of last performed test)
+Test results can be visualized in charts using the following command. 
 
-### Plotting the results
+`./python3 createGraph.py`
 
-Once you have the results in a dir, say, `results/experiment1`, and you want to plot heap usage of a Solr node (hardcoded to the 7th node at the moment), beginning the task2, then
+This will plot a graph into an html file that plots values of each test on a line chart `./suites/results/<config-file>.html`. The HTML file can be directly opened in a browser
 
-    ./plot.sh results experiment1 task2 jvm/solr.jvm/memory.heap.used
+####  dependencies on mac
+Mac OS requires a few tools to run this script. Install the following:
 
-will generate a experiment1.png file containing the plot.
-
+1. `brew install coreutils` 
+2. `pip3 install gitpython`
 
 ## Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.

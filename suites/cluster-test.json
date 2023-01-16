@@ -2,9 +2,9 @@
   "task-types": {
     "cluster-state-benchmark": {
       "cluster-state-benchmark": {
-        "filename": "clusterstatus.json.gz",
+        "filename": "clusterstatus-small-1000.json.gz",
         "collection-creation-params": {
-          "perReplicaState": "true"
+          "perReplicaState": "false"
         },
         "collections-limit": 1000,
         "simulation-concurrency-fraction": 0.5
@@ -25,13 +25,14 @@
   },
   "execution-plan": {
     "task1": {
+      "description": "Create 1000 collections of various numShards, rf=1",
       "type": "cluster-state-benchmark",
       "instances": 1,
       "concurrency": 1,
       "mode": "sync"
     },
     "task2": {
-      "description": "Restart Solr node",
+      "description": "Restart 7/8 Solr nodes",
       "instances": 7,
       "concurrency": 2,
       "type": "restart-solr-node",
@@ -50,18 +51,28 @@
     "startup-params": "-m 4096m",
     "provisioning-method": "local"
   },
-  "repository": {
-    "commit-id": "84c803e80c3e1805378bb9d78f3d12001e92f95d",
-    "description": "Solr 10x",
-    "name": "fs-solr-repository",
-    "package-subdir": "/solr/packaging/",
-    "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
-    "submodules": false,
-    "url": "https://github.com/fullstorydev/solr",
-    "user": "ishan"
-  },
-"metrics": [
-	    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
-	      ]
+  "repositories": [
+    {
+      "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+      "description": "Solr 8.4",
+      "name": "git-repository",
+      "package-subdir": "/solr/package/",
+      "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+      "submodules": false,
+      "url": "https://github.com/apache/lucene-solr",
+      "user": "ishan"
+    },
+    { 
+      "commit-id": "dfde16a004206cc92e21cc5a6cad9030fbe13c20",
+      "description": "Solr 10x",
+      "name": "solr-repository",
+      "package-subdir": "/solr/packaging/",
+      "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
+      "submodules": false,
+      "url": "https://github.com/apache/solr",
+      "user": "ishan"
+    }
 
+  ],
+  "metrics": ["jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"]
 }

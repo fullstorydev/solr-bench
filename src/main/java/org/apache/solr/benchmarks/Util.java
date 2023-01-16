@@ -73,6 +73,7 @@ public class Util {
     }
   }
 
+  // TODO: nocommit: Clean up this directory mess! No dir should end with a separator!
   public static final String DNAME = "SolrNightlyBenchmarksWorkDirectory";
   public static final String BASE_DIR = WORK_DIRECTORY + DNAME + File.separator;
   public static final String RUN_DIR = BASE_DIR + "RunDirectory" + File.separator;
@@ -412,4 +413,20 @@ public class Util {
 	  throw new SolrException(ErrorCode.BAD_REQUEST, "URLDecoder: Invalid digit (" + ((char) b) + ") in escape (%) pattern");
   }
 
+  public static File resolveSuitePath(String input) {
+	  if (input.startsWith("/")) {
+		  File file = new File(input);
+		  if (file.exists()) {
+			  return file; // this is an absolute path
+		  } else {
+			  throw new RuntimeException("Absolute path " + input + " doesn't exist.");
+		  }
+	  }
+	  File absPathFile = new File(System.getProperty("SUITE_BASE_DIRECTORY") + File.separator + input);
+	  if (absPathFile.exists()) {
+		  return absPathFile;
+	  } else {
+		  throw new RuntimeException("File " + input + " doesn't exist.");
+	  }
+  }
 }
