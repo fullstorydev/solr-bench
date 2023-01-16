@@ -323,6 +323,15 @@ public class SolrCloud {
         }
       }*/
 
+      // Collect logs
+      if (cluster.provisioningMethod.equalsIgnoreCase("local")) {
+    	  for (SolrNode node: nodes) {
+    		  LocalSolrNode localNode = (LocalSolrNode) node;
+    		  String tarCommand = "tar -cf " + Util.RUN_DIR + "logs-"+localNode.port+".tar " + localNode.baseDirectory + "server/logs/*";
+    		  Util.execute(tarCommand, Util.getWorkingDir());
+    	  }
+      }
+    
       for (SolrNode node : nodes) {
        node.stop();
         if (cleanup) {

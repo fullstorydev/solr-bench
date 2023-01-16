@@ -73,6 +73,7 @@ public class Util {
     }
   }
 
+  // TODO: nocommit: Clean up this directory mess! No dir should end with a separator!
   public static final String DNAME = "SolrNightlyBenchmarksWorkDirectory";
   public static final String BASE_DIR = WORK_DIRECTORY + DNAME + File.separator;
   public static final String RUN_DIR = BASE_DIR + "RunDirectory" + File.separator;
