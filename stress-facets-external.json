@@ -87,7 +87,6 @@
     "startup-params": "-m 2g -V",
     "provisioning-method": "external",
     "external-solr-config" : {
-      "solr-nodes": [ "localhost:8983", "localhost:28983" ],
       "zk-host": "127.0.0.1:2181",
       "zk-chroot": "/solr"
     }

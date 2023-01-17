@@ -55,6 +55,7 @@ import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkConfigManager;
 import org.apache.solr.common.params.ConfigSetParams;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +70,8 @@ public class SolrCloud {
 
   Zookeeper zookeeper;
   public List<SolrNode> nodes = Collections.synchronizedList(new ArrayList());
+
+  public List<SolrNode> queryNodes = Collections.synchronizedList(new ArrayList());
 
   private Set<String> configsets = new HashSet<>();
 
@@ -182,11 +185,11 @@ public class SolrCloud {
     		nodes.add(new GenericSolrNode(host, null)); // TODO fix username for vagrant
     	}
     } else if ("external".equalsIgnoreCase(cluster.provisioningMethod)) {
-        System.out.println("ZK node: " + cluster.externalSolrConfig.zkHost);
+        log.info("ZK node: " + cluster.externalSolrConfig.zkHost);
         String[] tokens = cluster.externalSolrConfig.zkHost.split(":");
         zookeeper = new GenericZookeeper(tokens[0], Integer.parseInt(tokens[1]), cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
 
-        try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).build();) {
+        try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).withZkChroot(cluster.externalSolrConfig.zkChroot).build()) {
           Set<String> liveNodes = client.getZkStateReader().getClusterState().getLiveNodes();
           for (String liveNode: liveNodes) {
             nodes.add(new ExternalSolrNode(
@@ -195,7 +198,22 @@ public class SolrCloud {
                     cluster.externalSolrConfig.sshUserName,
                     cluster.externalSolrConfig.restartScript));
           }
-
+          try {
+            List<String> queryNodeList = client.getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
+            for (String queryNode : queryNodeList) {
+              queryNodes.add(new ExternalSolrNode(
+                      queryNode.split("_solr")[0].split(":")[0],
+                      Integer.valueOf(queryNode.split("_solr")[0].split(":")[1]),
+                      cluster.externalSolrConfig.sshUserName,
+                      cluster.externalSolrConfig.restartScript));
+            }
+          } catch (KeeperException e) {
+            if (e.code() == KeeperException.Code.NONODE) {
+              log.info("No /live_query_nodes. Skipping query nodes.");
+            } else {
+              throw e;
+            }
+          }
         }
         log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper);
 

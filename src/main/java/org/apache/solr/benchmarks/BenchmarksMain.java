@@ -46,6 +46,7 @@ import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.beans.Repository;
 import org.apache.solr.benchmarks.readers.JsonlFileType;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
+import org.apache.solr.benchmarks.solrcloud.SolrNode;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
@@ -100,7 +101,8 @@ public class BenchmarksMain {
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 
-		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
+            List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
+		        HttpSolrClient client = new HttpSolrClient.Builder(queryNodes.get(benchmark.queryNode-1).getBaseUrl()).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,

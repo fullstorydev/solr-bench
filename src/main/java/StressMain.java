@@ -293,7 +293,8 @@ public class StressMain {
 
 				List<SolrNode> restartNodes;
 				if (type.restartAllNodes) {
-					restartNodes = new ArrayList<>(cloud.nodes);
+					restartNodes = new ArrayList<>(cloud.queryNodes);
+					restartNodes.addAll(cloud.nodes);
 					log.info("Restarting " + restartNodes.size() + " node(s)");
 				} else {
 					String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
