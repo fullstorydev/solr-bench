@@ -94,15 +94,16 @@ public class BenchmarksMain {
 			throws IOException, InterruptedException {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
+
 		for (QueryBenchmark benchmark : queryBenchmarks) {
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
-
+      List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
+      String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
+      log.info("Query base URL " + baseUrl);
 
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-
-            List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
-		        HttpSolrClient client = new HttpSolrClient.Builder(queryNodes.get(benchmark.queryNode-1).getBaseUrl()).build();
+		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,
