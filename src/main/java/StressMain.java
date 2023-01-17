@@ -198,25 +198,6 @@ public class StressMain {
 			metricsCollector.metrics.put("zookeeper", metricsCollector.zkMetrics);
 			new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
 		}
-		exportToGrafana(finalResults);
-	}
-
-	private static void exportToGrafana(Map<String, List<Map>> finalResults) {
-		for (Map.Entry<String, List<Map>> entry : finalResults.entrySet()) {
-			String taskName = entry.getKey();
-			List<Map> metrics = entry.getValue();
-			for (int i = 0 ; i < metrics.size(); i++) {
-				String iteration = taskName + "-" + i;
-				//get the timestamps
-				for (Object metricKey : metrics.get(i).entrySet()) {
-					if (metricKey instanceof String && ((String) metricKey).endsWith("-timestamp")) {
-
-					}
-				}
-
-			}
-		}
-
 	}
 
 	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, long executionStart, String taskName, TaskInstance instance, TaskType type) {
