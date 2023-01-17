@@ -68,15 +68,17 @@ while read i; do
     fi
     _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
     _REPOSRC=`echo $i | jq -r '."url"'`
-    _LOCALREPO_VC_DIR=$REPO/.git
+    _LOCALREPO_VC_DIR=$_LOCALREPO/.git
     
-    if [ ! -d $_LOCALREPO_VC_DIR ]
+    if [ -d "$_LOCALREPO_VC_DIR" ]
     then
+        cd $_LOCALREPO
+        echo "Fetching.."
+	GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+    else
+           echo "Cloning... _LOCALREPO_VC_DIR=$_LOCALREPO_VC_DIR="
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
           cd $_LOCALREPO
-    else
-        cd $_LOCALREPO
-        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
     fi
 
     if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
