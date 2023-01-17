@@ -216,11 +216,6 @@ public class SolrCloud {
           }
         }
         log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper);
-
-//        for (String nodeName: cluster.externalSolrConfig.solrNodes) {
-//            tokens = nodeName.split(":");
-//            nodes.add(new ExternalSolrNode(tokens[0], Integer.parseInt(tokens[1]),  cluster.externalSolrConfig.restartScript));
-//        }
     }
 
 
