@@ -61,6 +61,7 @@ public class StressMain {
 
 	private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static final boolean ABORT_ON_HUNG_RECOVERY = true;
 
 	public static void main(String[] args) throws Exception {
 		String configFile = args[0];
@@ -236,6 +237,7 @@ public class StressMain {
 					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
 
 						int numInactive = 0;
+						long lastTimestamp = System.nanoTime(), lastNumInactive = 0; 
 						do {
 							numInactive = 0;
 							Set<String> inactive = new HashSet<>();
@@ -255,7 +257,18 @@ public class StressMain {
 								}
 
 							}
-
+							
+							if (numInactive != lastNumInactive) {
+								lastTimestamp = System.nanoTime();
+								lastNumInactive = numInactive;
+							} else {
+								if (ABORT_ON_HUNG_RECOVERY && (System.nanoTime() - lastTimestamp) / 1_000_000_000.0 > 60) {
+									// the numInactive didn't change for last 1 minute, abort this run altogether
+									log.error("Recovery failed, aborting this benchmarking run.");
+									System.exit(1);
+								}
+							}
+							
 							System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
 							if (numInactive != 0) {
 								Thread.sleep(2000);
