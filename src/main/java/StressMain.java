@@ -377,7 +377,7 @@ public class StressMain {
 								"node-shutdown", totalShutdown/1000.0/restartNodes.size(),//average time it takes to stop a node
 								"node-startup", totalStart/1000.0/restartNodes.size(), //average time it takes to start a node
 								"heap-mb", minHeaps.size() == 0 ? -1: totalMinHeap/1024.0/1024.0/minHeaps.size(), //average min heap after restart
-								"wait-time", (taskStart- executionStart)/1000.0, //time from the Workflow execution start to this task execution start
+								"start-time", (taskStart- executionStart)/1000.0, //time from the Workflow execution start to this task execution start
 								"end-time", (taskEnd- executionStart)/1000.0, //time from the Workflow is being executed to this task execution end
 								"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
