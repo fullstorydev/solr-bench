@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.FileUtils;
@@ -65,7 +66,6 @@ public class StressMain {
 
 	public static void main(String[] args) throws Exception {
 		String configFile = args[0];
-		String commit = args[1];
 
 		// Set the suite base directory from the configFile. All resources, like configsets, datasets,
 		// will be fetched off this path
@@ -75,8 +75,8 @@ public class StressMain {
 
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
-		
-		String solrPackagePath = BenchmarksMain.getSolrPackagePath(commit, workflow.solrPackage);
+
+		String solrPackagePath = cluster.provisioningMethod.equalsIgnoreCase("external") ? null : BenchmarksMain.getSolrPackagePath(args[1], workflow.solrPackage);
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
@@ -280,69 +280,114 @@ public class StressMain {
 				}
 				long taskEnd = System.currentTimeMillis();
 
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
-			} else if (type.restartSolrNode != null) {
-				log.info("Restarting node: "+type.restartSolrNode);
+			} else if (type.restartSolrNode != null || type.restartAllNodes) {
 
-				String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
+				List<SolrNode> restartNodes;
+				if (type.restartAllNodes) {
+					restartNodes = new ArrayList<>(cloud.queryNodes);
+					restartNodes.addAll(cloud.nodes);
+					log.info("Restarting " + restartNodes.size() + " node(s)");
+				} else {
+					String nodeIndex = resolveString(resolveString(type.restartSolrNode, params), workflow.globalConstants);
+					SolrNode restartNode = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
+					restartNodes = Collections.singletonList(restartNode);
+					log.info("Restarting single node");
+				}
+
 				long taskStart = System.currentTimeMillis();
-				log.info("Restarting node "+Integer.valueOf(nodeIndex));
-				SolrNode node = cloud.nodes.get(Integer.valueOf(nodeIndex) - 1);
-				log.info("Restarting " + node.getNodeName());
-
-				long stopTime = 0, startTime = 0;
+				ExecutorService executor = null;
+				ConcurrentHashMap<String, Long> shutdownTimes = new ConcurrentHashMap<>();
+				ConcurrentHashMap<String, Long> startTimes = new ConcurrentHashMap<>();
+				ConcurrentHashMap<String, Long> minHeaps = new ConcurrentHashMap<>();
 				try {
-					if (node instanceof LocalSolrNode) {
-					    stopTime = System.currentTimeMillis();
-					    node.stop();
-					    stopTime = System.currentTimeMillis() - stopTime;
-					    startTime = System.currentTimeMillis();
-					    node.start();
-					    startTime = System.currentTimeMillis() - startTime;
-					} else {
-						node.restart();
+					executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(taskName + "-restart-thread-pool").build());
+					for (SolrNode restartNode : restartNodes) {
+						executor.submit(() -> {
+							String nodeName = restartNode.getNodeName();
+							log.info("Restarting " + nodeName);
+							long marker = System.currentTimeMillis();
+							try {
+								if (restartNode instanceof LocalSolrNode) {
+									restartNode.stop();
+									shutdownTimes.put(nodeName, System.currentTimeMillis() - marker);
+									marker = System.currentTimeMillis();
+									restartNode.start();
+									startTimes.put(nodeName, System.currentTimeMillis() - marker);
+								} else {
+									restartNode.restart();
+									startTimes.put(nodeName, System.currentTimeMillis() - marker); //for non local node, we only have the restart (stop+start) time
+								}
+							} catch (Exception ex) {
+								ex.printStackTrace();
+							}
+							if (type.awaitRecoveries) {
+								marker = System.currentTimeMillis();
+								try (CloudSolrClient client = buildSolrClient(cloud)) {
+									int numInactive = 0;
+									do {
+										numInactive = getNumInactiveReplicas(restartNode, client);
+									} while (numInactive > 0);
+								} catch (Exception ex) {
+									ex.printStackTrace();
+								}
+								startTimes.put(nodeName, startTimes.getOrDefault(nodeName, 0L) + (System.currentTimeMillis() - marker));
+							}
+							log.info("Finished restarting " + restartNode.getNodeName());
+
+							try {
+								long minHeap = Long.MAX_VALUE;
+								for (int i=0; i<5; i++) {
+									URL heapUrl = new URL("http://"+restartNode.getNodeName() + "/api/node/heap");
+									JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, StandardCharsets.UTF_8));
+									long heap = obj.getLong("heap");
+									minHeap = Math.min(minHeap, heap);
+									Thread.sleep(1000);
+								}
+								minHeaps.put(nodeName, minHeap);
+
+							} catch (Exception ex) {}
+						});
 					}
-				} catch (Exception ex) {
-					ex.printStackTrace();
+				} finally {
+					if (executor != null) {
+						executor.shutdown();
+						executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+					}
 				}
 
-				if (type.awaitRecoveries) {
-				    long recoveryTime = System.currentTimeMillis();
-					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
-						int numInactive = 0;
-						do {
-							numInactive = getNumInactiveReplicas(node, client);
-						} while (numInactive > 0);
-					} catch (Exception ex) {
-						ex.printStackTrace();
-					}
-					recoveryTime = System.currentTimeMillis() - recoveryTime;
-					startTime += recoveryTime;
-				}
-				long heap = -1;
-				try {
-					long minHeap = Long.MAX_VALUE;
-					for (int i=0; i<5; i++) {
-						URL heapUrl = new URL("http://"+node.getNodeName() + "/api/node/heap");
-						JSONObject obj = new JSONObject(IOUtils.toString(heapUrl, StandardCharsets.UTF_8));
-						heap = obj.getLong("heap");
-						minHeap = Math.min(minHeap, heap);
-						Thread.sleep(1000);
-					}
-					heap = minHeap;
-
-				} catch (Exception ex) {}
 				long taskEnd = System.currentTimeMillis();
 
-				finalResults.get(taskName).add(Map.of(
-						"total-time", (taskEnd-taskStart)/1000.0, 
-						"start-time", (taskStart- executionStart)/1000.0, 
-						"node-shutdown", stopTime/1000.0,
-						"node-startup", startTime/1000.0,
-						"heap-mb", heap==-1? -1: heap/1024.0/1024.0,
-						"end-time", (taskEnd- executionStart)/1000.0));
+				long totalMinHeap = 0;
+				for (Long minHeap : minHeaps.values()) {
+					totalMinHeap += minHeap;
+				}
+				long totalShutdown = 0;
+				for (Long shutdownTime : shutdownTimes.values()) {
+					totalShutdown += shutdownTime;
+				}
+				long totalStart = 0;
+				for (Long startTime : startTimes.values()) {
+					totalStart += startTime;
+				}
 
+				Map result = new HashMap(Map.of("total-time", (taskEnd-taskStart)/1000.0, //time taken to execute this task
+								"node-shutdown", totalShutdown/1000.0/restartNodes.size(),//average time it takes to stop a node
+								"node-startup", totalStart/1000.0/restartNodes.size(), //average time it takes to start a node
+								"heap-mb", minHeaps.size() == 0 ? -1: totalMinHeap/1024.0/1024.0/minHeaps.size(), //average min heap after restart
+								"wait-time", (taskStart- executionStart)/1000.0, //time from the Workflow execution start to this task execution start
+								"end-time", (taskEnd- executionStart)/1000.0, //time from the Workflow is being executed to this task execution end
+								"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
+				if (restartNodes.size() > 1) {
+					result.put("node-shutdown-by-node", shutdownTimes);
+					result.put("node-startup-by-node", startTimes);
+					result.put("heap-mb-by-node", minHeaps);
+				}
+
+				finalResults.get(taskName).add(result);
 			} else if (type.indexBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.indexBenchmark.datasetFile);
 
@@ -366,7 +411,9 @@ public class StressMain {
 				log.info("Results: "+results.get("indexing-benchmarks"));
 				try {
 					String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("indexing-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
-					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+					finalResults.get(taskName).add(Map.of(
+							"total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
 					//ex.printStackTrace();
 				}
@@ -395,7 +442,8 @@ public class StressMain {
 					String totalTime = String.valueOf(taskEnd - taskStart);
 
 					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
-							"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()));
+							"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue(),
+							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
@@ -516,7 +564,8 @@ public class StressMain {
 
 					long taskEnd = System.currentTimeMillis();
 					log.info("Task took time: "+(taskEnd-taskStart)/1000.0+" seconds.");
-					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0));
+					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
@@ -544,7 +593,8 @@ public class StressMain {
 					ex.printStackTrace();
 				}
 				long taskEnd = System.currentTimeMillis();
-				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode));
+				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode,
+						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 			}
 			long end = System.currentTimeMillis();
 
@@ -554,6 +604,10 @@ public class StressMain {
 			return end-start;			
 		};
 		return c;
+	}
+
+	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
+		return new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).withZkChroot(cloud.getZookeeperChroot()).build();
 	}
 
 	private static int getNumInactiveReplicas(SolrNode node, CloudSolrClient client)
@@ -593,7 +647,7 @@ public class StressMain {
 			Workflow.Validation validationDefinition = workflow.validations.get(v);
 			if (validationDefinition.numInactiveReplicas != null) {
 				// get num inactive replicas
-				try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
+				try (CloudSolrClient client = buildSolrClient(cloud);) {
 					int numInactive = getNumInactiveReplicas(null, client);
 					log.info("Validation: inactive replicas are " + numInactive);
 					if (numInactive > validationDefinition.numInactiveReplicas) {
@@ -620,7 +674,7 @@ public class StressMain {
 		}
 
 		if (type.command.contains("RANDOM_COLLECTION")) {
-			try(CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build()) {
+			try(CloudSolrClient client = buildSolrClient(cloud)) {
 				log.info("Trying to get list of collections: ");
 				Thread.sleep(500);
 				//List<Slice> slices = getActiveSlicedShuffled(client, collection);
@@ -637,7 +691,7 @@ public class StressMain {
 
 
 		if (type.command.contains("RANDOM_SHARD")) {
-			try(CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build()) {
+			try(CloudSolrClient client = buildSolrClient(cloud)) {
 				collection = collection==null? params.get("COLLECTION"): collection;
 				if (collection == null) {
 					throw new RuntimeException("To use RANDOM_SHARD, you must provide a 'COLLECTION' or use ${RANDOM_COLLECTION} parameter.");

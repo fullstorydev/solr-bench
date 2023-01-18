@@ -114,4 +114,8 @@ public class LocalZookeeper implements Zookeeper {
 	  return "8080";
   }
 
+    public String getChroot() {
+        return null;
+    }
+
 }

@@ -46,6 +46,7 @@ import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.beans.Repository;
 import org.apache.solr.benchmarks.readers.JsonlFileType;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
+import org.apache.solr.benchmarks.solrcloud.SolrNode;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
@@ -88,19 +89,21 @@ public class BenchmarksMain {
     	}
     	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration");
     }
-    
+
 	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
 			throws IOException, InterruptedException {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
+
 		for (QueryBenchmark benchmark : queryBenchmarks) {
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
-
+      List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
+      String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
+      log.info("Query base URL " + baseUrl);
 
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-
-		        HttpSolrClient client = new HttpSolrClient.Builder(solrCloud.nodes.get(benchmark.queryNode-1).getBaseUrl()).build();
+		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,
@@ -147,7 +150,7 @@ public class BenchmarksMain {
 		            if (setup.createCollection) {
 		            	log.info("Creating collection1: " + collectionName);
 		            	try {
-		            		solrCloud.deleteCollection(configsetName);
+                            solrCloud.deleteCollection(collectionName);
 		            	} catch (Exception ex) {
 		            		if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
 		            			//log.debug("Error trying to delete collection: " + ex);
@@ -155,7 +158,9 @@ public class BenchmarksMain {
 		            			//log.warn("Error trying to delete collection: " + ex);
 		            		}
 		            	}
-		            	solrCloud.uploadConfigSet(setup.configset, setup.shareConfigset, configsetName);
+                        if (solrCloud.shouldUploadConfigSet()) {
+                            solrCloud.uploadConfigSet(setup.configset, setup.shareConfigset, configsetName);
+                        }
 		            	solrCloud.createCollection(setup, collectionName, configsetName);
 		            }
 		            long start = System.nanoTime();

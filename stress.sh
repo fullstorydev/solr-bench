@@ -26,11 +26,16 @@ download() {
 for i in $@; do :; done
 CONFIGFILE=$i
 
-# commit
-while getopts "c:" option; do
+
+# parse other params
+while getopts "c:j:" option; do
   case $option in
     "c")
       commitoverrides+=("$OPTARG")
+      ;;
+    "j")
+      echo "${OPTARG} found for benchmarking jar"
+      SOLR_BENCH_JAR=${OPTARG}
       ;;
     *)
       # any other arguments for future
@@ -59,58 +64,61 @@ download $CONFIGFILE # download this file from GCS/HTTP, if necessary
 mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
 mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
 
-COMMIT=${commitoverrides[0]}
+if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
+then
+  COMMIT=${commitoverrides[0]}
 
-while read i; do
-    if [[ "" == $COMMIT ]]
-    then
-        COMMIT=`echo $i | jq -r '."commit-id"'`
-    fi
-    _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
-    _REPOSRC=`echo $i | jq -r '."url"'`
-    _LOCALREPO_VC_DIR=$_LOCALREPO/.git
-    
-    if [ -d "$_LOCALREPO_VC_DIR" ]
-    then
-        cd $_LOCALREPO
+  while read i; do
+      if [[ "" == $COMMIT ]]
+      then
+          COMMIT=`echo $i | jq -r '."commit-id"'`
+      fi
+      _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
+      _REPOSRC=`echo $i | jq -r '."url"'`
+      _LOCALREPO_VC_DIR=$_LOCALREPO/.git
+
+      if [ -d "$_LOCALREPO_VC_DIR" ]
+      then
+            cd $_LOCALREPO
         echo "Fetching.."
 	GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
-    else
-           echo "Cloning... _LOCALREPO_VC_DIR=$_LOCALREPO_VC_DIR="
+      else
+          echo "Cloning... _LOCALREPO_VC_DIR=$_LOCALREPO_VC_DIR="
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
           cd $_LOCALREPO
-    fi
+      fi
 
-    if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
-    then
-        REPOSRC=$_REPOSRC
-        LOCALREPO=$_LOCALREPO
-        BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
-        PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
-        LOCALREPO_VC_DIR=$_LOCALREPO/.git
-        break
-    fi
-done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
+      if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
+      then
+          REPOSRC=$_REPOSRC
+          LOCALREPO=$_LOCALREPO
+          BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
+          PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
+          LOCALREPO_VC_DIR=$_LOCALREPO/.git
+          break
+      fi
+  done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
 
-cd $BASEDIR
+  cd $BASEDIR
 
-if [[ "" == $REPOSRC ]]
-then
-    echo "$COMMIT not found in any configured repositories."
-    exit 1
-fi
+  if [[ "" == $REPOSRC ]]
+  then
+      echo "$COMMIT not found in any configured repositories."
+      exit 1
+  fi
 
-GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+  GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
-export SOLR_TARBALL_NAME="solr-$COMMIT.tgz"
-export SOLR_TARBALL_PATH="SolrNightlyBenchmarksWorkDirectory/Download/$SOLR_TARBALL_NAME"
+  export SOLR_TARBALL_NAME="solr-$COMMIT.tgz"
+  export SOLR_TARBALL_PATH="SolrNightlyBenchmarksWorkDirectory/Download/$SOLR_TARBALL_NAME"
 
-if [[ "null" != `jq -r '.["solr-package"]' $CONFIGFILE` ]]
-then
-     solrpackageurl=`jq -r '.["solr-package"]' $CONFIGFILE`
-     download $solrpackageurl
-     export SOLR_TARBALL_NAME="${solrpackageurl##*/}"
-     export SOLR_TARBALL_PATH=$SOLR_TARBALL_NAME
+  if [[ "null" != `jq -r '.["solr-package"]' $CONFIGFILE` ]]
+  then
+       solrpackageurl=`jq -r '.["solr-package"]' $CONFIGFILE`
+       download $solrpackageurl
+       export SOLR_TARBALL_NAME="${solrpackageurl##*/}"
+       export SOLR_TARBALL_PATH=$SOLR_TARBALL_NAME
+  fi
 fi
 
 terraform-gcp-provisioner() {
@@ -179,8 +187,8 @@ buildsolr() {
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
 
-     
-     if [[ "$PATCHURL" != "" ]]; 
+
+     if [[ "$PATCHURL" != "" ]];
      then
           echo "Applying patch"
           curl $PATCHURL | git apply -v --index
@@ -199,13 +207,16 @@ buildsolr() {
 
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.4/apache-zookeeper-3.6.4-bin.tar.gz 
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $BASEDIR; done
 
-# Clone/checkout the git repository and build Solr
-if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
+if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
 then
-     buildsolr
+  wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.4/apache-zookeeper-3.6.4-bin.tar.gz
+  # Clone/checkout the git repository and build Solr
+  if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
+  then
+       buildsolr
+  fi
 fi
 
 cd $BASEDIR
@@ -218,8 +229,14 @@ fi
 # Run the benchmarking suite
 cd $BASEDIR
 echo_blue "Running Stress suite from working directory: $BASEDIR"
-java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
+if [ -z "$SOLR_BENCH_JAR" ] #then no explicit jar provided
+then
+  java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    StressMain $CONFIGFILE $COMMIT
+else
+  java -Xmx12g -cp ${SOLR_BENCH_JAR}:. StressMain $CONFIGFILE $COMMIT
+fi
+
 
 # Grab GC logs
 NOW=`date +"%Y-%d-%m_%H.%M.%S"`

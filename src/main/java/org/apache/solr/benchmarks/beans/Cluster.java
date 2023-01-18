@@ -33,7 +33,26 @@ public class Cluster {
   @JsonProperty("vagrant-config")
   public Map<String, Object> vagrantConfig;
 
-  @JsonProperty("provisioning-method")
-  public String provisioningMethod;  
+  @JsonProperty("external-solr-config")
+  public ExternalSolrConfig externalSolrConfig;
 
+  @JsonProperty("provisioning-method")
+  public String provisioningMethod;
+
+  public static class ExternalSolrConfig {
+    @JsonProperty("zk-host")
+    public String zkHost;
+
+    @JsonProperty("zk-admin-port")
+    public Integer zkAdminPort;
+
+    @JsonProperty("zk-chroot")
+    public String zkChroot;
+
+    @JsonProperty("restart-script")
+    public String restartScript;
+
+    @JsonProperty("ssh-username")
+    public String sshUserName;
+  }
 }

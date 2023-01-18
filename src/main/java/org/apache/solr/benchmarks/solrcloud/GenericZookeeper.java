@@ -19,12 +19,23 @@ package org.apache.solr.benchmarks.solrcloud;
 
 public class GenericZookeeper implements Zookeeper {
 
-	private final String port = "2181";
-	private final String adminPort = "8080";
+	private static final int DEFAULT_ZK_PORT = 2181;
+	private static final int DEFAULT_ADMIN_PORT = 8080;
 
 	private final String host;
+	private final String zkPort;
+	private final String adminPort;
+	private final String chroot;
+
 	public GenericZookeeper(String host) {
+		this(host, DEFAULT_ZK_PORT, DEFAULT_ADMIN_PORT, null);
+	}
+
+	public GenericZookeeper(String host, Integer zkPort, Integer adminPort, String chroot) {
 		this.host = host;
+		this.zkPort = String.valueOf(zkPort != null ? zkPort : DEFAULT_ZK_PORT);
+		this.adminPort = String.valueOf(adminPort != null ? adminPort : DEFAULT_ADMIN_PORT);
+		this.chroot = chroot;
 	}
 
 	private void init() throws Exception {
@@ -48,11 +59,15 @@ public class GenericZookeeper implements Zookeeper {
 	}
 
 	public String getPort() {
-		return port;
+		return zkPort;
 	}
 
 	public String getAdminPort() {
 		return adminPort;
 	}
 
+	@Override
+	public String getChroot() {
+		return chroot;
+	}
 }

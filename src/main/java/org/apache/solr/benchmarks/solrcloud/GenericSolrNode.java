@@ -27,13 +27,19 @@ public class GenericSolrNode implements SolrNode {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final String host;
-  private final String port = "8983";
-  private final String user;
+  protected final String user;
+  private static final int DEFAULT_PORT = 8983;
+  protected final String host;
+  protected final int port;
 
-  public GenericSolrNode(String host, String user) throws Exception {
+  public GenericSolrNode(String host, int port, String user) {
     this.host = host;
+    this.port = port;
     this.user = user;
+  }
+
+  public GenericSolrNode(String host, String user) {
+    this(host, DEFAULT_PORT, null);
   }
 
   @Override
