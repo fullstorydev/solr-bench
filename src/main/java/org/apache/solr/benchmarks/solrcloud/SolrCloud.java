@@ -80,11 +80,13 @@ public class SolrCloud {
   final Cluster cluster;
   private final String solrPackagePath;
   private final boolean shouldUploadConfigSet;
+  private final boolean overwriteExistingCollection;
 
   public SolrCloud(Cluster cluster, String solrPackagePath) throws Exception {
     this.cluster = cluster;
     this.solrPackagePath = solrPackagePath;
     this.shouldUploadConfigSet = !"external".equalsIgnoreCase(cluster.provisioningMethod);
+    this.overwriteExistingCollection = !"external".equalsIgnoreCase(cluster.provisioningMethod);
     log.info("Provisioning method: " + cluster.provisioningMethod);
   }
 
@@ -352,17 +354,15 @@ public class SolrCloud {
       }
 
       // Collect logs
-      if (cluster.provisioningMethod.equalsIgnoreCase("local")) {
-    	  for (SolrNode node: nodes) {
-    		  LocalSolrNode localNode = (LocalSolrNode) node;
-    		  String tarfile = Util.RUN_DIR + "logs-"+localNode.port+".tar";
-    		  if (new File(tarfile).exists()) new File(tarfile).delete();
-    		  String tarCommand = "tar -cf " + tarfile + " -C " + localNode.binDirectory.substring(0, localNode.binDirectory.length()-4) + "server/logs .";
-    		  log.info("Trying command: " + tarCommand);
-    		  Util.execute(tarCommand, Util.getWorkingDir());
-    	  }
+      for (SolrNode node: nodes) {
+        LocalSolrNode localNode = (LocalSolrNode) node;
+        String tarfile = Util.RUN_DIR + "logs-"+localNode.port+".tar";
+        if (new File(tarfile).exists()) new File(tarfile).delete();
+        String tarCommand = "tar -cf " + tarfile + " -C " + localNode.binDirectory.substring(0, localNode.binDirectory.length()-4) + "server/logs .";
+        log.info("Trying command: " + tarCommand);
+        Util.execute(tarCommand, Util.getWorkingDir());
       }
-    
+
       for (SolrNode node : nodes) {
        node.stop();
         if (cleanup) {
@@ -373,11 +373,25 @@ public class SolrCloud {
         zookeeper.stop();
         zookeeper.cleanup();
       }
+    } else if (cluster.provisioningMethod.equalsIgnoreCase("external")) {
+      for (String coll : colls) {
+        try (HttpSolrClient hsc = createClient()) {
+          try {
+            CollectionAdminRequest.deleteCollection(coll).process(hsc);
+          } catch (Exception e) {
+            //failed but continue
+          }
+        }
+      }
     }
   }
 
   public boolean shouldUploadConfigSet() {
       return shouldUploadConfigSet;
+  }
+
+  public boolean isOverwriteExistingCollection() {
+    return overwriteExistingCollection;
   }
 
   public void uploadConfigSet(String configsetFile, boolean shareConfigset, String configsetZkName) throws Exception {
