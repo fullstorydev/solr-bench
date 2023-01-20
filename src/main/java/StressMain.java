@@ -6,16 +6,8 @@ import java.lang.invoke.MethodHandles;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -23,15 +15,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 
+import com.google.common.io.Files;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.MetricsCollector;
 import org.apache.solr.benchmarks.Util;
+import org.apache.solr.benchmarks.WorkflowResult;
 import org.apache.solr.benchmarks.beans.Cluster;
+import org.apache.solr.benchmarks.exporter.ExporterFactory;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
 import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
@@ -43,7 +37,6 @@ import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
-import org.apache.solr.common.util.Pair;
 import org.apache.zookeeper.KeeperException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -64,14 +57,16 @@ public class StressMain {
 
 	private static final boolean ABORT_ON_HUNG_RECOVERY = true;
 
+	private static String SUITE_BASE_DIR;
+
 	public static void main(String[] args) throws Exception {
 		String configFile = args[0];
 
 		// Set the suite base directory from the configFile. All resources, like configsets, datasets,
 		// will be fetched off this path
-		String suiteBaseDir = new File(configFile).getAbsoluteFile().getParent().toString();
-		log.info("The base directory for the suite: " + suiteBaseDir);
-		System.setProperty("SUITE_BASE_DIRECTORY", suiteBaseDir);
+		SUITE_BASE_DIR = new File(configFile).getAbsoluteFile().getParent().toString();
+		log.info("The base directory for the suite: " + SUITE_BASE_DIR);
+		System.setProperty("SUITE_BASE_DIRECTORY", SUITE_BASE_DIR);
 
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
@@ -80,7 +75,9 @@ public class StressMain {
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
-			executeWorkflow(workflow, solrCloud);
+			WorkflowResult workflowResult = executeWorkflow(workflow, solrCloud);
+			String testName = Files.getNameWithoutExtension(configFile);
+			ExporterFactory.getFileExporter(Paths.get(SUITE_BASE_DIR, testName)).export(workflowResult);
 		} finally {
 			log.info("Shutting down...");
 			solrCloud.shutdown(true);
@@ -98,7 +95,7 @@ public class StressMain {
 		}
 	}
 
-	private static void executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException {
+	private static WorkflowResult executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException {
 		Map<String, AtomicInteger> globalVariables = new ConcurrentHashMap<String, AtomicInteger>();
 
 		// Initialize the common threadpools
@@ -191,13 +188,15 @@ public class StressMain {
 			metricsCollector.stop();
 			metricsThread.stop();
 		}
-
-		log.info("Final results: "+finalResults);
-		new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
+//		log.info("Final results: "+finalResults);
+//		new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
 		if (metricsCollector != null) {
 			metricsCollector.metrics.put("zookeeper", metricsCollector.zkMetrics);
-			new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
+			return new WorkflowResult(finalResults, metricsCollector.metrics);
+		} else {
+			return new WorkflowResult(finalResults, null);
 		}
+//		new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
 	}
 
 	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, long executionStart, String taskName, TaskInstance instance, TaskType type) {

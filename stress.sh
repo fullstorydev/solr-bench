@@ -45,6 +45,7 @@ done
 
 ORIG_WORKING_DIR=`pwd`
 BASEDIR=$(realpath $(dirname "$0"))
+TEST_NAME="${CONFIGFILE%.*}" #better to define in config file, assume file name as test name could have special char issue?
 CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
@@ -203,24 +204,35 @@ buildsolr() {
      cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 }
 
+META_FILE_PATH="${BASEDIR}/suites/results/$TEST_NAME/meta-${COMMIT}.prop"
+
 generate_meta() {
-     echo_blue "Generating Meta data file $COMMIT"
+     echo_blue "Generating Meta data file $META_FILE_NAME"
      cd $LOCALREPO
 
-     if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
+     local branches=""
+     while IFS= read -r branch
+     do
+       if [ -z "$branches"]
+       then
+         branches="$branch"
+       else
+         branches="${branches},${branch}"
+       fi
+     done <<< $(git branch --contains $COMMIT 2> /dev/null | sed -e 's/* \(.*\)/\1/' | tr -d ' ')
+#committed_date=1675006491
+#committer=patsonluk
+#message=commit 3 msg
+#benchmark-submitter=pluk
+     echo $LOCALREPO
+     echo "branches=$branches" > $META_FILE_PATH
+     local committed_ts=`git show -s --format=%ct $COMMIT`
+     echo "committed_date=$committed_ts" >> $META_FILE_PATH
+     local committed_name=`git show -s --format=%cN $COMMIT`
+     echo "committer=$committed_name" >> $META_FILE_PATH
+     local note=`git show -s --format=%s $COMMIT`
+     echo "message=$note" >> $META_FILE_PATH
 
-     # checkout to the commit point
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
-     if [[ "0" != "$?" ]]; then echo "Failed to checkout $COMMIT..."; exit 1; fi
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
-
-     # Build Solr package
-     bash -c "$BUILDCOMMAND"
-     cd $LOCALREPO
-     PACKAGE_PATH=`pwd`/`find . -name "solr*tgz" | grep -v src|head -1`
-     echo_blue "Package found here: $PACKAGE_PATH"
-     cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 }
 
 # Download the pre-requisites
@@ -300,13 +312,17 @@ fi
 #fi
 
 # Rename the result files for local test
-if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
+if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ] || [ "external" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
-     mkdir -p $CONFIGFILE_DIR/results
-     cp $CONFIGFILE $CONFIGFILE_DIR/results/configs-$(basename $CONFIGFILE)-$COMMIT.json
-     cp $BASEDIR/results-stress.json $CONFIGFILE_DIR/results/results-$(basename $CONFIGFILE)-$COMMIT.json
-     cp $BASEDIR/metrics-stress.json $CONFIGFILE_DIR/results/metrics-$(basename $CONFIGFILE)-$COMMIT.json
-     rm $BASEDIR/results-stress.json $BASEDIR/metrics-stress.json
+     result_dir="${BASEDIR}/suites/results/${TEST_NAME}"
+     mkdir -p $result_dir
+     generate_meta
+     cp $CONFIGFILE $result_dir/configs-$COMMIT.json
+     cp $BASEDIR/results.json $result_dir/results-$COMMIT.json
+     cp $BASEDIR/metrics.json $result_dir/metrics-$COMMIT.json
+     rm $BASEDIR/results.json $BASEDIR/metrics.json
+
+     echo_blue "Result can be found in $result_dir"
 fi
 
 # Cleanup

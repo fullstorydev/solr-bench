@@ -9,12 +9,12 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description='Description of your program')
-parser.add_argument('-r','--result-folder', help='Folder that contains the json result files', required=True)
-parser.add_argument('-b','--branches', help='Compare branches in format of <base>...<target>', required=False)
+parser.add_argument('-r','--result-dir', help='Directory that contains the json result files', required=True)
+parser.add_argument('-b','--branches', help='Result for a single branch <branch> or compare branches in format of <branch1>...<branch2>', required=True)
 args = vars(parser.parse_args())
 
-resultFolder = args['result_folder']
-print("Reading results from folder: "+resultFolder)
+result_dir = args['result_dir']
+print("Reading results from dir: "+result_dir)
 target_branches = None
 if args.get("branches") is not None:
     target_branches = args['branches'].split('...')
@@ -54,16 +54,13 @@ class BenchmarkResult:
         return str(self)
 
 
-def parse_benchmark_results(branch_dir):
-    result_files = [f for f in os.listdir(branch_dir) if os.path.isfile(os.path.join(branch_dir, f)) and f.startswith("results-")]
+def parse_benchmark_results(result_paths):
     benchmark_results = []
-    for result_file in result_files:
-        result_path = os.path.join(branch_dir, result_file)
-        print("Result file: " + result_path)
-        branch = os.path.basename(branch_dir)
-        hash = result_file[len("results-"):-1*len(".json")]
-        print("Hash: " + hash)
-        meta_path=os.path.join(branch_dir,"meta-"+hash+".prop")
+    for result_path in result_paths:
+        result_dir = os.path.dirname(result_path)
+        commit_hash = os.path.basename(result_path)[len("results-"):-1*len(".json")]
+        print("Hash: " + commit_hash)
+        meta_path=os.path.join(result_dir,"meta-"+commit_hash+".prop")
         print("Meta file: " + meta_path)
         props = load_properties(meta_path)
         print("Loaded props" + str(props))
@@ -71,7 +68,7 @@ def parse_benchmark_results(branch_dir):
         commit_date = time.gmtime(int(props["committed_date"]))
         commit_msg = props["message"]
 
-        benchmark_result = BenchmarkResult(branch, hash, commit_date, commit_msg)
+        benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg)
 
         json_results = json.load(open(result_path))
         for task in json_results:
@@ -149,18 +146,35 @@ def generate_chart_data(branch, benchmark_results : list[BenchmarkResult]):
 branches= []
 
 benchmark_results = collections.OrderedDict() #key as branch name
-test_name=os.path.splitext(os.path.basename(resultFolder))[0]
+test_name=os.path.splitext(os.path.basename(result_dir))[0]
 
-branchDirs = [f for f in os.listdir(resultFolder) if os.path.isdir(os.path.join(resultFolder, f))]
+#branchDirs = [f for f in os.listdir(resultFolder) if os.path.isdir(os.path.join(resultFolder, f))]
 
+meta_files = [f for f in os.listdir(result_dir) if os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
 
-for branch in branchDirs:
+def get_committed_date(props):
+    return int(props["committed_date"])
+
+for branch in target_branches:
     print("branch: "+branch)
-    if target_branches is not None and branch not in target_branches:
-        print("skipping " + branch)
-        continue
+    meta_files = [f for f in os.listdir(result_dir) if os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
+    meta_props = []
+    result_paths = []
+    for meta_file in meta_files:
+        props = load_properties(os.path.join(result_dir, meta_file))
+        if branch not in props["branches"].split(','):
+            print("skipping " + meta_file)
+            continue
+        commit_hash = meta_file[len("meta-"):-1*len(".json")]
+        props["hash"] = commit_hash
+        meta_props.append(props)
 
-    benchmark_results[branch] = parse_benchmark_results(os.path.join(resultFolder,branch))
+    #now sort the props by commit date
+    meta_props.sort(key=get_committed_date)
+    for props in meta_props:
+        result_paths.append(os.path.join(result_dir, f'results-{props["hash"]}.json'))
+
+    benchmark_results[branch] = parse_benchmark_results(result_paths)
     print("\n".join(map(str,benchmark_results[branch])))
     branches.append(branch)
 
@@ -253,12 +267,13 @@ for branch in benchmark_results:
     charts = charts + chart_data + ", \n"
 
 #Generate one more graph with combined results
-combined_branch_name = '_vs_'.join(target_branches)
-combined_benchmark_results = merge_benchmark_results(benchmark_results)
+if len(branches) > 1:
+    combined_branch_name = '_vs_'.join(target_branches)
+    combined_benchmark_results = merge_benchmark_results(benchmark_results)
 
-styles = styles + "#"+combined_branch_name+"  { width: 100%; height: 80%; }\n"
-divisions = divisions + "<p><div id=\"%s\"></div></p>\n" % (combined_branch_name)
-charts = charts + generate_chart_data(combined_branch_name, combined_benchmark_results)
+    styles = styles + "#"+combined_branch_name+"  { width: 100%; height: 80%; }\n"
+    divisions = divisions + "<p><div id=\"%s\"></div></p>\n" % (combined_branch_name)
+    charts = charts + generate_chart_data(combined_branch_name, combined_benchmark_results)
 
 
 with open('graphTemplate.txt', 'r') as file:
