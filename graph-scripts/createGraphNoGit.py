@@ -7,18 +7,20 @@ import math
 import collections
 import argparse
 
-
 parser = argparse.ArgumentParser(description='Description of your program')
-parser.add_argument('-r','--result-dir', help='Directory that contains the json result files', required=True)
-parser.add_argument('-b','--branches', help='Result for a single branch <branch> or compare branches in format of <branch1>...<branch2>', required=True)
+parser.add_argument('-r', '--result-dir', help='Directory that contains the json result files', required=True)
+parser.add_argument('-b', '--branches',
+                    help='Result for a single branch <branch> or compare branches in format of <branch1>...<branch2>',
+                    required=True)
 args = vars(parser.parse_args())
 
 result_dir = args['result_dir']
-print("Reading results from dir: "+result_dir)
+print("Reading results from dir: " + result_dir)
 target_branches = None
 if args.get("branches") is not None:
     target_branches = args['branches'].split('...')
-    print("Comparing branches: "+str(target_branches))
+    print("Comparing branches: " + str(target_branches))
+
 
 def load_properties(filepath, sep='=', comment_char='#'):
     """
@@ -36,6 +38,15 @@ def load_properties(filepath, sep='=', comment_char='#'):
     return props
 
 
+element_keys = []
+
+
+def get_element_id(key):
+    if key not in element_keys:
+        element_keys.append(key)
+    return f'element_{element_keys.index(key)}'
+
+
 class BenchmarkResult:
     def __init__(self, branch, commit_hash, commit_date, commit_msg):
         self.branch = branch
@@ -48,7 +59,8 @@ class BenchmarkResult:
         self.task_timing[key] = timing
 
     def __str__(self):
-        return "Branch: %s Hash: %s Commit Date: %s Commit Msg: %s Task Timing Dic %s" %(self.branch, self.commit_hash, self.commit_date, self.commit_msg, str(self.task_timing))
+        return "Branch: %s Hash: %s Commit Date: %s Commit Msg: %s Task Timing Dic %s" % (
+        self.branch, self.commit_hash, self.commit_date, self.commit_msg, str(self.task_timing))
 
     def __repr__(self):
         return str(self)
@@ -58,9 +70,9 @@ def parse_benchmark_results(result_paths):
     benchmark_results = []
     for result_path in result_paths:
         result_dir = os.path.dirname(result_path)
-        commit_hash = os.path.basename(result_path)[len("results-"):-1*len(".json")]
+        commit_hash = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
         print("Hash: " + commit_hash)
-        meta_path=os.path.join(result_dir,"meta-"+commit_hash+".prop")
+        meta_path = os.path.join(result_dir, "meta-" + commit_hash + ".prop")
         print("Meta file: " + meta_path)
         props = load_properties(meta_path)
         print("Loaded props" + str(props))
@@ -88,11 +100,12 @@ def parse_benchmark_results(result_paths):
                     if type(instance[key]) == list:
                         for subkey_index in range(len(instance[key])):
                             for subkey in instance[key][subkey_index]:
-                                composite_key = key+"_"+str(subkey_index)+"_"+subkey
+                                composite_key = key + "_" + str(subkey_index) + "_" + subkey
                                 if composite_key not in other_timings_counts.keys():
                                     other_timings_counts[composite_key] = 0
                                     other_timings_sums[composite_key] = 0
-                                other_timings_sums[composite_key] = other_timings_sums[composite_key] + instance[key][subkey_index][subkey]
+                                other_timings_sums[composite_key] = other_timings_sums[composite_key] + \
+                                                                    instance[key][subkey_index][subkey]
                                 other_timings_counts[composite_key] = other_timings_counts[composite_key] + 1
                     elif type(instance[key]) == int and not key.endswith('-timestamp'):
                         if key not in other_timings_counts.keys():
@@ -100,13 +113,11 @@ def parse_benchmark_results(result_paths):
                             other_timings_sums[key] = 0
                         other_timings_sums[key] = other_timings_sums[key] + instance[key]
                         other_timings_counts[key] = other_timings_counts[key] + 1
-            #print("Sums: "+str(other_timings_sums))
-            #print("Counts: "+str(other_timings_counts))
 
             for key in other_timings_sums:
                 benchmark_result.add_timing(task + ": " + key, other_timings_sums[key] / other_timings_counts[key])
 
-            #add total . Cannot take total-time directly as there could be several instances for the same tests
+            # add total . Cannot take total-time directly as there could be several instances for the same tests
             total = end - start
             benchmark_result.add_timing(task, total)
 
@@ -115,13 +126,13 @@ def parse_benchmark_results(result_paths):
     return benchmark_results
 
 
-def generate_chart_data(branch, benchmark_results : list[BenchmarkResult]):
+def generate_chart_data(branch, benchmark_results: list[BenchmarkResult]):
     headers = ["{type: 'date', label: 'Commit date'}"]
     rows = []
     first_result = True
     for benchmark_result in benchmark_results:
         # first item is the commit date
-        row_items = [ time.strftime("new Date(%Y, %m - 1, %d, %H, %M, 0, 0)", benchmark_result.commit_date) ]
+        row_items = [time.strftime("new Date(%Y, %m - 1, %d, %H, %M, 0, 0)", benchmark_result.commit_date)]
         # then alternate between the actual data and tooltip
         for key in benchmark_result.task_timing:
             if first_result:
@@ -137,67 +148,15 @@ def generate_chart_data(branch, benchmark_results : list[BenchmarkResult]):
     rows_str = ', \n'.join(rows)
 
     chart_data_template = "[ '%s', '%s', 'Commit date', 'Time (seconds)',\n [ %s ] ,\n [ %s ] ]"
-    chart_data = chart_data_template % (branch, branch, headers_str, rows_str)
+    chart_data = chart_data_template % (branch, get_element_id(branch), headers_str, rows_str)
 
     print("Final chart data (new) " + chart_data)
     return chart_data
 
 
-branches= []
-
-benchmark_results = collections.OrderedDict() #key as branch name
-test_name=os.path.splitext(os.path.basename(result_dir))[0]
-
-#branchDirs = [f for f in os.listdir(resultFolder) if os.path.isdir(os.path.join(resultFolder, f))]
-
-meta_files = [f for f in os.listdir(result_dir) if os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
-
 def get_committed_date(props):
     return int(props["committed_date"])
 
-for branch in target_branches:
-    print("branch: "+branch)
-    meta_files = [f for f in os.listdir(result_dir) if os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
-    meta_props = []
-    result_paths = []
-    for meta_file in meta_files:
-        props = load_properties(os.path.join(result_dir, meta_file))
-        if branch not in props["branches"].split(','):
-            print(f'skipping {meta_file} for branch {branch}')
-            continue
-        commit_hash = meta_file[len("meta-"):-1*len(".json")]
-        props["hash"] = commit_hash
-        meta_props.append(props)
-
-    #now sort the props by commit date
-    meta_props.sort(key=get_committed_date)
-    for props in meta_props:
-        result_paths.append(os.path.join(result_dir, f'results-{props["hash"]}.json'))
-
-    benchmark_results[branch] = parse_benchmark_results(result_paths)
-    print("\n".join(map(str,benchmark_results[branch])))
-    branches.append(branch)
-
-
-# if target_branches is not None:  # Try to combine the graphs
-#     combined_branch_name = "-vs-".join(branches)
-#     print("using new branch name " + combined_branch_name)
-#     branches.clear()
-#     branches.append(combined_branch_name)
-#     new_data = []
-#     for graph_points in data:
-#         new_data = new_data + graph_points
-#     data.clear()
-#     data.append(new_data)
-
-
-styles = ""
-for branch in branches:
-    styles = styles + "#"+branch+"  { width: 100%; height: 80%; }\n"
-
-divisions = ""
-for branch in branches:
-    divisions = divisions + "<p><div id=\"%s\"></div></p>\n" % (branch)
 
 class BranchTaskKey:
     def __init__(self, branch, task_key):
@@ -205,29 +164,26 @@ class BranchTaskKey:
         self.task_key = task_key
 
     def __eq__(self, other):
-        return ((self.branch, self.task_key) == (other.branch, other.task_key))
+        return (self.branch, self.task_key) == (other.branch, other.task_key)
 
     def __ne__(self, other):
         return not (self == other)
 
     def __lt__(self, other):
-        return ((self.branch, self.task_key) < (other.branch, other.task_key))
+        return (self.branch, self.task_key) < (other.branch, other.task_key)
 
     def __repr__(self):
         return f"{self.task_key}({self.branch})"
 
     def __hash__(self):
-    # necessary for instances to behave sanely in dicts and sets.
+        # necessary for instances to behave sanely in dicts and sets.
         return hash((self.branch, self.task_key))
 
 
-
 def merge_benchmark_results(benchmark_results):
-    #combined_name = '+'.join(benchmark_results.keys())
-
     branch_task_keys = collections.OrderedDict()
 
-    #collect all task key combination with branch
+    # collect all task key combination with branch
     for branch in benchmark_results:
         for benchmark_result in benchmark_results[branch]:
             for task_key in benchmark_result.task_timing:
@@ -237,51 +193,76 @@ def merge_benchmark_results(benchmark_results):
     for branch in benchmark_results:
         original_results: list[BenchmarkResult] = benchmark_results[branch]
         for original_result in original_results:
-            branch_task_timing = collections.OrderedDict() #key is <task key>-<branch>
+            branch_task_timing = collections.OrderedDict()  # key is <task key>-<branch>
             for branch_task_key in branch_task_keys:
                 if branch_task_key.branch == branch and branch_task_key.task_key in original_result.task_timing:
                     branch_task_timing[str(branch_task_key)] = original_result.task_timing[branch_task_key.task_key]
                 else:
-                    branch_task_timing[str(branch_task_key)] = 'null' #pad
+                    # pad a null show it shows no data for task from other branch
+                    branch_task_timing[str(branch_task_key)] = 'null'
 
-            # for key in original_result.task_timing:
-            #     branch_key == f"{key}({branch})"
-            #     branch_task_timing[new_key] = original_result.task_timing[key]
-            # #pad key/values from other branch result
-            # for other_branch in benchmark_results:
-            #     if branch == other_branch:
-            #         continue
-            #     if len(benchmark_results[other_branch]) > 0:
-            #         for key in benchmark_results[other_branch][0].task_timing:
-            #             new_key = f"{key}({other_branch})"
-            #             branch_task_timing[new_key] = 'null'  #pad
             new_result = copy.copy(original_result)
             new_result.task_timing = branch_task_timing
             new_results.append(new_result)
 
     return new_results
 
+
+branches = []
+benchmark_results = collections.OrderedDict()  # key as branch name
+test_name = os.path.splitext(os.path.basename(result_dir))[0]
+
+meta_files = [f for f in os.listdir(result_dir) if
+              os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
+
+for branch in target_branches:
+    print("branch: " + branch)
+    meta_files = [f for f in os.listdir(result_dir) if
+                  os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
+    meta_props = []
+    result_paths = []
+    for meta_file in meta_files:
+        props = load_properties(os.path.join(result_dir, meta_file))
+        if branch not in props["branches"].split(','):
+            print(f'skipping {meta_file} for branch {branch}')
+            continue
+        commit_hash = meta_file[len("meta-"):-1 * len(".json")]
+        props["hash"] = commit_hash
+        meta_props.append(props)
+
+    # now sort the props by commit date
+    meta_props.sort(key=get_committed_date)
+    for props in meta_props:
+        result_paths.append(os.path.join(result_dir, f'results-{props["hash"]}.json'))
+
+    benchmark_results[branch] = parse_benchmark_results(result_paths)
+    print("\n".join(map(str, benchmark_results[branch])))
+    branches.append(branch)
+
+styles = ""
+for branch in branches:
+    styles = styles + "#" + get_element_id(branch) + "  { width: 100%; height: 80%; }\n"
+
+divisions = ""
+for branch in branches:
+    divisions = divisions + "<p><div id=\"%s\"></div></p>\n" % get_element_id(branch)
+
 charts = ""
 for branch in benchmark_results:
     chart_data = generate_chart_data(branch, benchmark_results[branch])
     charts = charts + chart_data + ", \n"
 
-#Generate one more graph with combined results
+# Generate one more graph with combined results
 if len(branches) > 1:
-    combined_branch_name = '_vs_'.join(target_branches)
+    combined_branch_name = ' vs '.join(target_branches)
     combined_benchmark_results = merge_benchmark_results(benchmark_results)
 
-    styles = styles + "#"+combined_branch_name+"  { width: 100%; height: 80%; }\n"
-    divisions = divisions + "<p><div id=\"%s\"></div></p>\n" % (combined_branch_name)
+    styles = styles + "#" + get_element_id(combined_branch_name) + "  { width: 100%; height: 80%; }\n"
+    divisions = divisions + "<p><div id=\"%s\"></div></p>\n" % get_element_id(combined_branch_name)
     charts = charts + generate_chart_data(combined_branch_name, combined_benchmark_results)
-
 
 with open('graphTemplate.txt', 'r') as file:
     template = file.read()
 
 with open(test_name + ".html", "w") as text_file:
     text_file.write(template % (styles, charts, divisions))
-
-
-
-
