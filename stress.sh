@@ -64,61 +64,59 @@ download $CONFIGFILE # download this file from GCS/HTTP, if necessary
 mkdir -p SolrNightlyBenchmarksWorkDirectory/Download
 mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
 
-if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
-then
-  COMMIT=${commitoverrides[0]}
 
-  while read i; do
-      if [[ "" == $COMMIT ]]
-      then
-          COMMIT=`echo $i | jq -r '."commit-id"'`
-      fi
-      _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
-      _REPOSRC=`echo $i | jq -r '."url"'`
-      _LOCALREPO_VC_DIR=$_LOCALREPO/.git
+COMMIT=${commitoverrides[0]}
 
-      if [ -d "$_LOCALREPO_VC_DIR" ]
-      then
-            cd $_LOCALREPO
-        echo "Fetching.."
-	GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
-      else
-          echo "Cloning... _LOCALREPO_VC_DIR=$_LOCALREPO_VC_DIR="
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
+while read i; do
+    if [[ "" == $COMMIT ]]
+    then
+        COMMIT=`echo $i | jq -r '."commit-id"'`
+    fi
+    _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
+    _REPOSRC=`echo $i | jq -r '."url"'`
+    _LOCALREPO_VC_DIR=$_LOCALREPO/.git
+
+    if [ -d "$_LOCALREPO_VC_DIR" ]
+    then
           cd $_LOCALREPO
-      fi
+      echo "Fetching.."
+GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+    else
+        echo "Cloning... _LOCALREPO_VC_DIR=$_LOCALREPO_VC_DIR="
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
+        cd $_LOCALREPO
+    fi
 
-      if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
-      then
-          REPOSRC=$_REPOSRC
-          LOCALREPO=$_LOCALREPO
-          BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
-          PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
-          LOCALREPO_VC_DIR=$_LOCALREPO/.git
-          break
-      fi
-  done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
+    if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
+    then
+        REPOSRC=$_REPOSRC
+        LOCALREPO=$_LOCALREPO
+        BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
+        PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
+        LOCALREPO_VC_DIR=$_LOCALREPO/.git
+        break
+    fi
+done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
 
-  cd $BASEDIR
+cd $BASEDIR
 
-  if [[ "" == $REPOSRC ]]
-  then
-      echo "$COMMIT not found in any configured repositories."
-      exit 1
-  fi
+if [[ "" == $REPOSRC ]]
+then
+    echo "$COMMIT not found in any configured repositories."
+    exit 1
+fi
 
-  GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
-  export SOLR_TARBALL_NAME="solr-$COMMIT.tgz"
-  export SOLR_TARBALL_PATH="SolrNightlyBenchmarksWorkDirectory/Download/$SOLR_TARBALL_NAME"
+export SOLR_TARBALL_NAME="solr-$COMMIT.tgz"
+export SOLR_TARBALL_PATH="SolrNightlyBenchmarksWorkDirectory/Download/$SOLR_TARBALL_NAME"
 
-  if [[ "null" != `jq -r '.["solr-package"]' $CONFIGFILE` ]]
-  then
-       solrpackageurl=`jq -r '.["solr-package"]' $CONFIGFILE`
-       download $solrpackageurl
-       export SOLR_TARBALL_NAME="${solrpackageurl##*/}"
-       export SOLR_TARBALL_PATH=$SOLR_TARBALL_NAME
-  fi
+if [[ "null" != `jq -r '.["solr-package"]' $CONFIGFILE` ]]
+then
+     solrpackageurl=`jq -r '.["solr-package"]' $CONFIGFILE`
+     download $solrpackageurl
+     export SOLR_TARBALL_NAME="${solrpackageurl##*/}"
+     export SOLR_TARBALL_PATH=$SOLR_TARBALL_NAME
 fi
 
 terraform-gcp-provisioner() {
@@ -196,6 +194,26 @@ buildsolr() {
           curl $PATCHURL2 | git apply -v --index
           if [[ "0" != "$?" ]]; then echo "Failed to apply patch 2."; else echo "Applied patch 2"; fi
      fi
+
+     # Build Solr package
+     bash -c "$BUILDCOMMAND"
+     cd $LOCALREPO
+     PACKAGE_PATH=`pwd`/`find . -name "solr*tgz" | grep -v src|head -1`
+     echo_blue "Package found here: $PACKAGE_PATH"
+     cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
+}
+
+generate_meta() {
+     echo_blue "Generating Meta data file $COMMIT"
+     cd $LOCALREPO
+
+     if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
+
+     # checkout to the commit point
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
+     if [[ "0" != "$?" ]]; then echo "Failed to checkout $COMMIT..."; exit 1; fi
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
 
      # Build Solr package
      bash -c "$BUILDCOMMAND"
