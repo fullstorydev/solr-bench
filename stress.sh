@@ -80,8 +80,8 @@ while read i; do
     if [ -d "$_LOCALREPO_VC_DIR" ]
     then
           cd $_LOCALREPO
-      echo "Fetching.."
-GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+          echo "Fetching from $_LOCALREPO"
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
     else
         echo "Cloning... _LOCALREPO_VC_DIR=$_LOCALREPO_VC_DIR="
         GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
@@ -207,24 +207,21 @@ buildsolr() {
 META_FILE_PATH="${BASEDIR}/suites/results/$TEST_NAME/meta-${COMMIT}.prop"
 
 generate_meta() {
-     echo_blue "Generating Meta data file $META_FILE_NAME"
+     echo_blue "Generating Meta data file by reading info from $LOCALREPO"
      cd $LOCALREPO
+
 
      local branches=""
      while IFS= read -r branch
      do
-       if [ -z "$branches"]
+       if [ -z "$branches" ]
        then
          branches="$branch"
        else
          branches="${branches},${branch}"
        fi
-     done <<< $(git branch --contains $COMMIT 2> /dev/null | sed -e 's/* \(.*\)/\1/' | tr -d ' ')
-#committed_date=1675006491
-#committer=patsonluk
-#message=commit 3 msg
-#benchmark-submitter=pluk
-     echo $LOCALREPO
+     done <<< "$(git branch -r --contains $COMMIT 2> /dev/null | sed -e 's/* \(.*\)/\1/' | tr -d ' ')"
+
      echo "branches=$branches" > $META_FILE_PATH
      local committed_ts=`git show -s --format=%ct $COMMIT`
      echo "committed_date=$committed_ts" >> $META_FILE_PATH
@@ -233,6 +230,8 @@ generate_meta() {
      local note=`git show -s --format=%s $COMMIT`
      echo "message=$note" >> $META_FILE_PATH
 
+     echo_blue "Meta file $META_FILE_PATH contents:"
+     cat $META_FILE_PATH
 }
 
 # Download the pre-requisites

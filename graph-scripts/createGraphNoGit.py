@@ -163,7 +163,7 @@ for branch in target_branches:
     for meta_file in meta_files:
         props = load_properties(os.path.join(result_dir, meta_file))
         if branch not in props["branches"].split(','):
-            print("skipping " + meta_file)
+            print(f'skipping {meta_file} for branch {branch}')
             continue
         commit_hash = meta_file[len("meta-"):-1*len(".json")]
         props["hash"] = commit_hash
@@ -235,9 +235,9 @@ def merge_benchmark_results(benchmark_results):
 
     new_results = []
     for branch in benchmark_results:
-        branch_task_timing = collections.OrderedDict() #key is <task key>-<branch>
         original_results: list[BenchmarkResult] = benchmark_results[branch]
         for original_result in original_results:
+            branch_task_timing = collections.OrderedDict() #key is <task key>-<branch>
             for branch_task_key in branch_task_keys:
                 if branch_task_key.branch == branch and branch_task_key.task_key in original_result.task_timing:
                     branch_task_timing[str(branch_task_key)] = original_result.task_timing[branch_task_key.task_key]
