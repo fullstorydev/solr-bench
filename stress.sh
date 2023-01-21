@@ -332,6 +332,15 @@ then
      echo_blue "Result can be found in $result_dir"
 fi
 
+if [[ "null" != `jq -r '.["export-script"]' $CONFIGFILE` ]]
+then
+     cd $BASEDIR
+     result_dir="${BASEDIR}/suites/results/${TEST_NAME}"
+     export_script="`jq -r '.["export-script"]' $CONFIGFILE`"
+     echo_blue "Executing export script $export_script on $result_dir"
+     $export_script "$result_dir/results-$COMMIT.json" "$result_dir/metrics-$COMMIT.json" "$result_dir/configs-$COMMIT.json"
+fi
+
 # Cleanup
 if [ "terraform-gcp" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
