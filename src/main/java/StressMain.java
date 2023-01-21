@@ -239,24 +239,7 @@ public class StressMain {
 						int numInactive = 0;
 						long lastTimestamp = System.nanoTime(), lastNumInactive = 0; 
 						do {
-							numInactive = 0;
-							Set<String> inactive = new HashSet<>();
-							ClusterState state = client.getClusterStateProvider().getClusterState();
-							for (String coll: state.getCollectionsMap().keySet()) {
-								PerReplicaStates prs = PerReplicaStates.fetch(ZkStateReader.getCollectionPath(coll), client.getZkStateReader().getZkClient(), null);
-								for (Slice shard: state.getCollection(coll).getActiveSlices()) {
-									for (Replica replica: shard.getReplicas()) {
-										if (replica.getState() != Replica.State.ACTIVE) {
-											if (replica.getNodeName().contains(node.port)) {
-												numInactive++;
-												inactive.add(coll+"_"+shard.getName());
-												System.out.println("\tNon active Replica: "+replica.getName()+" in "+replica.getNodeName() +" PRS : "+ prs.get(replica.getName()).state);
-											}
-										}
-									}
-								}
-
-							}
+							numInactive = getNumInactiveReplicas(node, client);
 							
 							if (numInactive != lastNumInactive) {
 								lastTimestamp = System.nanoTime();
@@ -269,7 +252,7 @@ public class StressMain {
 								}
 							}
 							
-							System.out.println("\tInactive replicas on restarted node ("+node.port+"): "+inactive);
+							System.out.println("\tInactive replicas on paused node ("+node.port+"): "+numInactive);
 							if (numInactive != 0) {
 								Thread.sleep(2000);
 								client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
@@ -326,9 +309,21 @@ public class StressMain {
 							if (type.awaitRecoveries) {
 								marker = System.currentTimeMillis();
 								try (CloudSolrClient client = buildSolrClient(cloud)) {
+									long lastTimestamp = System.nanoTime(), lastNumInactive = 0; 
 									int numInactive = 0;
 									do {
 										numInactive = getNumInactiveReplicas(restartNode, client);
+										
+										if (numInactive != lastNumInactive) {
+											lastTimestamp = System.nanoTime();
+											lastNumInactive = numInactive;
+										} else {
+											if (ABORT_ON_HUNG_RECOVERY && (System.nanoTime() - lastTimestamp) / 1_000_000_000.0 > 60) {
+												// the numInactive didn't change for last 1 minute, abort this run altogether
+												log.error("Recovery failed, aborting this benchmarking run.");
+												System.exit(1);
+											}
+										}
 									} while (numInactive > 0);
 								} catch (Exception ex) {
 									ex.printStackTrace();
