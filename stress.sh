@@ -219,6 +219,7 @@ generate_meta() {
      local branches=""
      while IFS= read -r branch
      do
+       branch=${branch#"origin/"}
        if [ -z "$branches" ]
        then
          branches="$branch"
