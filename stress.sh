@@ -91,11 +91,11 @@ while read i; do
     if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
     then
         LOCALREPO=$_LOCALREPO
+        REPOSRC=$_REPOSRC
 
         #for external mode we only checkout for git log history, do not load the rest
         if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
         then
-             REPOSRC=$_REPOSRC
              BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
              PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
              LOCALREPO_VC_DIR=$_LOCALREPO/.git
