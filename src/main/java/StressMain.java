@@ -188,15 +188,13 @@ public class StressMain {
 			metricsCollector.stop();
 			metricsThread.stop();
 		}
-//		log.info("Final results: "+finalResults);
-//		new ObjectMapper().writeValue(new File("results-stress.json"), finalResults);
+		log.info("Final results: "+finalResults);
 		if (metricsCollector != null) {
 			metricsCollector.metrics.put("zookeeper", metricsCollector.zkMetrics);
 			return new WorkflowResult(finalResults, metricsCollector.metrics);
 		} else {
 			return new WorkflowResult(finalResults, null);
 		}
-//		new ObjectMapper().writeValue(new File("metrics-stress.json"), metricsCollector.metrics);
 	}
 
 	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, long executionStart, String taskName, TaskInstance instance, TaskType type) {

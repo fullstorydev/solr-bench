@@ -45,7 +45,9 @@ done
 
 ORIG_WORKING_DIR=`pwd`
 BASEDIR=$(realpath $(dirname "$0"))
-TEST_NAME="${CONFIGFILE%.*}" #better to define in config file, assume file name as test name could have special char issue?
+
+# perhaps we should allow define test name in config file as an extra property, it should give better flexibility.
+TEST_NAME="${CONFIGFILE%.*}"
 CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
