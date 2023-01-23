@@ -6,7 +6,9 @@ import os
 import math
 import collections
 import argparse
+import logging
 
+logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser(description='Description of your program')
 parser.add_argument('-r', '--result-dir', help='Directory that contains the json result files', required=True)
 parser.add_argument('-b', '--branches',
@@ -15,11 +17,11 @@ parser.add_argument('-b', '--branches',
 args = vars(parser.parse_args())
 
 result_dir = args['result_dir']
-print("Reading results from dir: " + result_dir)
+logging.info("Reading results from dir: " + result_dir)
 target_branches = None
 if args.get("branches") is not None:
     target_branches = args['branches'].split('...')
-    print("Comparing branches: " + str(target_branches))
+    logging.info("Comparing branches: " + str(target_branches))
 
 
 def load_properties(filepath, sep='=', comment_char='#'):
@@ -71,11 +73,11 @@ def parse_benchmark_results(result_paths):
     for result_path in result_paths:
         result_dir = os.path.dirname(result_path)
         commit_hash = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
-        print("Hash: " + commit_hash)
+        logging.info("Hash: " + commit_hash)
         meta_path = os.path.join(result_dir, "meta-" + commit_hash + ".prop")
-        print("Meta file: " + meta_path)
+        logging.info("Meta file: " + meta_path)
         props = load_properties(meta_path)
-        print("Loaded props" + str(props))
+        logging.info("Loaded props" + str(props))
 
         commit_date = time.gmtime(int(props["committed_date"]))
         commit_msg = props["message"]
@@ -150,7 +152,7 @@ def generate_chart_data(branch, benchmark_results: list[BenchmarkResult]):
     chart_data_template = "[ '%s', '%s', 'Commit date', 'Time (seconds)',\n [ %s ] ,\n [ %s ] ]"
     chart_data = chart_data_template % (branch, get_element_id(branch), headers_str, rows_str)
 
-    print("Final chart data (new) " + chart_data)
+    logging.debug("Final chart data (new) " + chart_data)
     return chart_data
 
 
@@ -216,7 +218,6 @@ meta_files = [f for f in os.listdir(result_dir) if
               os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
 
 for branch in target_branches:
-    print("branch: " + branch)
     meta_files = [f for f in os.listdir(result_dir) if
                   os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
     meta_props = []
@@ -224,7 +225,7 @@ for branch in target_branches:
     for meta_file in meta_files:
         props = load_properties(os.path.join(result_dir, meta_file))
         if branch not in props["branches"].split(','):
-            print(f'skipping {meta_file} for branch {branch}')
+            logging.debug(f'skipping {meta_file} for branch {branch}')
             continue
         commit_hash = meta_file[len("meta-"):-1 * len(".json")]
         props["hash"] = commit_hash
@@ -236,7 +237,7 @@ for branch in target_branches:
         result_paths.append(os.path.join(result_dir, f'results-{props["hash"]}.json'))
 
     benchmark_results[branch] = parse_benchmark_results(result_paths)
-    print("\n".join(map(str, benchmark_results[branch])))
+    logging.debug("\n".join(map(str, benchmark_results[branch])))
     branches.append(branch)
 
 styles = ""
