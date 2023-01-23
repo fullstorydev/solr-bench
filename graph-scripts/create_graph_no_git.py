@@ -271,7 +271,7 @@ with open('graphTemplate.txt', 'r') as file:
 
 output_path = None
 if args.get("output") is not None:
-    output_path = args['output'].split('...')
+    output_path = args['output']
 else:
     output_path = test_name + ".html"
 
