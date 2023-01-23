@@ -11,6 +11,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser(description='Description of your program')
 parser.add_argument('-r', '--result-dir', help='Directory that contains the json result files', required=True)
+parser.add_argument('-o', '--output',
+                    help='Output path of the graph html. If undefined it will be saved as the working dir with name '
+                         '<test_name>.html ',
+                    required=False)
 parser.add_argument('-b', '--branches',
                     help='Result for a single branch <branch> or compare branches in format of <branch1>...<branch2>',
                     required=True)
@@ -265,5 +269,13 @@ if len(branches) > 1:
 with open('graphTemplate.txt', 'r') as file:
     template = file.read()
 
-with open(test_name + ".html", "w") as text_file:
+output_path = None
+if args.get("output") is not None:
+    output_path = args['output'].split('...')
+else:
+    output_path = test_name + ".html"
+
+with open(output_path, "w") as text_file:
     text_file.write(template % (styles, charts, divisions))
+
+logging.info(f'Graph {output_path} generated')
