@@ -338,7 +338,7 @@ then
      result_dir="${BASEDIR}/suites/results/${TEST_NAME}"
      export_script="`jq -r '.["export-script"]' $CONFIGFILE`"
      echo_blue "Executing export script $export_script on $result_dir"
-     $export_script "$result_dir/results-$COMMIT.json" "$result_dir/metrics-$COMMIT.json" "$result_dir/configs-$COMMIT.json"
+     $export_script "$result_dir/meta-$COMMIT.prop" "$result_dir/results-$COMMIT.json" "$result_dir/metrics-$COMMIT.json" "$result_dir/configs-$COMMIT.json"
 fi
 
 # Cleanup
