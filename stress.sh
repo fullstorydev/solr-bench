@@ -47,7 +47,8 @@ ORIG_WORKING_DIR=`pwd`
 BASEDIR=$(realpath $(dirname "$0"))
 
 # perhaps we should allow define test name in config file as an extra property, it should give better flexibility.
-TEST_NAME="${CONFIGFILE%.*}"
+CONFIG_BASE_NAME=${CONFIGFILE##*/}
+TEST_NAME="${CONFIG_BASE_NAME%.*}"
 CONFIGFILE=`realpath $CONFIGFILE`
 CONFIGFILE_DIR=`dirname $CONFIGFILE`
 
