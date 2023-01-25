@@ -212,9 +212,8 @@ buildsolr() {
      cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 }
 
-META_FILE_PATH="${BASEDIR}/suites/results/$TEST_NAME/meta-${COMMIT}.prop"
-
 generate_meta() {
+     local meta_file_path="${BASEDIR}/suites/results/$TEST_NAME/meta-${COMMIT}.prop"
      echo_blue "Generating Meta data file by reading info from $LOCALREPO"
      cd $LOCALREPO
 
@@ -231,16 +230,16 @@ generate_meta() {
        fi
      done <<< "$(git branch -r --contains $COMMIT 2> /dev/null | sed -e 's/* \(.*\)/\1/' | tr -d ' ')"
 
-     echo "branches=$branches" > $META_FILE_PATH
+     echo "branches=$branches" > $meta_file_path
      local committed_ts=`git show -s --format=%ct $COMMIT`
-     echo "committed_date=$committed_ts" >> $META_FILE_PATH
+     echo "committed_date=$committed_ts" >> $meta_file_path
      local committed_name=`git show -s --format=%cN $COMMIT`
-     echo "committer=$committed_name" >> $META_FILE_PATH
+     echo "committer=$committed_name" >> $meta_file_path
      local note=`git show -s --format=%s $COMMIT`
-     echo "message=$note" >> $META_FILE_PATH
+     echo "message=$note" >> $meta_file_path
 
-     echo_blue "Meta file $META_FILE_PATH contents:"
-     cat $META_FILE_PATH
+     echo_blue "Meta file $meta_file_path contents:"
+     cat $meta_file_path
 }
 
 # Download the pre-requisites
@@ -324,7 +323,10 @@ if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ] || [
 then
      result_dir="${BASEDIR}/suites/results/${TEST_NAME}"
      mkdir -p $result_dir
-     generate_meta
+     if [[ "null" != `jq -r '.["repositories"]' $CONFIGFILE` ]];
+     then
+          generate_meta
+     fi
      cp $CONFIGFILE $result_dir/configs-$COMMIT.json
      cp $BASEDIR/results.json $result_dir/results-$COMMIT.json
      cp $BASEDIR/metrics.json $result_dir/metrics-$COMMIT.json
