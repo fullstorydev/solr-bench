@@ -14,3 +14,5 @@ vagrant/id_rsa
 vagrant/.vagrant
 terraform/id_rsa
 terraform/id_rsa.pub
+/suites/results/
+/graph-scripts/graph-scripts.iml
