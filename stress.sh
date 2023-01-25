@@ -86,7 +86,7 @@ while read i; do
           echo "Fetching from $_LOCALREPO"
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
     else
-        echo "Cloning... _LOCALREPO_VC_DIR=$_LOCALREPO_VC_DIR="
+        echo "Cloning from $_REPOSRC to $_LOCALREPO"
         GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
         cd $_LOCALREPO
     fi
