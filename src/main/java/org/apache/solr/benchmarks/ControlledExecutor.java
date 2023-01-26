@@ -103,7 +103,7 @@ public class ControlledExecutor {
                 System.out.print(".");
             }
         } else if (currentCount == totalCount) {
-            System.out.print("100%");
+            System.out.println("100%");
         }
     }
 
