@@ -76,8 +76,12 @@ public class ControlledExecutor {
                     if (count.get() >= warmCount) {
                     	stats.addValue((System.nanoTime() - start) / 1000_000.0);
                     }
+
                     
-                	count.incrementAndGet();
+                	  long currentCount = count.incrementAndGet();
+                    if (totalCount != null) {
+                        printProgress(currentCount, totalCount);
+                    }
                 });
             }
         } finally {
@@ -88,6 +92,21 @@ public class ControlledExecutor {
         }
 
     }
+
+    private void printProgress(long currentCount, long totalCount) {
+        long chunkSize = totalCount / 100;
+        if (currentCount % chunkSize == 0) {
+            long percentage = currentCount / chunkSize;
+            if (percentage % 10 == 0) {
+                System.out.print(percentage + "%");
+            } else {
+                System.out.println(".");
+            }
+        } else if (currentCount == totalCount) {
+            System.out.print("100%");
+        }
+    }
+
 
     private synchronized boolean isEnd(long initTime) {
     	if (totalCount != null && totalCount > 0 && count != null && count.get() >= totalCount) {
