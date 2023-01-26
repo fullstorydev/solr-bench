@@ -98,7 +98,7 @@ public class ControlledExecutor {
         if (currentCount % chunkSize == 0) {
             long percentage = currentCount / chunkSize;
             if (percentage % 10 == 0) {
-                System.out.print(percentage + "%");
+                System.out.println(percentage + "%"); //using println as some logs (k8s for example) only updates on new line
             } else {
                 System.out.print(".");
             }
