@@ -100,7 +100,7 @@ public class ControlledExecutor {
             if (percentage % 10 == 0) {
                 System.out.print(percentage + "%");
             } else {
-                System.out.println(".");
+                System.out.print(".");
             }
         } else if (currentCount == totalCount) {
             System.out.print("100%");
