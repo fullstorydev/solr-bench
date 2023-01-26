@@ -108,15 +108,15 @@ then
              break
          fi
      done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
+
+     if [[ "" == $REPOSRC ]]
+     then
+         echo "$COMMIT not found in any configured repositories."
+         exit 1
+     fi
 fi
 
 cd $BASEDIR
-
-if [[ "" == $REPOSRC ]]
-then
-    echo "$COMMIT not found in any configured repositories."
-    exit 1
-fi
 
 GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
