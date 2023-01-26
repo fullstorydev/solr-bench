@@ -88,7 +88,12 @@ def parse_benchmark_results(result_paths):
 
         benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg)
 
-        json_results = json.load(open(result_path))
+        try:
+            json_results = json.load(open(result_path))
+        except OSError as e:
+            logging.warning(f"Skipping {commit_hash}. Unable to open {result_path}: {e}")
+            continue
+
         for task in json_results:
             start = math.inf
             end = 0
