@@ -71,41 +71,44 @@ mkdir -p SolrNightlyBenchmarksWorkDirectory/RunDirectory
 
 COMMIT=${commitoverrides[0]}
 
-while read i; do
-    if [[ "" == $COMMIT ]]
-    then
-        COMMIT=`echo $i | jq -r '."commit-id"'`
-    fi
-    _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
-    _REPOSRC=`echo $i | jq -r '."url"'`
-    _LOCALREPO_VC_DIR=$_LOCALREPO/.git
+if [[ "null" != `jq -r '.["repositories"]' $CONFIGFILE` ]];
+then
+     while read i; do
+         if [[ "" == $COMMIT ]]
+         then
+             COMMIT=`echo $i | jq -r '."commit-id"'`
+         fi
+         _LOCALREPO=$BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/`echo $i | jq -r '."name"'`
+         _REPOSRC=`echo $i | jq -r '."url"'`
+         _LOCALREPO_VC_DIR=$_LOCALREPO/.git
 
-    if [ -d "$_LOCALREPO_VC_DIR" ]
-    then
-          cd $_LOCALREPO
-          echo "Fetching from $_LOCALREPO"
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
-    else
-        echo "Cloning from $_REPOSRC to $_LOCALREPO"
-        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
-        cd $_LOCALREPO
-    fi
+         if [ -d "$_LOCALREPO_VC_DIR" ]
+         then
+               cd $_LOCALREPO
+               echo "Fetching from $_LOCALREPO"
+               GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+         else
+             echo "Cloning from $_REPOSRC to $_LOCALREPO"
+             GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
+             cd $_LOCALREPO
+         fi
 
-    if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
-    then
-        LOCALREPO=$_LOCALREPO
-        REPOSRC=$_REPOSRC
+         if [[ `git cat-file -t $COMMIT` == "commit" || `git cat-file -t $COMMIT` == "tag" ]]
+         then
+             LOCALREPO=$_LOCALREPO
+             REPOSRC=$_REPOSRC
 
-        #for external mode we only checkout for git log history, do not load the rest
-        if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
-        then
-             BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
-             PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
-             LOCALREPO_VC_DIR=$_LOCALREPO/.git
-        fi
-        break
-    fi
-done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
+             #for external mode we only checkout for git log history, do not load the rest
+             if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
+             then
+                  BUILDCOMMAND=`echo $i | jq -r '."build-command"'`
+                  PACKAGE_DIR=`echo $i | jq -r '."package-subdir"'`
+                  LOCALREPO_VC_DIR=$_LOCALREPO/.git
+             fi
+             break
+         fi
+     done <<< "$(jq -c '.["repositories"][]' $CONFIGFILE)"
+fi
 
 cd $BASEDIR
 
