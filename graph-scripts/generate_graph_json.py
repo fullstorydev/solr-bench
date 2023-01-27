@@ -53,19 +53,20 @@ def get_element_id(key):
     return f'element_{element_keys.index(key)}'
 
 
-class BenchmarkMeta:
-    def __init__(self, branch, commit_hash, commit_date, commit_msg):
+class BenchmarkResult:
+    def __init__(self, branch, commit_hash, commit_date, commit_msg, results):
         self.branch = branch
         self.commit_hash = commit_hash
         self.commit_date = commit_date
         self.commit_msg = commit_msg
+        self.results = results
 
     # def add_timing(self, key, timing):
     #     self.task_timing[key] = timing
 
     def __str__(self):
-        return "Branch: %s Hash: %s Commit Date: %s Commit Msg: %s" % (
-        self.branch, self.commit_hash, self.commit_date, self.commit_msg)
+        return "Branch: %s Hash: %s Commit Date: %s Commit Msg: %s Results: %s" % (
+        self.branch, self.commit_hash, self.commit_date, self.commit_msg, str(self.results))
 
     def __repr__(self):
         return str(self)
@@ -82,19 +83,15 @@ def parse_benchmark_results(result_paths):
         props = load_properties(meta_path)
         logging.info("Loaded props" + str(props))
 
-        commit_date = time.gmtime(int(props["committed_date"]))
+        # commit_date = time.gmtime(int(props["committed_date"]))
+        commit_date = int(props["committed_date"])
         commit_msg = props["message"]
 
-        benchmark_meta = BenchmarkMeta(branch, commit_hash, commit_date, commit_msg)
-
-        benchmark_result_json = json.dumps(benchmark_meta.__dict__)
         try:
             json_results = json.load(open(result_path))
         except OSError as e:
             logging.warning(f"Skipping {commit_hash}. Unable to open {result_path}: {e}")
             continue
-
-        benchmark_result_json["results"] = json_results
 
         # for task in json_results:
         #     start = math.inf
@@ -134,7 +131,11 @@ def parse_benchmark_results(result_paths):
         #     total = end - start
         #     benchmark_meta.add_timing(task, total)
 
-        benchmark_results.append(benchmark_result_json)
+        benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, json_results)
+
+        # benchmark_result_json = json.dumps(benchmark_result.__dict__)
+
+        benchmark_results.append(benchmark_result.__dict__)
 
     return benchmark_results
 
@@ -267,8 +268,8 @@ output_path = None
 if args.get("output") is not None:
     output_path = args['output']
 else:
-    output_path = test_name + "-results.json"
+    output_path = "graph-data.js"
 with open(output_path, "w") as output_file:
-    json.dump(benchmark_results, output_file)
+    output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=4))
 
 logging.info(f'Processed results {output_path} generated')
