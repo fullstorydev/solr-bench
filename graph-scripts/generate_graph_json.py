@@ -139,29 +139,29 @@ def parse_benchmark_results(result_paths):
     return benchmark_results
 
 
-def generate_chart_data(branch, benchmark_results: list[BenchmarkResult]):
-    for benchmark_result in benchmark_results:
-        # first item is the commit date
-        row_items = [time.strftime("new Date(%Y, %m - 1, %d, %H, %M, 0, 0)", benchmark_result.commit_date)]
-        # then alternate between the actual data and tooltip
-        for key in benchmark_result.task_timing:
-            if first_result:
-                headers.append("{type: 'number', label: '%s'}" % key)
-                headers.append("{type: 'string', role: 'tooltip'}")
-            row_items.append(str(benchmark_result.task_timing[key]))
-            tooltip_text = f"'{benchmark_result.task_timing[key]} : ({benchmark_result.branch}) {benchmark_result.commit_msg}'"
-            row_items.append(tooltip_text)
-        rows.append(f"[ {', '.join(row_items)} ]")
-        first_result = False
-
-    headers_str = ', \n'.join(headers)
-    rows_str = ', \n'.join(rows)
-
-    chart_data_template = "[ '%s', '%s', 'Commit date', 'Time (seconds)',\n [ %s ] ,\n [ %s ] ]"
-    chart_data = chart_data_template % (branch, get_element_id(branch), headers_str, rows_str)
-
-    logging.debug("Final chart data (new) " + chart_data)
-    return chart_data
+# def generate_chart_data(branch, benchmark_results: list[BenchmarkResult]):
+#     for benchmark_result in benchmark_results:
+#         # first item is the commit date
+#         row_items = [time.strftime("new Date(%Y, %m - 1, %d, %H, %M, 0, 0)", benchmark_result.commit_date)]
+#         # then alternate between the actual data and tooltip
+#         for key in benchmark_result.task_timing:
+#             if first_result:
+#                 headers.append("{type: 'number', label: '%s'}" % key)
+#                 headers.append("{type: 'string', role: 'tooltip'}")
+#             row_items.append(str(benchmark_result.task_timing[key]))
+#             tooltip_text = f"'{benchmark_result.task_timing[key]} : ({benchmark_result.branch}) {benchmark_result.commit_msg}'"
+#             row_items.append(tooltip_text)
+#         rows.append(f"[ {', '.join(row_items)} ]")
+#         first_result = False
+#
+#     headers_str = ', \n'.join(headers)
+#     rows_str = ', \n'.join(rows)
+#
+#     chart_data_template = "[ '%s', '%s', 'Commit date', 'Time (seconds)',\n [ %s ] ,\n [ %s ] ]"
+#     chart_data = chart_data_template % (branch, get_element_id(branch), headers_str, rows_str)
+#
+#     logging.debug("Final chart data (new) " + chart_data)
+#     return chart_data
 
 
 def get_committed_date(props):
@@ -190,32 +190,32 @@ class BranchTaskKey:
         return hash((self.branch, self.task_key))
 
 
-def merge_benchmark_results(benchmark_results):
-    branch_task_keys = collections.OrderedDict()
-
-    # collect all task key combination with branch
-    for branch in benchmark_results:
-        for benchmark_result in benchmark_results[branch]:
-            for task_key in benchmark_result.task_timing:
-                branch_task_keys[BranchTaskKey(branch, task_key)] = None
-
-    new_results = []
-    for branch in benchmark_results:
-        original_results: list[BenchmarkResult] = benchmark_results[branch]
-        for original_result in original_results:
-            branch_task_timing = collections.OrderedDict()  # key is <task key>-<branch>
-            for branch_task_key in branch_task_keys:
-                if branch_task_key.branch == branch and branch_task_key.task_key in original_result.task_timing:
-                    branch_task_timing[str(branch_task_key)] = original_result.task_timing[branch_task_key.task_key]
-                else:
-                    # pad a null show it shows no data for task from other branch
-                    branch_task_timing[str(branch_task_key)] = 'null'
-
-            new_result = copy.copy(original_result)
-            new_result.task_timing = branch_task_timing
-            new_results.append(new_result)
-
-    return new_results
+# def merge_benchmark_results(benchmark_results):
+#     branch_task_keys = collections.OrderedDict()
+#
+#     # collect all task key combination with branch
+#     for branch in benchmark_results:
+#         for benchmark_result in benchmark_results[branch]:
+#             for task_key in benchmark_result.task_timing:
+#                 branch_task_keys[BranchTaskKey(branch, task_key)] = None
+#
+#     new_results = []
+#     for branch in benchmark_results:
+#         original_results: list[BenchmarkResult] = benchmark_results[branch]
+#         for original_result in original_results:
+#             branch_task_timing = collections.OrderedDict()  # key is <task key>-<branch>
+#             for branch_task_key in branch_task_keys:
+#                 if branch_task_key.branch == branch and branch_task_key.task_key in original_result.task_timing:
+#                     branch_task_timing[str(branch_task_key)] = original_result.task_timing[branch_task_key.task_key]
+#                 else:
+#                     # pad a null show it shows no data for task from other branch
+#                     branch_task_timing[str(branch_task_key)] = 'null'
+#
+#             new_result = copy.copy(original_result)
+#             new_result.task_timing = branch_task_timing
+#             new_results.append(new_result)
+#
+#     return new_results
 
 
 branches = []
