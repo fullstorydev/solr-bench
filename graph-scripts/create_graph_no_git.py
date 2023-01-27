@@ -58,7 +58,7 @@ class BenchmarkResult:
         self.branch = branch
         self.commit_hash = commit_hash
         self.commit_date = commit_date
-        self.commit_msg = commit_msg
+        self.commit_msg = commit_msg.replace("'", " ").replace('"', ' ') # Some basic sanitization to ensure JS isn't broken
         self.task_timing = collections.OrderedDict()
 
     def add_timing(self, key, timing):
