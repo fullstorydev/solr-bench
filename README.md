@@ -73,6 +73,17 @@ Test results can be visualized in charts using the following command.
 
 This will plot a graph into an html file that plots values of each test on a line chart `./suites/results/<config-file>.html`. The HTML file can be directly opened in a browser
 
+### Visualization (Multi-branch)
+
+To select/process the test results of specific branch or branch comparisons:
+`python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main` (only select tests with commits that belongs to `main` branch)
+`python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main...my-branch` (compare tests between `main` and `my-branch`)
+
+Take note that `<test name>` currently is the test config file name w/o the file extension
+
+The script should generate `graph/graph-data.js`. Open `graph/graph.html`, it should show graphs grouped by branches and test tasks
+
+
 ####  dependencies on mac
 Mac OS requires a few tools to run this script. Install the following:
 

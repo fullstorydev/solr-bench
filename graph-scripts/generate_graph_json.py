@@ -268,7 +268,7 @@ output_path = None
 if args.get("output") is not None:
     output_path = args['output']
 else:
-    output_path = "graph-data.js"
+    output_path = "graph/graph-data.js"
 with open(output_path, "w") as output_file:
     output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=4))
 
