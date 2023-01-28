@@ -1,41 +1,9 @@
 function drawAllCharts() {
-
-    /*var charts = [
-        [
-            'Branch 9x', 'branch_9x', 'Commit date', 'Time (seconds)', [
-                {type: 'date', id:'Commit date'},
-                {type: 'number', id: 'task1'},
-                {type: 'string', role:'tooltip'},
-                {type: 'number', id: 'task2: heap-mb'},
-                {type: 'string', role:'tooltip'},
-                {type: 'number', id: 'task2: node-shutdown'},
-                {type:'string', role:'tooltip'},
-                {type: 'number', id: 'task2: node-startup'},
-                {type:'string', role:'tooltip'},
-                {type: 'number', id: 'task2'},
-                {type:'string', role:'tooltip'}
-            ],
-            [
-                [ new Date(2022, 11 - 1, 26, 08, 01, 0, 0), 230.071, '230.071: 6f6bff492f286dce274dc93c49ea169560b33908: SOLR-16420: {!mlt_content} accepting external content (#1045)', 3666.9723292759486, '3666.9723292759486: 6f6bff492f286dce274dc93c49ea169560b33908: SOLR-16420: {!mlt_content} accepting external content (#1045)', 16.579857142857144, '16.579857142857144: 6f6bff492f286dce274dc93c49ea169560b33908: SOLR-16420: {!mlt_content} accepting external content (#1045)', 67.07557142857142, '67.07557142857142: 6f6bff492f286dce274dc93c49ea169560b33908: SOLR-16420: {!mlt_content} accepting external content (#1045)', 372.279, '372.279: 6f6bff492f286dce274dc93c49ea169560b33908: SOLR-16420: {!mlt_content} accepting external content (#1045)', ],
-                [ new Date(2022, 11 - 1, 26, 07, 59, 0, 0), 234.351, '234.351: 7f1d4ef1797af11dfe0fa56d26826c0d7c1ea382: Solr 16420 9x (#1195)', 3628.37166922433, '3628.37166922433: 7f1d4ef1797af11dfe0fa56d26826c0d7c1ea382: Solr 16420 9x (#1195)', 15.068857142857143, '15.068857142857143: 7f1d4ef1797af11dfe0fa56d26826c0d7c1ea382: Solr 16420 9x (#1195)', 73.68357142857143, '73.68357142857143: 7f1d4ef1797af11dfe0fa56d26826c0d7c1ea382: Solr 16420 9x (#1195)', 396.30800000000005, '396.30800000000005: 7f1d4ef1797af11dfe0fa56d26826c0d7c1ea382: Solr 16420 9x (#1195)', ],
-                [ new Date(2022, 11 - 1, 24, 12, 44, 0, 0), 233.813, '233.813: c62e49f2426828bb8f0b0c6ceab9a73bfeec029c: Update search-process.png (#1180)', 3676.199005126953, '3676.199005126953: c62e49f2426828bb8f0b0c6ceab9a73bfeec029c: Update search-process.png (#1180)', 15.997428571428571, '15.997428571428571: c62e49f2426828bb8f0b0c6ceab9a73bfeec029c: Update search-process.png (#1180)', 72.88071428571429, '72.88071428571429: c62e49f2426828bb8f0b0c6ceab9a73bfeec029c: Update search-process.png (#1180)', 392.10999999999996, '392.10999999999996: c62e49f2426828bb8f0b0c6ceab9a73bfeec029c: Update search-process.png (#1180)', ],
-                [ new Date(2022, 11 - 1, 22, 16, 11, 0, 0), 229.667, '229.667: a748189a6a8da6378e6f6def231c689f0bdf2a2f: SOLR-15955: Fix placing of slf4j-api jar in the lib/ext dir (#1178)', 3678.503171648298, '3678.503171648298: a748189a6a8da6378e6f6def231c689f0bdf2a2f: SOLR-15955: Fix placing of slf4j-api jar in the lib/ext dir (#1178)', 15.538714285714287, '15.538714285714287: a748189a6a8da6378e6f6def231c689f0bdf2a2f: SOLR-15955: Fix placing of slf4j-api jar in the lib/ext dir (#1178)', 68.89685714285714, '68.89685714285714: a748189a6a8da6378e6f6def231c689f0bdf2a2f: SOLR-15955: Fix placing of slf4j-api jar in the lib/ext dir (#1178)', 380.00499999999994, '380.00499999999994: a748189a6a8da6378e6f6def231c689f0bdf2a2f: SOLR-15955: Fix placing of slf4j-api jar in the lib/ext dir (#1178)', ],
-                [ new Date(2022, 11 - 1, 22, 16, 11, 0, 0), 229.047, '229.047: d41598068ca40b35caf7d91a0b0804b4e0fb9268: SOLR-15955: Update Jetty dependency to 10 (#585)', 3648.550429207938, '3648.550429207938: d41598068ca40b35caf7d91a0b0804b4e0fb9268: SOLR-15955: Update Jetty dependency to 10 (#585)', 15.897285714285713, '15.897285714285713: d41598068ca40b35caf7d91a0b0804b4e0fb9268: SOLR-15955: Update Jetty dependency to 10 (#585)', 69.19685714285716, '69.19685714285716: d41598068ca40b35caf7d91a0b0804b4e0fb9268: SOLR-15955: Update Jetty dependency to 10 (#585)', 374.75, '374.75: d41598068ca40b35caf7d91a0b0804b4e0fb9268: SOLR-15955: Update Jetty dependency to 10 (#585)', ]
-            ]
-        ]
-    ];*/
-
-//    var charts = [
-//    ];
-//
-//    for (const ch of charts)
-//        drawChart(ch[0], ch[1], ch[2], ch[3], ch[4], ch[5]);
     var allResultsByTaskName = {}
     var branches = []
     $.each(graph_data, function(branch, branchData) { //collect branch names first. then figure out how many pages are there
        branches.push(branch)
     })
-
 
     $.each(graph_data, function(branch, branchData) {
         var $page = generatePage(branch, graph_data.length == 1)
@@ -146,7 +114,6 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
     var columns = []
 
     columns.push({type: 'date', id:'Commit date'})
-    //addViewColumns(viewColumns, 1)
     $.each(branches, function(index, branch) {
         var suffix = ''
         if (branches.length > 1) {
@@ -155,7 +122,6 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
         if (chartType === ChartTypes.Simple) {
             columns.push({type: 'number', label: "duration" + suffix})
             columns.push({type: 'string', role:'tooltip'})
-//            addViewColumns(viewColumns, 2)
         } else if (chartType === ChartTypes.Percentile) {
             columns.push({type: 'number', label: "median" + suffix})
             columns.push({type: 'string', role:'tooltip'})
@@ -165,10 +131,12 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
             columns.push({type: 'string', role:'tooltip'})
             columns.push({type: 'number', label: "mean" + suffix})
             columns.push({type: 'string', role:'tooltip'})
-//            addViewColumns(viewColumns, 8)
         }
     })
 
+    //view column is used to control which column is visible, it's simply an array of either integer if visible (with value as the column index)
+    //or a json object with calc function that returns null, this is super weird, but see
+    //https://stackoverflow.com/questions/17444586/show-hide-lines-data-in-google-chart
     var viewColumns = []
     $.each(columns, function(index, column) {
         if (column.type === 'number') {
@@ -214,11 +182,6 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
     })
 
 
-    console.log(title)
-    console.log(columns)
-    console.log(viewColumns)
-    console.log(rows)
-
     // Add the rows
     data.addRows(rows);
 
@@ -227,74 +190,11 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
         chartType: 'LineChart',
         containerId: elementId,
         dataTable: data,
-        options: /*{
-            width: 600,
-            height: 400
-        }*/ options
+        options: options
     });
-//    var chart = new google.visualization.LineChart(document.getElementById(elementId));
 
-    // create columns array
-//    var columns = [0];
-//    /* the series map is an array of data series
-//     * "column" is the index of the data column to use for the series
-//     * "roleColumns" is an array of column indices corresponding to columns with roles that are associated with this data series
-//     * "display" is a boolean, set to true to make the series visible on the initial draw
-//     */
-//    var seriesMap = [];
-//    for (i=0; i<data.getNumberOfColumns()/2-1; i++) {
-//        var disp = true;
-//        if ((branchColumns[i*2+1]["label"]).indexOf("heap-mb") != -1 || (branchColumns[i*2+1]["label"]).indexOf("timings_") != -1) {
-//            disp = false;
-//        }
-//        var ser = {column: i*2+1, roleColumns: [i*2+2], display: disp};
-//        seriesMap.push(ser);
-//    }
-//
-//    var columnsMap = {};
-
-//    for (var i = 0; i < seriesMap.length; i++) {
-//        var col = seriesMap[i].column;
-//        columnsMap[col] = i;
-//        // set the default series option
-//        series[i] = {};
-//        if (seriesMap[i].display) {
-//            // if the column is the domain column or in the default list, display the series
-//            columns.push(col);
-//        }
-//        else {
-//            // otherwise, hide it
-//            columns.push({
-//                label: data.getColumnLabel(col),
-//                type: data.getColumnType(col),
-//                sourceColumn: col,
-//                calc: function () {
-//                    return null;
-//                }
-//            });
-//            // backup the default color (if set)
-//            if (typeof(series[i].color) !== 'undefined') {
-//                series[i].backupColor = series[i].color;
-//            }
-//            series[i].color = '#CCCCCC';
-//        }
-//        for (var j = 0; j < seriesMap[i].roleColumns.length; j++) {
-//            columns.push(seriesMap[i].roleColumns[j]);
-//        }
-//    }
-
-//    var view = chart.getView() || {};
-//    view.columns = columns;
-//    chart.setView(view);
-
-// Toggle visibility of data series on click of legend.
-//    google.visualization.events.addListener(chart, 'click', function (target) {
-//        var c = chart.getColumns()
-//        console.log(c)
-//    });
     google.visualization.events.addListener(chart, 'select', showHideSeries)
 
-//    var dataView = new google.visualization.DataView(data);
     var dataView = chart.getView() || {};
     dataView.columns = viewColumns
     chart.setView(dataView)
@@ -337,43 +237,8 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
                 })
                 chart.setOption('series', series);
                 chart.draw();
-
-    //            if (typeof(columns[col]) == 'number') {
-    //                var src = columns[col];
-    //
-    //                // hide the data series
-    //                columns[col] = {
-    //                    label: data.getColumnLabel(src),
-    //                    type: data.getColumnType(src),
-    //                    sourceColumn: src,
-    //                    calc: function () {
-    //                        return null;
-    //                    }
-    //                };
-    //
-    //                // grey out the legend entry
-    //                series[columnsMap[src]].color = '#CCCCCC';
-    //            }
-    //            else {
-    //                var src = columns[col].sourceColumn;
-    //
-    //                // show the data series
-    //                columns[col] = src;
-    //                series[columnsMap[src]].color = null;
-    //            }
-    //            var view = chart.getView() || {};
-    //            view.columns = columns;
-    //            chart.setView(view);
-    //            chart.draw();
             }
         }
-    }
-}
-
-
-function addViewColumns(viewColumns, count) {
-    for (i = 0; i < count ; i ++) {
-        viewColumns.push()
     }
 }
 
