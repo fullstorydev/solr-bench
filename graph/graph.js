@@ -82,12 +82,12 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
     var elementId = 'graph_' + graphIndex++
     var $graphDiv = $('<div class="graph" id="' + elementId + '"></div>')
     $page.append($graphDiv)
-//    $('#canvas').append($graphDiv)
 
 //TODO xaxis, yaxis
     var title = taskName + ' (' + branches.join(' vs ') + ')'
     var options = {
                     title: title,
+                    pointSize: 5,
                     hAxis: {
                         title: 'Commit date',
                         titleTextStyle: {
@@ -97,7 +97,6 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
                         //slantedTextAngle: 80
                     },
                     vAxis: {
-                        title: 'Time (seconds)',
                         minValue: 0
                     },
                     explorer: {
@@ -122,6 +121,8 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
         if (chartType === ChartTypes.Simple) {
             columns.push({type: 'number', label: "duration" + suffix})
             columns.push({type: 'string', role:'tooltip'})
+
+            options['vAxis']['title'] = 'Time (seconds)'  //assume results are in sec, should improve this
         } else if (chartType === ChartTypes.Percentile) {
             columns.push({type: 'number', label: "median" + suffix})
             columns.push({type: 'string', role:'tooltip'})
@@ -131,6 +132,8 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
             columns.push({type: 'string', role:'tooltip'})
             columns.push({type: 'number', label: "mean" + suffix})
             columns.push({type: 'string', role:'tooltip'})
+
+            options['vAxis']['title'] = 'Time (milliseconds)' //assume results are in millisec, should improve this
         }
     })
 
@@ -158,17 +161,17 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
                 if (chartType === ChartTypes.Simple) {
                     var duration = dataOfCommit['result']['end-time'] - dataOfCommit['result']['start-time']
                     row.push(duration)
-                    row.push(duration + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(duration.toFixed(2) + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
                 } else if (chartType === ChartTypes.Percentile) {
                     var timingResult = dataOfCommit['result']['timings'][0] //TODO first element only?
                     row.push(timingResult['50th'])
-                    row.push(timingResult['50th'] + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['50th'].toFixed(2) + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
                     row.push(timingResult['90th'])
-                    row.push(timingResult['90th'] + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['90th'].toFixed(2) + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
                     row.push(timingResult['95th'])
-                    row.push(timingResult['95th'] + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['95th'].toFixed(2) + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
                     row.push(timingResult['mean'])
-                    row.push(timingResult['mean'] + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['mean'].toFixed(2) + ' (' + branch + ') ' + dataOfCommit.commitMeta.commitMsg)
                 }
             } else {
                 columnPerBranchCount = chartType === ChartTypes.Simple ? 2 : 8
