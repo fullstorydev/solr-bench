@@ -1,5 +1,5 @@
 import json
-from git import Repo
+#from git import Repo
 import time
 import os
 import math
@@ -10,25 +10,48 @@ parser = argparse.ArgumentParser(description='Description of your program')
 parser.add_argument('-b','--branch', help='Branch to test on', required=True)
 args = vars(parser.parse_args())
 
-testnames = ["cluster-test.json", "stress-facets-local.json"]
+testnames = ["cluster-test.json"] #, "stress-facets-local.json"]
 branch = args['branch']
-repoFolder = "SolrNightlyBenchmarksWorkDirectory/Download/solr-repository"
+#repoFolder = "SolrNightlyBenchmarksWorkDirectory/Download/solr-repository"
 
-def getGraphData(testname, branch, repoFolder):
-    repo = Repo(repoFolder)
-    repo.git.checkout(branch, force=True)
-    commits = repo.iter_commits(branch)
+def load_properties(filepath, sep='=', comment_char='#'):
+    """
+    Read the file passed as parameter as a properties file.
+    """
+    props = {}
+    with open(filepath, "rt") as f:
+        for line in f:
+            l = line.strip()
+            if l and not l.startswith(comment_char):
+                key_value = l.split(sep)
+                key = key_value[0].strip()
+                value = sep.join(key_value[1:]).strip().strip('"')
+                props[key] = value
+    return props
 
+def get_commit_date(meta_file):
+    props = load_properties(os.path.join("suites/results/cluster-test", meta_file))
+    return (int(props["committed_date"]))
+
+
+def getGraphData(testname, branch):
     graphData = ""
     headerLine = ""
 
-    for c in commits:
+    meta_files = [f for f in os.listdir("suites/results/cluster-test") if
+              os.path.isfile(os.path.join("suites/results/cluster-test", f)) and f.startswith('meta-')]
+    meta_files.sort(key=get_commit_date)
+    
+    for m in meta_files:
+        props = load_properties(os.path.join("suites/results/cluster-test", m))
+        c = m[len("meta-"):-1 * len(".json")]
+
         #[ new Date(2314, 2, 15), 4, 'dfde16a004206cc92e21cc5a6cad9030fbe13c20',  7, 'dfde16a004206cc92e21cc5a6cad9030fbe13c20'],
-        ts = time.strftime("%d %b %Y", time.gmtime(c.committed_date))
-        tsGraph = time.strftime("new Date(%Y, %m - 1, %d, %H, %M, 0, 0)", time.gmtime(c.committed_date))
+        ts = time.strftime("%d %b %Y", time.gmtime(int(props["committed_date"])))
+        tsGraph = time.strftime("new Date(%Y, %m - 1, %d, %H, %M, 0, 0)", time.gmtime(int(props["committed_date"])))
         
-        resultsFilename = "suites/results/results-" + testname + "-" + str(c) + ".json"
-        configFilename  = "suites/results/configs-" + testname + "-" + str(c) + ".json"
+        resultsFilename = "suites/results/cluster-test/results" + "-" + str(c) + ".json"
+        configFilename  = "suites/results/cluster-test/configs" + "-" + str(c) + ".json"
 
         taskNames = []
         taskTimes = []
@@ -46,7 +69,7 @@ def getGraphData(testname, branch, repoFolder):
                     end   = max(end  , instance["end-time"])
                     instance = collections.OrderedDict(sorted(instance.items()))
                     for key in instance:
-                        if key == "start-time" or key == "end-time" or key == "total-time":
+                        if key == "start-time" or key == "end-time" or key == "total-time" or key == "end-timestamp" or key == "init-timestamp" or key == "start-timestamp":
                             continue
                         
                         if type(instance[key]) == list:
@@ -78,10 +101,10 @@ def getGraphData(testname, branch, repoFolder):
                 #print(description)
                 taskNames.append(task + " (" + description + ")")
                 taskTimes.append(total)
-            if c.message.find("\n") == -1:
+            if props["message"].find("\n") == -1:
                 length = 800
             else:
-                length = c.message.find("\n")
+                length = props["message"].find("\n")
 
             #print("Tasks: "+str(taskNames))
             #print("Tasks times: "+str(taskTimes))
@@ -94,7 +117,7 @@ def getGraphData(testname, branch, repoFolder):
                 #print("Header line: " + headerLine)
             headerLine = "[\n" + headerLine + "]"           
             
-            msg = c.message.replace("\n", "\t")[0: length].replace("'", "")
+            msg = props["message"].replace("\n", "\t")[0: length].replace("'", "")
             tooltip = str(c) + ": " + msg
             vals = ""
             for times in taskTimes:
@@ -108,7 +131,7 @@ data = []
 headers = []
 
 for testname in testnames:
-    headerLine, graphData = getGraphData(testname, branch, repoFolder)
+    headerLine, graphData = getGraphData(testname, branch)
     data.append(graphData)
     headers.append(headerLine)
 print("Headers: "+str(headers))
