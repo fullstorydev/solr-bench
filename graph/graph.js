@@ -118,19 +118,20 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
         if (branches.length > 1) {
             suffix = ' (' + branch + ')'
         }
+        //Property "visible" is NOT used by google chart, is it simply for us to track the column state
         if (chartType === ChartTypes.Simple) {
-            columns.push({type: 'number', label: "duration" + suffix})
+            columns.push({type: 'number', label: "duration" + suffix, visible: true})
             columns.push({type: 'string', role:'tooltip'})
 
             options['vAxis']['title'] = 'Time (seconds)'  //assume results are in sec, should improve this
         } else if (chartType === ChartTypes.Percentile) {
-            columns.push({type: 'number', label: "median" + suffix})
+            columns.push({type: 'number', label: "median" + suffix, visible: true})
             columns.push({type: 'string', role:'tooltip'})
-            columns.push({type: 'number', label: "p90" + suffix})
+            columns.push({type: 'number', label: "p90" + suffix, visible: false})
             columns.push({type: 'string', role:'tooltip'})
-            columns.push({type: 'number', label: "p95" + suffix})
+            columns.push({type: 'number', label: "p95" + suffix, visible: false})
             columns.push({type: 'string', role:'tooltip'})
-            columns.push({type: 'number', label: "mean" + suffix})
+            columns.push({type: 'number', label: "mean" + suffix, visible: false})
             columns.push({type: 'string', role:'tooltip'})
 
             options['vAxis']['title'] = 'Time (milliseconds)' //assume results are in millisec, should improve this
@@ -142,9 +143,6 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
     //https://stackoverflow.com/questions/17444586/show-hide-lines-data-in-google-chart
     var viewColumns = []
     $.each(columns, function(index, column) {
-        if (column.type === 'number') {
-            column.visible = true //this property is NOT used by google chart, is it simply for us to track the column state
-        }
         viewColumns.push(index)
         data.addColumn(column)
     })
@@ -198,11 +196,7 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
 
     google.visualization.events.addListener(chart, 'select', showHideSeries)
 
-    var dataView = chart.getView() || {};
-    dataView.columns = viewColumns
-    chart.setView(dataView)
-    chart.draw();
-
+    refreshViewAndSeries()
 
     function showHideSeries(target) {
         var sel = chart.getChart().getSelection();
@@ -213,35 +207,38 @@ function drawChartInPage(branches, taskName, graphDataByCommit, $page) {
                 var selectedColIndex = sel[0].column;
                 console.log(selectedColIndex)
                 columns[selectedColIndex].visible = !columns[selectedColIndex].visible //flip the status
-                if (columns[selectedColIndex].visible) {
-                    viewColumns[selectedColIndex] = selectedColIndex
-                } else {
-                    viewColumns[selectedColIndex] = {
-                                        label: columns[selectedColIndex].label,
-                                        type: columns[selectedColIndex].type,
-                                        calc: function () {
-                                            return null;
-                                        }
-                                    };
-                }
-                dataView = chart.getView()
-                dataView.columns = viewColumns
-                chart.setView(dataView)
-                //regen colors
-                var series = []
-                $.each(columns, function(index, column) {
-                    if (column.type == 'number') {
-                        if (column.visible) {
-                            series.push({}) //use default color
-                        } else {
-                            series.push({ color : '#CCCCCC'})
-                        }
-                    }
-                })
-                chart.setOption('series', series);
-                chart.draw();
+                refreshViewAndSeries()
             }
         }
+    }
+
+    //Refresh the view base on visibility
+    function refreshViewAndSeries() {
+        //regen line visibility (in dataView and colors in series)
+        var series = []
+        $.each(columns, function(index, column) {
+            if (column.type == 'number') {
+                if (column.visible) {
+                    series.push({}) //use default color
+                    viewColumns[index] = index //this shows the line
+                } else {
+                    series.push({ color : '#CCCCCC'})
+                    viewColumns[index] = { //this hides the line
+                        label: columns[index].label,
+                        type: columns[index].type,
+                        calc: function () {
+                            return null;
+                        }
+                    };
+                }
+            }
+        })
+
+        dataView = chart.getView() || {};
+        dataView.columns = viewColumns
+        chart.setView(dataView)
+        chart.setOption('series', series);
+        chart.draw();
     }
 }
 
