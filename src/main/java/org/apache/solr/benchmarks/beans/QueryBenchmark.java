@@ -62,4 +62,8 @@ public class QueryBenchmark {
   
   @JsonProperty("query-node")
   public Integer queryNode = 1;
+
+  @JsonProperty("end-date")
+  // This is a date in the format "YYYY-MM-DD" to be used as NOW for Solr queries
+  public String endDate;
 }
