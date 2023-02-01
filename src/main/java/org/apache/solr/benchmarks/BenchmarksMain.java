@@ -340,7 +340,7 @@ public class BenchmarksMain {
                 List<String> docs = shardVsDocs.get(targetSlice.getName());
                 if (docs == null) shardVsDocs.put(targetSlice.getName(), docs = new ArrayList<>(benchmark.batchSize));
                 if (count % 1_000_000 == 0)
-                  System.out.println("\tDocs read: " + count + ", indexed: " + (completed.get() * benchmark.batchSize) + ", time: " + ((System.currentTimeMillis() - start) / 1000));
+                  log.info("\tDocs read: " + count + ", indexed: " + (completed.get() * benchmark.batchSize) + ", time: " + ((System.currentTimeMillis() - start) / 1000));
                 if (count > benchmark.maxDocs) break;
                 // _version_ must be removed or adding doc will fail
                 line = line.replaceAll("\"_version_\":\\d*,*", "");
@@ -431,7 +431,7 @@ public class BenchmarksMain {
             }
 
 
-            if (completed.get() % 100 == 0) System.out.println("\tBatches indexed: "+completed.get()+", currently queued: "+counter.get());
+            if (completed.get() % 100 == 0) log.info("\tBatches indexed: "+completed.get()+", currently queued: "+counter.get());
         }
     }
 }
