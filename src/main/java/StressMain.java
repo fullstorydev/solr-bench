@@ -8,12 +8,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 
@@ -151,7 +146,7 @@ public class StressMain {
 			finalResults.put(taskName, new ArrayList<>());
 			for (int i=1; i<=instance.instances; i++) {
 
-				Callable c = taskCallable(workflow, cloud, globalVariables, taskExecutors, finalResults, executionStart, taskName, instance, type);
+				Callable c = taskCallable(workflow, cloud, globalVariables, taskExecutors, finalResults, taskFutures, executionStart, taskName, instance, type);
 
 				if (!commonThreadpoolTask) {
 					taskFutures.get(taskName).add(executor.submit(c));
@@ -197,12 +192,21 @@ public class StressMain {
 		}
 	}
 
-	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, long executionStart, String taskName, TaskInstance instance, TaskType type) {
+	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, Map<String, List<Future>> taskFutures, long executionStart, String taskName, TaskInstance instance, TaskType type) {
 		Callable c = () -> {
 			if (instance.waitFor != null) {
 				log.info("Waiting for "+ instance.waitFor+" to finish");
 				boolean await = taskExecutors.get(instance.waitFor).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 				log.info(instance.waitFor+" finished! "+await);
+				for (Future future : taskFutures.get(instance.waitFor)) {
+					try {
+						future.get();
+					} catch (ExecutionException e) { //check if the waitFor task had exceptions
+						String warning = "Task [" + taskName + "] which relies on Task [" + instance.waitFor + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task";
+						log.warn("Task [" + taskName + "] which relies on Task [" + instance.waitFor + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task");
+						throw new RuntimeException(warning, e); //throw a new exception to stop all waitFor tasks as well
+					}
+				}
 			}
 			Map<String, Integer> copyOfGlobalVarialbes = new HashMap<String, Integer>();
 			if (instance.preTaskEvals != null) {
