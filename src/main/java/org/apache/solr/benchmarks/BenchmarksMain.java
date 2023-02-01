@@ -327,42 +327,45 @@ public class BenchmarksMain {
             				
             RateLimiter rateLimiter = setup.rpm == null? null: new RateLimiter(setup.rpm);
 
-            while ((line = br.readLine()) != null) {
+            try {
+              while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
                 count++;
 
-                if (count<benchmark.offset) continue;
-                
+                if (count < benchmark.offset) continue;
+
                 rdr.streamRecords(new StringReader(line), handler);
                 Slice targetSlice = docRouter.getTargetSlice(id[0], null, null, null, coll);
                 List<String> docs = shardVsDocs.get(targetSlice.getName());
                 if (docs == null) shardVsDocs.put(targetSlice.getName(), docs = new ArrayList<>(benchmark.batchSize));
-                if (count % 1_000_000 == 0) System.out.println("\tDocs read: "+count+", indexed: "+(completed.get() * benchmark.batchSize)+", time: "+((System.currentTimeMillis() - start) / 1000));
+                if (count % 1_000_000 == 0)
+                  System.out.println("\tDocs read: " + count + ", indexed: " + (completed.get() * benchmark.batchSize) + ", time: " + ((System.currentTimeMillis() - start) / 1000));
                 if (count > benchmark.maxDocs) break;
                 // _version_ must be removed or adding doc will fail
                 line = line.replaceAll("\"_version_\":\\d*,*", "");
                 docs.add(line);
                 if (docs.size() >= benchmark.batchSize) {
-                    shardVsDocs.remove(targetSlice.getName());
-                    
-                    if (rateLimiter != null) rateLimiter.waitIfRequired();
-                    executor.submit(new UploadDocs(docs, httpClient,
-                            shardVsLeader.get(targetSlice.getName()),
-                            tasks, completed
-                    ));
+                  shardVsDocs.remove(targetSlice.getName());
+
+                  if (rateLimiter != null) rateLimiter.waitIfRequired();
+                  executor.submit(new UploadDocs(docs, httpClient,
+                          shardVsLeader.get(targetSlice.getName()),
+                          tasks, completed
+                  ));
                 }
+              }
+            } catch (java.io.EOFException e) {
+              log.info("Likely the Unexpected end of ZLIB input. Likely similar to https://stackoverflow.com/q/55608979. Ignoring for now. Actual exception message: " + e.getMessage());
+            } finally {
+              br.close();
             }
-            br.close();
             shardVsDocs.forEach((shard, docs) -> executor.submit(new UploadDocs(docs,
                     httpClient,
                     shardVsLeader.get(shard), tasks, completed)));
         } finally {
-            for (; ; ) {
-                if (tasks.get() <= 0) break;
-                Thread.sleep(10);
-            }
             executor.shutdown();
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             httpClient.close();
         }
 	HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
