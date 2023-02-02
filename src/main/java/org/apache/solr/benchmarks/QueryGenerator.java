@@ -1,5 +1,7 @@
 package org.apache.solr.benchmarks;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
@@ -24,8 +26,9 @@ public class QueryGenerator {
     List<String> queries = new ArrayList<>();
     Random random;
     AtomicLong counter = new AtomicLong();
+    final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
-    public QueryGenerator(QueryBenchmark queryBenchmark) throws IOException {
+    public QueryGenerator(QueryBenchmark queryBenchmark) throws IOException, ParseException {
         this.queryBenchmark = queryBenchmark;
         File file = Util.resolveSuitePath(queryBenchmark.queryFile);
         if (queryBenchmark.queryFile.endsWith(".tar.gz")) {
@@ -40,6 +43,10 @@ public class QueryGenerator {
         }
         if (Boolean.TRUE.equals(queryBenchmark.shuffle)) {
             random = new Random();
+        }
+
+        if (queryBenchmark.endDate != null) {
+            this.queryBenchmark.params.put("NOW", String.valueOf(DATE_FORMAT.parse(queryBenchmark.endDate).getTime()));
         }
 
         System.out.println("Total queries: " + queries.size());
@@ -111,6 +118,7 @@ public class QueryGenerator {
                 }
             };
         }
+
         return request;
     }
 }

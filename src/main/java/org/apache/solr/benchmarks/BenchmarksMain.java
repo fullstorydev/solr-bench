@@ -13,6 +13,7 @@ import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -91,7 +92,7 @@ public class BenchmarksMain {
     }
 
 	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
-			throws IOException, InterruptedException {
+            throws IOException, InterruptedException, ParseException {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
 
