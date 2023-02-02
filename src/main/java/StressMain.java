@@ -301,11 +301,15 @@ public class StressMain {
 									restartNode.start();
 									startTimes.put(nodeName, System.currentTimeMillis() - marker);
 								} else {
-									restartNode.restart();
+									int exitCode = restartNode.restart();
+									if (exitCode != 0) {
+										throw new Exception("Restart exit code is not 0, found: " + exitCode);
+									}
 									startTimes.put(nodeName, System.currentTimeMillis() - marker); //for non local node, we only have the restart (stop+start) time
 								}
 							} catch (Exception ex) {
-								ex.printStackTrace();
+								log.warn("Restarted failed with exception: ", ex.getMessage());
+								throw ex;
 							}
 							if (type.awaitRecoveries) {
 								marker = System.currentTimeMillis();
@@ -327,7 +331,8 @@ public class StressMain {
 										}
 									} while (numInactive > 0);
 								} catch (Exception ex) {
-									ex.printStackTrace();
+									log.warn("Await restart recoveries failed with exception: ", ex.getMessage());
+									throw ex;
 								}
 								startTimes.put(nodeName, startTimes.getOrDefault(nodeName, 0L) + (System.currentTimeMillis() - marker));
 							}
@@ -344,7 +349,11 @@ public class StressMain {
 								}
 								minHeaps.put(nodeName, minHeap);
 
-							} catch (Exception ex) {}
+							} catch (Exception ex) {
+								log.warn("Gather metrics after restart failed with exception: ", ex.getMessage());
+								throw ex;
+							}
+							return null;
 						});
 					}
 				} finally {
