@@ -1,9 +1,9 @@
 package org.apache.solr.benchmarks;
 
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.readers.TarGzFileReader;
 import org.apache.solr.client.solrj.ResponseParser;
@@ -26,7 +26,7 @@ public class QueryGenerator {
     List<String> queries = new ArrayList<>();
     Random random;
     AtomicLong counter = new AtomicLong();
-    final FastDateFormat DATE_FORMAT = FastDateFormat.getInstance("YYYY-MM-DD");
+    final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
     public QueryGenerator(QueryBenchmark queryBenchmark) throws IOException, ParseException {
         this.queryBenchmark = queryBenchmark;
