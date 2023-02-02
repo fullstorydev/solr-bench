@@ -288,8 +288,10 @@ public class StressMain {
 				ConcurrentHashMap<String, Long> minHeaps = new ConcurrentHashMap<>();
 				try {
 					executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(taskName + "-restart-thread-pool").build());
+
+					List<Future> restartFutures = new ArrayList<>(); //could have used CompletableFuture, but it gets hairy with checked exceptions
 					for (SolrNode restartNode : restartNodes) {
-						executor.submit(() -> {
+						restartFutures.add(executor.submit(() -> {
 							String nodeName = restartNode.getNodeName();
 							log.info("Restarting " + nodeName);
 							long marker = System.currentTimeMillis();
@@ -354,8 +356,13 @@ public class StressMain {
 								throw ex;
 							}
 							return null;
-						});
+						}));
 					}
+					for (Future restartFuture : restartFutures) {
+						restartFuture.get(); //check and throw exception if there are any thrown exceptions from the task
+					}
+
+
 				} finally {
 					if (executor != null) {
 						executor.shutdown();
