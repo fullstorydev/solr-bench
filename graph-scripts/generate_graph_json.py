@@ -104,7 +104,7 @@ def parse_benchmark_results(result_paths):
 
 
 def get_committed_date(props):
-    return int(props["committed_date"])
+    return int(props["commit_date"])
 
 
 class BranchTaskKey:
