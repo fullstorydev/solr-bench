@@ -75,23 +75,26 @@ def parse_benchmark_results(result_paths):
     benchmark_results = []
 
     for result_path in result_paths:
-        result_dir = os.path.dirname(result_path)
-        file_id = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
-        logging.info("File ID: " + file_id)
-        meta_path = os.path.join(result_dir, "meta-" + file_id + ".prop")
-        logging.info("Meta file: " + meta_path)
-        props = load_properties(meta_path)
-        logging.info("Loaded props" + str(props))
-
-        # commit_date = time.gmtime(int(props["committed_date"]))
-        commit_hash = props["commit"]
-        commit_date = int(props["committed_date"])
-        commit_msg = props["message"]
-
         try:
+            result_dir = os.path.dirname(result_path)
+            file_id = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
+            logging.info("File ID: " + file_id)
+            meta_path = os.path.join(result_dir, "meta-" + file_id + ".prop")
+            logging.info("Meta file: " + meta_path)
+            props = load_properties(meta_path)
+            logging.info("Loaded props" + str(props))
+
+            # commit_date = time.gmtime(int(props["committed_date"]))
+            commit_hash = props["commit"]
+            commit_date = int(props["committed_date"])
+            commit_msg = props["message"]
+
             json_results = json.load(open(result_path))
         except OSError as e:
             logging.warning(f"Skipping {file_id}. Unable to open {result_path}: {e}")
+            continue
+        except KeyError as e:
+            logging.warning(f"Skipping {file_id}. KeyError: {e}")
             continue
 
         benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, json_results)
