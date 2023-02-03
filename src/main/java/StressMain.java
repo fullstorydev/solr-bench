@@ -90,7 +90,7 @@ public class StressMain {
 		}
 	}
 
-	private static WorkflowResult executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException {
+	private static WorkflowResult executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException, ExecutionException {
 		Map<String, AtomicInteger> globalVariables = new ConcurrentHashMap<String, AtomicInteger>();
 
 		// Initialize the common threadpools
@@ -183,6 +183,13 @@ public class StressMain {
 			metricsCollector.stop();
 			metricsThread.stop();
 		}
+
+		for (Map.Entry<String, List<Future>> futuresByTaskNames : taskFutures.entrySet()) {
+			for (Future future : futuresByTaskNames.getValue()) {
+					future.get(); //check if there are any uncaught exceptions in those tasks
+			}
+		}
+
 		log.info("Final results: "+finalResults);
 		if (metricsCollector != null) {
 			metricsCollector.metrics.put("zookeeper", metricsCollector.zkMetrics);
@@ -353,7 +360,7 @@ public class StressMain {
 
 							} catch (Exception ex) {
 								log.warn("Gather metrics after restart failed with exception: ", ex.getMessage());
-								throw ex;
+								//missing heap data is not fatal, let's warn and proceed for now
 							}
 							return null;
 						}));
