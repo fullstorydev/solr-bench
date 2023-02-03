@@ -96,6 +96,9 @@ def parse_benchmark_results(result_paths):
         except KeyError as e:
             logging.warning(f"Skipping {file_id}. KeyError: {e}")
             continue
+        except BaseException as e:
+            logging.warning(f"Skipping {file_id}. Unexpected exception: {e}")
+            continue
 
         benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, json_results)
         benchmark_results.append(benchmark_result.__dict__)
