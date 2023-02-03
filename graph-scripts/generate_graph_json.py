@@ -86,7 +86,7 @@ def parse_benchmark_results(result_paths):
 
             # commit_date = time.gmtime(int(props["committed_date"]))
             commit_hash = props["commit"]
-            commit_date = int(props["committed_date"])
+            commit_date = int(props["commit_date"])
             commit_msg = props["message"]
 
             json_results = json.load(open(result_path))
