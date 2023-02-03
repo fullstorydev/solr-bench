@@ -234,7 +234,7 @@ generate_meta() {
      done <<< "$(git branch -r --contains $COMMIT 2> /dev/null | sed -e 's/* \(.*\)/\1/' | tr -d ' ')"
 
      echo "branches=$branches" > $meta_file_path
-     echo "commit=$COMMIT" > $meta_file_path
+     echo "commit=$COMMIT" >> $meta_file_path
      local committed_ts=`git show -s --format=%ct $COMMIT`
      echo "committed_date=$committed_ts" >> $meta_file_path
      local committed_name=`git show -s --format=%cN $COMMIT`
