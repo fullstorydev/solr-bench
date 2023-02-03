@@ -103,7 +103,7 @@ def parse_benchmark_results(result_paths):
     return benchmark_results
 
 
-def get_committed_date(props):
+def get_commit_date(props):
     return int(props["commit_date"])
 
 
@@ -152,7 +152,7 @@ for branch in target_branches:
         meta_props.append(props)
 
     # now sort the props by commit date
-    meta_props.sort(key=get_committed_date)
+    meta_props.sort(key=get_commit_date)
     for props in meta_props:
         result_paths.append(os.path.join(result_dir, f'results-{props["file_id"]}.json'))
 
