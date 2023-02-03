@@ -71,26 +71,27 @@ class BenchmarkResult:
     def __repr__(self):
         return str(self)
 
-
 def parse_benchmark_results(result_paths):
     benchmark_results = []
+
     for result_path in result_paths:
         result_dir = os.path.dirname(result_path)
-        commit_hash = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
-        logging.info("Hash: " + commit_hash)
-        meta_path = os.path.join(result_dir, "meta-" + commit_hash + ".prop")
+        file_id = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
+        logging.info("File ID: " + file_id)
+        meta_path = os.path.join(result_dir, "meta-" + file_id + ".prop")
         logging.info("Meta file: " + meta_path)
         props = load_properties(meta_path)
         logging.info("Loaded props" + str(props))
 
         # commit_date = time.gmtime(int(props["committed_date"]))
+        commit_hash = props["commit"]
         commit_date = int(props["committed_date"])
         commit_msg = props["message"]
 
         try:
             json_results = json.load(open(result_path))
         except OSError as e:
-            logging.warning(f"Skipping {commit_hash}. Unable to open {result_path}: {e}")
+            logging.warning(f"Skipping {file_id}. Unable to open {result_path}: {e}")
             continue
 
         benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, json_results)
@@ -140,17 +141,17 @@ for branch in target_branches:
     result_paths = []
     for meta_file in meta_files:
         props = load_properties(os.path.join(result_dir, meta_file))
-        if branch not in props["branches"].split(','):
+        if "branches" not in props or branch not in props["branches"].split(','):
             logging.debug(f'skipping {meta_file} for branch {branch}')
             continue
-        commit_hash = meta_file[len("meta-"):-1 * len(".json")]
-        props["hash"] = commit_hash
+        file_id = meta_file[len("meta-"):-1 * len(".json")]
+        props["file_id"] = file_id
         meta_props.append(props)
 
     # now sort the props by commit date
     meta_props.sort(key=get_committed_date)
     for props in meta_props:
-        result_paths.append(os.path.join(result_dir, f'results-{props["hash"]}.json'))
+        result_paths.append(os.path.join(result_dir, f'results-{props["file_id"]}.json'))
 
     benchmark_results[branch] = parse_benchmark_results(result_paths)
 
