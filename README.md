@@ -76,10 +76,10 @@ This will plot a graph into an html file that plots values of each test on a lin
 ### Visualization (Multi-branch)
 
 To select/process the test results of specific branch or branch comparisons:
-`python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main` (only select tests with commits that belongs to `main` branch)
-`python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main...my-branch` (compare tests between `main` and `my-branch`)
+* `python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main` (only select tests with commits that belongs to `main` branch)
+* `python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main...my-branch` (compare tests between `main` and `my-branch`)
 
-Take note that `<test name>` currently is the test config file name w/o the file extension
+note: that `<test name>` currently is the test config file name w/o the  `.json` file extension
 
 The script should generate `graph/graph-data.js`. Open `graph/graph.html`, it should show graphs grouped by branches and test tasks
 
@@ -89,6 +89,11 @@ Mac OS requires a few tools to run this script. Install the following:
 
 1. `brew install coreutils` 
 2. `pip3 install gitpython`
+
+####  dependencies on Linux
+Linux requires a few tools to run this script. Install the following:
+
+1. `pip install git-python`
 
 ## Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
