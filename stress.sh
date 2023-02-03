@@ -235,8 +235,8 @@ generate_meta() {
 
      echo "branches=$branches" > $meta_file_path
      echo "commit=$COMMIT" >> $meta_file_path
-     local committed_ts=`git show -s --format=%ct $COMMIT`
-     echo "committed_date=$committed_ts" >> $meta_file_path
+     local commit_ts=`git show -s --format=%ct $COMMIT`
+     echo "commit_date=$committed_ts" >> $meta_file_path
      local committed_name=`git show -s --format=%cN $COMMIT`
      echo "committer=$committed_name" >> $meta_file_path
      local note=`git show -s --format=%s $COMMIT`
