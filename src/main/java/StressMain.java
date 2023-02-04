@@ -18,6 +18,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 
 import com.google.common.io.Files;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
@@ -59,8 +65,18 @@ public class StressMain {
 
 	private static String SUITE_BASE_DIR;
 
+	private static CommandLine getCLIParams(String[] args) throws ParseException {
+		Options cliOptions = new Options();
+		cliOptions.addRequiredOption("f", "file", true, "Configuration file");
+		cliOptions.addRequiredOption("c", "commit", true, "Commit ID");
+		CommandLineParser cliParser = new DefaultParser();
+		CommandLine cli = cliParser.parse(cliOptions, args);
+		return cli;
+	}
+
 	public static void main(String[] args) throws Exception {
-		String configFile = args[0];
+		CommandLine cliParams = getCLIParams(args);		
+		String configFile = cliParams.getOptionValue("f");
 
 		// Set the suite base directory from the configFile. All resources, like configsets, datasets,
 		// will be fetched off this path
@@ -71,7 +87,7 @@ public class StressMain {
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
 
-		String solrPackagePath = cluster.provisioningMethod.equalsIgnoreCase("external") ? null : BenchmarksMain.getSolrPackagePath(args[1], workflow.solrPackage);
+		String solrPackagePath = cluster.provisioningMethod.equalsIgnoreCase("external") ? null : BenchmarksMain.getSolrPackagePath(cliParams.getOptionValue("c"), workflow.solrPackage);
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
@@ -83,6 +99,8 @@ public class StressMain {
 			solrCloud.shutdown(true);
 		}
 	}
+
+
 	static class Task {
 		final String name;
 		final Callable callable;
