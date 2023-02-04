@@ -216,7 +216,7 @@ buildsolr() {
 }
 
 generate_meta() {
-     local meta_file_path="${BASEDIR}/suites/results/$TEST_NAME/meta-${COMMIT}.prop"
+     local meta_file_path="${BASEDIR}/suites/results/$TEST_NAME/${COMMIT}/meta.prop"
      echo_blue "Generating Meta data file by reading info from $LOCALREPO"
      cd $LOCALREPO
 
@@ -236,7 +236,7 @@ generate_meta() {
      echo "branches=$branches" > $meta_file_path
      echo "commit=$COMMIT" >> $meta_file_path
      local commit_ts=`git show -s --format=%ct $COMMIT`
-     echo "commit_date=$committed_ts" >> $meta_file_path
+     echo "commit_date=$commit_ts" >> $meta_file_path
      local committed_name=`git show -s --format=%cN $COMMIT`
      echo "committer=$committed_name" >> $meta_file_path
      local note=`git show -s --format=%s $COMMIT`
@@ -326,15 +326,15 @@ fi
 # Rename the result files for local test
 if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ] || [ "external" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
-     result_dir="${BASEDIR}/suites/results/${TEST_NAME}"
+     result_dir="${BASEDIR}/suites/results/${TEST_NAME}/${COMMIT}"
      mkdir -p $result_dir
      if [[ "null" != `jq -r '.["repositories"]' $CONFIGFILE` ]];
      then
           generate_meta
      fi
-     cp $CONFIGFILE $result_dir/configs-$COMMIT.json
-     cp $BASEDIR/results.json $result_dir/results-$COMMIT.json
-     cp $BASEDIR/metrics.json $result_dir/metrics-$COMMIT.json
+     cp $CONFIGFILE $result_dir/config.json
+     cp $BASEDIR/results.json $result_dir/results.json
+     cp $BASEDIR/metrics.json $result_dir/metrics.json
      rm $BASEDIR/results.json $BASEDIR/metrics.json
 
      echo_blue "Result can be found in $result_dir"

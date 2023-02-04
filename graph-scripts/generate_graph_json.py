@@ -10,7 +10,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser(description='Description of your program')
-parser.add_argument('-r', '--result-dir', help='Directory that contains the json result files', required=True)
+parser.add_argument('-r', '--result-dir', help='Directory that contains the json result dirs/files', required=True)
 parser.add_argument('-o', '--output',
                     help='Output path of the graph json. If undefined it will be saved as the working dir with name '
                          '<test_name>.json ',
@@ -78,10 +78,7 @@ def parse_benchmark_results(result_paths):
     for result_path in result_paths:
         try:
             result_dir = os.path.dirname(result_path)
-            file_id = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
-            logging.info("File ID: " + file_id)
-            meta_path = os.path.join(result_dir, "meta-" + file_id + ".prop")
-            logging.info("Meta file: " + meta_path)
+            meta_path = os.path.join(result_dir, "meta.prop")
             props = load_properties(meta_path)
             logging.info("Loaded props" + str(props))
 
@@ -93,13 +90,13 @@ def parse_benchmark_results(result_paths):
 
             json_results = json.load(open(result_path))
         except OSError as e:
-            logging.warning(f"Skipping {file_id}. Unable to open {result_path}: {e}")
+            logging.warning(f"Skipping meta data parsing. Unable to open {result_path}: {e}")
             continue
         except KeyError as e:
-            logging.warning(f"Skipping {file_id}. KeyError: {e}")
+            logging.warning(f"Skipping meta data parsing for {result_path}. KeyError: {e}")
             continue
         except BaseException as e:
-            logging.warning(f"Skipping {file_id}. Unexpected exception: {e}")
+            logging.warning(f"Skipping meta data parsing for {result_path}. Unexpected exception: {e}")
             continue
 
         benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, test_date, json_results)
@@ -143,23 +140,23 @@ meta_files = [f for f in os.listdir(result_dir) if
               os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
 
 for branch in target_branches:
-    meta_files = [f for f in os.listdir(result_dir) if
-                  os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
+    test_run_dirs = [f for f in os.listdir(result_dir) if
+                  os.path.isdir(os.path.join(result_dir, f))]
     meta_props = []
     result_paths = []
-    for meta_file in meta_files:
-        props = load_properties(os.path.join(result_dir, meta_file))
+    for test_run_base_dir in test_run_dirs:
+        test_run_dir = os.path.join(result_dir, test_run_base_dir)
+        props = load_properties(os.path.join(test_run_dir, "meta.prop"))
         if "branches" not in props or branch not in props["branches"].split(','):
-            logging.debug(f'skipping {meta_file} for branch {branch}')
+            logging.debug(f'skipping {test_run_dir} for branch {branch}')
             continue
-        file_id = meta_file[len("meta-"):-1 * len(".json")]
-        props["file_id"] = file_id
+        props["test_run_dir"] = test_run_dir
         meta_props.append(props)
 
     # now sort the props by commit date
     meta_props.sort(key=get_commit_date)
     for props in meta_props:
-        result_paths.append(os.path.join(result_dir, f'results-{props["file_id"]}.json'))
+        result_paths.append(os.path.join(props["test_run_dir"], 'results.json'))
 
     benchmark_results[branch] = parse_benchmark_results(result_paths)
 
