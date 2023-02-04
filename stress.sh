@@ -241,6 +241,7 @@ generate_meta() {
      echo "committer=$committed_name" >> $meta_file_path
      local note=`git show -s --format=%s $COMMIT`
      echo "message=$note" >> $meta_file_path
+     echo "date=$(date +%s)" >> $meta_file_path
 
      echo_blue "Meta file $meta_file_path contents:"
      cat $meta_file_path

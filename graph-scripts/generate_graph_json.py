@@ -54,19 +54,20 @@ def get_element_id(key):
 
 
 class BenchmarkResult:
-    def __init__(self, branch, commit_hash, commit_date, commit_msg, results):
+    def __init__(self, branch, commit_hash, commit_date, commit_msg, test_date, results):
         self.branch = branch
         self.commit_hash = commit_hash
         self.commit_date = commit_date
         self.commit_msg = commit_msg
+        self.test_date = test_date
         self.results = results
 
     # def add_timing(self, key, timing):
     #     self.task_timing[key] = timing
 
     def __str__(self):
-        return "Branch: %s Hash: %s Commit Date: %s Commit Msg: %s Results: %s" % (
-        self.branch, self.commit_hash, self.commit_date, self.commit_msg, str(self.results))
+        return "Branch: %s Hash: %s Commit Date: %s Commit Msg: %s Test Date: %s Results: %s" % (
+        self.branch, self.commit_hash, self.commit_date, self.commit_msg, self.test_date, str(self.results))
 
     def __repr__(self):
         return str(self)
@@ -88,6 +89,7 @@ def parse_benchmark_results(result_paths):
             commit_hash = props["commit"]
             commit_date = int(props["commit_date"])
             commit_msg = props["message"]
+            test_date = props["date"]
 
             json_results = json.load(open(result_path))
         except OSError as e:
@@ -100,7 +102,7 @@ def parse_benchmark_results(result_paths):
             logging.warning(f"Skipping {file_id}. Unexpected exception: {e}")
             continue
 
-        benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, json_results)
+        benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, test_date, json_results)
         benchmark_results.append(benchmark_result.__dict__)
 
     return benchmark_results
