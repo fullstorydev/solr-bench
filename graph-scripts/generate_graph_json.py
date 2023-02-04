@@ -77,7 +77,7 @@ def parse_benchmark_results(meta_props):
 
     for meta_prop in meta_props:
         try:
-            test_run_dir = os.path.dirname(meta_prop["test_run_dir"])
+            test_run_dir = meta_prop["test_run_dir"]
             # commit_date = time.gmtime(int(props["committed_date"]))
             commit_hash = props["commit"]
             commit_date = int(props["commit_date"])
