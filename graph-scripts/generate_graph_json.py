@@ -72,22 +72,19 @@ class BenchmarkResult:
     def __repr__(self):
         return str(self)
 
-def parse_benchmark_results(result_paths):
+def parse_benchmark_results(meta_props):
     benchmark_results = []
 
-    for result_path in result_paths:
+    for meta_prop in meta_props:
         try:
-            result_dir = os.path.dirname(result_path)
-            meta_path = os.path.join(result_dir, "meta.prop")
-            props = load_properties(meta_path)
-            logging.info("Loaded props" + str(props))
-
+            test_run_dir = os.path.dirname(meta_prop["test_run_dir"])
             # commit_date = time.gmtime(int(props["committed_date"]))
             commit_hash = props["commit"]
             commit_date = int(props["commit_date"])
             commit_msg = props["message"]
             test_date = props["date"]
 
+            result_path = os.path.join(test_run_dir, "results.json")
             json_results = json.load(open(result_path))
         except OSError as e:
             logging.warning(f"Skipping meta data parsing. Unable to open {result_path}: {e}")
@@ -146,7 +143,11 @@ for branch in target_branches:
     result_paths = []
     for test_run_base_dir in test_run_dirs:
         test_run_dir = os.path.join(result_dir, test_run_base_dir)
-        props = load_properties(os.path.join(test_run_dir, "meta.prop"))
+        try:
+            props = load_properties(os.path.join(test_run_dir, "meta.prop"))
+        except OSError as e:
+            logging.warning(f'failed to open meta.prop in {test_run_dir}. Skipping...')
+            continue
         if "branches" not in props or branch not in props["branches"].split(','):
             logging.debug(f'skipping {test_run_dir} for branch {branch}')
             continue
@@ -155,10 +156,8 @@ for branch in target_branches:
 
     # now sort the props by commit date
     meta_props.sort(key=get_commit_date)
-    for props in meta_props:
-        result_paths.append(os.path.join(props["test_run_dir"], 'results.json'))
 
-    benchmark_results[branch] = parse_benchmark_results(result_paths)
+    benchmark_results[branch] = parse_benchmark_results(meta_props)
 
 
 output_path = None
