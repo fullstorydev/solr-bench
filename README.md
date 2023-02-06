@@ -69,7 +69,7 @@ note: This is subject to change
 
 ### Results
 
-* Results are available after the benchmark in `./suites/results/<testname>/results-\<commit-id\>.json` file.
+* Results are available after the benchmark in `./suites/results/<testname>/results-<commit-id>.json` file.
 
 ### Datasets
 
@@ -79,7 +79,7 @@ TBD
 
 User workflow:
 
-1. Run their suite with `-g` (generate validation) flag. This will generate a file in the `suites/` dir containing a tuple <query, numFound, facets>.
+1. Run their suite with `-g` (generate validation) flag. This will generate a file in the `suites/` dir containing a tuple `<query, numFound, facets>`.
 2. Manually verify the generated file (`suites/validations-<testname>-docs-<docs>-queries-<numQueries>.json`).
 3. The validations file can used for validations in subsequent runs.
 
@@ -90,7 +90,17 @@ User workflow:
 
 The results would be reported in the query benchmark task, for example (500 validations succeeded, 0 failed):
 
-    {threads=1, 50th=8.2426775, 90th=18.409747399999993, 95th=28.618552849999993, mean=16.281752914583333, total-queries=480, total-time=14085, validations-succeeded=500, validations-failed=0}
+    {
+       threads=1,
+       50th=8.2426775,
+       90th=18.409747399999993,
+       95th=28.618552849999993,
+       mean=16.281752914583333,
+       total-queries=480,
+       total-time=14085,
+       validations-succeeded=500,
+       validations-failed=0
+    }
 
 ### Visualization (WIP)
 
