@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Vector;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -106,7 +107,6 @@ public class BenchmarksMain {
 
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-		        List<SolrBenchQuery> queryResults = new Vector<>();
 		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 		        String collection = collectionNameOverride==null? benchmark.collection: collectionNameOverride;
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
@@ -114,10 +114,11 @@ public class BenchmarksMain {
 		                benchmark.rpm,
 		                benchmark.totalCount,
 		                benchmark.warmCount,
-		                getQuerySupplier(queryGenerator, queryResults, client, collection));
+		                getQuerySupplier(queryGenerator, client, collection));
 		        long start = System.currentTimeMillis();
+						List<SolrBenchQuery> generatedQueries;
 		        try {
-		            controlledExecutor.run();
+		            generatedQueries = controlledExecutor.run();
 		        } finally {
 		            client.close();
 		        }
@@ -128,7 +129,7 @@ public class BenchmarksMain {
 		        	int totalDocsIndexed = getTotalDocsIndexed(baseUrl, collection);
 		        			
 		        	FileWriter outFile = new FileWriter("suites/validations-"+benchmark.queryFile+"-docs-"+totalDocsIndexed+"-queries-"+benchmark.totalCount+".tsv");
-			        for (SolrBenchQuery sbq: queryResults) {
+			        for (SolrBenchQuery sbq: generatedQueries) {
 			        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
 			        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
 			        	outFile.write(sbq.queryString.replace('\n', ' ').replace('\r', ' ') +
@@ -139,7 +140,7 @@ public class BenchmarksMain {
 		        	Map<String, Pair<Integer, String>> validations = loadValidations(benchmark);
 		        	log.info("Loaded " + validations.size() + " validations from " + benchmark.validationFile);
 		        	
-			        for (SolrBenchQuery sbq: queryResults) {
+			        for (SolrBenchQuery sbq: generatedQueries) {
 			        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
 			        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
 			        	String key = sbq.queryString.replace('\n', ' ').replace('\r', ' ');
@@ -274,7 +275,7 @@ public class BenchmarksMain {
 		}
 	}
 
-    private static Supplier<Runnable> getQuerySupplier(QueryGenerator queryGenerator, List<SolrBenchQuery> queryResults, HttpSolrClient client, String collection) {
+    private static Supplier<Callable<SolrBenchQuery>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
         return () -> {
             SolrBenchQuery qr = queryGenerator.nextRequest();
             if (qr == null) return null;
@@ -282,9 +283,10 @@ public class BenchmarksMain {
                 try {
                     NamedList<Object> rsp = client.request(qr.request, collection);
                     printErrOutput(qr, rsp);
-                    queryResults.add(qr);
+                    return qr;
                 } catch (Exception e) {
                     log.error("Failed to execute request: " + qr, e);
+										return null;
                 }
             };
         };
