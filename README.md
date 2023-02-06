@@ -44,26 +44,53 @@ TBD (PRs welcome!)
 In the coordinator VM, check out this solr-bench repository.
 
 1. `mvn clean compile assembly:single`
-2. `./cleanup.sh && ./stress.sh -c <commit> <config-file>`
+2. `./cleanup.sh && ./stress.sh -c <commit> -f <config-file>`
 
-Example: `./cleanup.sh ./stress.sh -c dfde16a004206cc92e21cc5a6cad9030fbe13c20 suites/stress-facets-local.json`
+Example: `./cleanup.sh ./stress.sh -c dfde16a004206cc92e21cc5a6cad9030fbe13c20 -f suites/stress-facets-local.json`
 
+    Usage: ./stress.sh -c <commit> [-g] [-v] -f <config-file>
+
+| parameter | Required? | Description |
+| ------- | ---------- | --------- |
+|  -f | Required | Configuration file for a suite |
+|  -c | Required | Commit point to run against |
+|  -g | Optional | Generate validations file(s) for all query benchmark tasks |
+|  -v | Optional | Perform validations based on specified validations file(s) |
+
+    Note: Only -g or -v can be specified at a time
 
 #### Available tests
 ```
 note: This is subject to change
 ```
 
-1. `cluster-test.json` : Creates an 8 node cluster and create 1000 collections of various `numShards` and measure shutdown & restart performance
-2. `stress-facets-local.json` : Indexes 20 million documents from an ecommerce events dataset, issues 5k facet queries against it.
+1. `cluster-test.json`: Creates an 8 node cluster and create 1000 collections of various `numShards` and measure shutdown & restart performance
+2. `stress-facets-local.json`: Indexes 20 million documents from an ecommerce events dataset, issues 5k facet queries against it.
 
 ### Results
 
-* Results are available after the benchmark in `./suites/results/results-\<configfile\>-\<commit-id\>.json` file. 
+* Results are available after the benchmark in `./suites/results/<testname>/results-\<commit-id\>.json` file.
 
 ### Datasets
 
 TBD
+
+### Validations
+
+User workflow:
+
+1. Run their suite with `-g` (generate validation) flag. This will generate a file in the `suites/` dir containing a tuple <query, numFound, facets>.
+2. Manually verify the generated file (`suites/validations-<testname>-docs-<docs>-queries-<numQueries>.json`).
+3. The validations file can used for validations in subsequent runs.
+
+#### Using validations with a generated file
+
+    a. Add a `"validation": "<file>"` parameter in the query-benchmark definition,
+    b. Run `stress.sh` with a `-v` (validate) flag. It will use the validations file in the query benchmark task and report number of successful and failed queries.
+
+The results would be reported in the query benchmark task, for example (500 validations succeeded, 0 failed):
+
+    {threads=1, 50th=8.2426775, 90th=18.409747399999993, 95th=28.618552849999993, mean=16.281752914583333, total-queries=480, total-time=14085, validations-succeeded=500, validations-failed=0}
 
 ### Visualization (WIP)
 
