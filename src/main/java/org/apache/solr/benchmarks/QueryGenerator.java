@@ -5,6 +5,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
+import org.apache.solr.benchmarks.beans.SolrBenchQuery;
 import org.apache.solr.benchmarks.readers.TarGzFileReader;
 import org.apache.solr.client.solrj.ResponseParser;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -23,24 +24,31 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class QueryGenerator {
     final QueryBenchmark queryBenchmark;
-    List<String> queries = new ArrayList<>();
+    // = new ArrayList<>();
+    List<SolrBenchQuery> sbQueries;
     Random random;
     AtomicLong counter = new AtomicLong();
     final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+    List<String> queryStrings = new ArrayList<>();
 
     public QueryGenerator(QueryBenchmark queryBenchmark) throws IOException, ParseException {
         this.queryBenchmark = queryBenchmark;
         File file = Util.resolveSuitePath(queryBenchmark.queryFile);
+
         if (queryBenchmark.queryFile.endsWith(".tar.gz")) {
-            queries = new ArrayList<>();
             TarGzFileReader.readFilesFromZip(
                     file,
                     s -> s.endsWith(".json"),
-                    q -> queries.add(q)
+                    q -> queryStrings.add(q)
             );
         } else {
-            queries = FileUtils.readLines(file, "UTF-8");
+            queryStrings = FileUtils.readLines(file, "UTF-8");
         }
+        sbQueries = new ArrayList<SolrBenchQuery>();
+        for(String queryString: queryStrings) {
+        	sbQueries.add(new SolrBenchQuery(queryString));
+        }
+
         if (Boolean.TRUE.equals(queryBenchmark.shuffle)) {
             random = new Random();
         }
@@ -48,27 +56,25 @@ public class QueryGenerator {
         if (queryBenchmark.endDate != null) {
             this.queryBenchmark.params.put("NOW", String.valueOf(DATE_FORMAT.parse(queryBenchmark.endDate).getTime()));
         }
-
-        System.out.println("Total queries: " + queries.size());
-
+        System.out.println("Total queries: " + sbQueries.size());
     }
 
 
-    public QueryRequest nextRequest() {
+    public SolrBenchQuery nextRequest() {
     	while (counter.get() < queryBenchmark.offset) {
-            long idx = random == null ? counter.get() : random.nextInt(queries.size());
-            String q = queries.get((int) (idx % queries.size()));
+            long idx = random == null ? counter.get() : random.nextInt(sbQueries.size());
+            String q = (sbQueries.get((int) (idx % sbQueries.size()))).queryString;
             long c = counter.incrementAndGet();
             System.err.println("Skipping query "+c+": "+q);
     	}
         
-    	long idx = random == null ? counter.get() : random.nextInt(queries.size());
-        String q = queries.get((int) (idx % queries.size()));
+    	long idx = random == null ? counter.get() : random.nextInt(sbQueries.size());
+        //String q = queries.get((int) (idx % queries.size()));
+    	SolrBenchQuery query = sbQueries.get((int) (idx % sbQueries.size()));
         counter.incrementAndGet();
-        
         QueryRequest request;
         if (queryBenchmark.templateValues != null && !queryBenchmark.templateValues.isEmpty()) {
-            PropertiesUtil.substituteProperty(q, queryBenchmark.templateValues);
+        	query.queryString = PropertiesUtil.substituteProperty(query.queryString, queryBenchmark.templateValues);
         }
 
         //TODO apply templates if any
@@ -81,7 +87,7 @@ public class QueryGenerator {
 
                 @Override
                 public RequestWriter.ContentWriter getContentWriter(String expectedType) {
-                    return new RequestWriter.StringPayloadContentWriter(q, CommonParams.JSON_MIME);
+                    return new RequestWriter.StringPayloadContentWriter(query.queryString, CommonParams.JSON_MIME);
                 }
 
                 @Override
@@ -96,7 +102,7 @@ public class QueryGenerator {
 
                 @Override
                 public String toString() {
-                    return q;
+                    return query.queryString;
                 }
 
                 @Override
@@ -111,14 +117,14 @@ public class QueryGenerator {
             };
 
         } else {
-            request = new QueryRequest(Util.parseQueryString(q)) {
+            request = new QueryRequest(Util.parseQueryString(query.queryString)) {
                 @Override
                 public String getCollection() {
                     return queryBenchmark.collection;
                 }
             };
         }
-
-        return request;
+        query.request = request;
+        return query;
     }
 }

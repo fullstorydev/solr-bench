@@ -66,4 +66,8 @@ public class QueryBenchmark {
   @JsonProperty("end-date")
   // This is a date in the format "YYYY-MM-DD" to be used as NOW for Solr queries
   public String endDate;
+
+  @JsonProperty("validation")
+  public String validationFile;
+
 }

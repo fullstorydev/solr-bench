@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -38,22 +40,19 @@ import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.solr.benchmarks.beans.Cluster;
-import org.apache.solr.benchmarks.beans.Configuration;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
-import org.apache.solr.benchmarks.beans.Repository;
+import org.apache.solr.benchmarks.beans.SolrBenchQuery;
 import org.apache.solr.benchmarks.readers.JsonlFileType;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException;
-import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrInputDocument;
@@ -63,9 +62,12 @@ import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.util.JsonRecordReader;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.common.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BenchmarksMain {
@@ -104,18 +106,59 @@ public class BenchmarksMain {
 
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
+		        List<SolrBenchQuery> queryResults = new Vector<>();
 		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+		        String collection = collectionNameOverride==null? benchmark.collection: collectionNameOverride;
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
 		                benchmark.duration,
 		                benchmark.rpm,
 		                benchmark.totalCount,
 		                benchmark.warmCount,
-		                getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride));
+		                getQuerySupplier(queryGenerator, queryResults, client, collection));
 		        long start = System.currentTimeMillis();
 		        try {
 		            controlledExecutor.run();
 		        } finally {
 		            client.close();
+		        }
+
+		        if (StressMain.generateValidations) {
+		        	int totalDocsIndexed = getTotalDocsIndexed(baseUrl, collection);
+		        			
+		        	FileWriter outFile = new FileWriter("suites/validations-"+benchmark.queryFile+"-docs-"+totalDocsIndexed+"-queries-"+benchmark.totalCount+".tsv");
+			        for (SolrBenchQuery sbq: queryResults) {
+			        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
+			        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
+			        	outFile.write(sbq.queryString.replace('\n', ' ').replace('\r', ' ') +
+			        			"\t" + numFound + "\t" + new ObjectMapper().writeValueAsString(facets).replace('\n', ' ') + "\n");
+			        }
+			        outFile.close();
+		        } else if (StressMain.validate && benchmark.validationFile != null && new File("suites/" + benchmark.validationFile).exists()) {
+		        	Map<String, Pair<Integer, String>> validations = new HashMap<>();
+		        	for (String line: FileUtils.readLines(new File("suites/" + benchmark.validationFile))) {
+		        		String parts[] = line.split("\t");
+		        		validations.put(parts[0], new Pair(Integer.valueOf(parts[1]), parts[2]));
+		        	}
+		        	log.info("Loaded " + validations.size() + " validations from " + benchmark.validationFile);
+		        	
+		        	int success = 0, failure = 0;
+			        for (SolrBenchQuery sbq: queryResults) {
+			        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
+			        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
+			        	String key = sbq.queryString.replace('\n', ' ').replace('\r', ' ');
+			        	String facetsString = new ObjectMapper().writeValueAsString(facets).replace('\n', ' ');
+			        	int expectedNumFound = validations.get(key).first();
+			        	String expectedFacetsString = validations.get(key).second();
+			        	if (numFound == expectedNumFound && facetsString.trim().equals(expectedFacetsString.trim())) {
+			        		success++;
+			        	} else {
+			        		log.error("Validation failed: numFound=" + numFound+", expected=" + expectedNumFound + ", facets=" + facetsString +", expected="+expectedFacetsString);
+			        		failure++;
+			        	}
+			        }
+			        
+			        log.info("Successes: "+success+", failures: "+failure);
+
 		        }
 
 		        long time = System.currentTimeMillis() - start;
@@ -129,6 +172,43 @@ public class BenchmarksMain {
 		        }
 		    }
 		}
+	}
+
+	private static int getTotalDocsIndexed(String baseUrl, String collection)
+			throws IOException, JsonProcessingException, JsonMappingException {
+		int totalDocsIndexed = -1;
+		try(HttpSolrClient solrClient = new HttpSolrClient.Builder(baseUrl + "/" + collection).build()) {
+			SolrQuery query = new SolrQuery();
+			query.set("q", "*:*");
+			QueryResponse response = solrClient.query(query);
+			
+		    totalDocsIndexed = ((Long)response.getResults().getNumFound()).intValue();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		}
+		return totalDocsIndexed;
+	}
+
+	private static Map<String, Object> getFacetsFromSolrQueryResponse(String response)
+			throws JsonProcessingException, JsonMappingException {
+		Map<String, Object> facets = null;
+		Map<String, Object> jsonResponse = new ObjectMapper().readValue(response, Map.class);
+		if (jsonResponse.containsKey("facets")) {
+			facets = (((Map<String, Object>) jsonResponse.get("facets")));
+		}
+		return facets;
+	}
+
+	private static int getNumFoundFromSolrQueryResponse(String response)
+			throws JsonProcessingException, JsonMappingException {
+		int numFound = -1;
+		Map<String, Object> jsonResponse = new ObjectMapper().readValue(response, Map.class);
+		if (jsonResponse.containsKey("response")) {
+			numFound = ((int) ((Map<String, Object>) jsonResponse.get("response")).get("numFound"));
+		} else {
+			log.error("Didn't find a \"response\" key in the returned response: " + response);
+		}
+		return numFound;
 	}
 
 	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results) throws Exception {
@@ -180,14 +260,15 @@ public class BenchmarksMain {
 		}
 	}
 
-    private static Supplier<Runnable> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
+    private static Supplier<Runnable> getQuerySupplier(QueryGenerator queryGenerator, List<SolrBenchQuery> queryResults, HttpSolrClient client, String collection) {
         return () -> {
-            QueryRequest qr = queryGenerator.nextRequest();
+            SolrBenchQuery qr = queryGenerator.nextRequest();
             if (qr == null) return null;
             return () -> {
                 try {
-                    NamedList<Object> rsp = client.request(qr, collection);
+                    NamedList<Object> rsp = client.request(qr.request, collection);
                     printErrOutput(qr, rsp);
+                    queryResults.add(qr);
                 } catch (Exception e) {
                     log.error("Failed to execute request: " + qr, e);
                 }
@@ -195,18 +276,21 @@ public class BenchmarksMain {
         };
     }
 
-    private static void printErrOutput(QueryRequest qr, NamedList<Object> rsp) throws IOException {
+    private static void printErrOutput(SolrBenchQuery qr, NamedList<Object> rsp) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         if (rsp.get("stream") == null) {
         	return;
         }
         IOUtils.copy((InputStream) rsp.get("stream"), baos);
-        String errorout = new String(baos.toByteArray());
-        if (!errorout.trim().startsWith("{")) {
+        String response = new String(baos.toByteArray());
+        qr.response = response;
+                
+        if (!response.trim().startsWith("{")) {
             // it's not a JSON output, something must be wrong
             System.out.println("########### A query failed ");
-            System.out.println("failed query " + qr.toString());
-            System.out.println("Error response " + errorout);
+            System.out.println("failed query " + qr.request.toString());
+            System.out.println("Error response " + response);
+            return;
         }
     }
 

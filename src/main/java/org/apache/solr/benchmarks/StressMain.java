@@ -1,3 +1,4 @@
+package org.apache.solr.benchmarks;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -26,10 +27,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.solr.benchmarks.BenchmarksMain;
-import org.apache.solr.benchmarks.MetricsCollector;
-import org.apache.solr.benchmarks.Util;
-import org.apache.solr.benchmarks.WorkflowResult;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
@@ -69,10 +66,17 @@ public class StressMain {
 		Options cliOptions = new Options();
 		cliOptions.addRequiredOption("f", "file", true, "Configuration file");
 		cliOptions.addRequiredOption("c", "commit", true, "Commit ID");
+		cliOptions.addOption("g", "generate-validations", false, "Generate validations data for all query tasks");
+		cliOptions.addOption("v", "validate", false, "Enable validations for all query tasks (not done unless specified)");
+
 		CommandLineParser cliParser = new DefaultParser();
 		CommandLine cli = cliParser.parse(cliOptions, args);
 		return cli;
 	}
+
+	public static boolean generateValidations = false;
+	public static boolean validate = false;
+
 
 	public static void main(String[] args) throws Exception {
 		CommandLine cliParams = getCLIParams(args);		
@@ -84,6 +88,13 @@ public class StressMain {
 		log.info("The base directory for the suite: " + SUITE_BASE_DIR);
 		System.setProperty("SUITE_BASE_DIRECTORY", SUITE_BASE_DIR);
 
+		generateValidations = cliParams.hasOption("g");
+		validate = cliParams.hasOption("v");
+		if (generateValidations && validate) {
+			log.error("Cannot use -g (--generate-validations) and -v (--validate) at the same time.");
+			System.exit(1);
+		}
+		
 		Workflow workflow = new ObjectMapper().readValue(FileUtils.readFileToString(new File(configFile), "UTF-8"), Workflow.class);
 		Cluster cluster = workflow.cluster;
 

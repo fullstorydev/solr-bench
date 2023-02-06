@@ -1,3 +1,4 @@
+package org.apache.solr.benchmarks;
 import java.util.List;
 import java.util.Map;
 
