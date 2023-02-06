@@ -122,6 +122,8 @@ public class BenchmarksMain {
 		            client.close();
 		        }
 
+	        	int success = 0, failure = 0;
+
 		        if (StressMain.generateValidations) {
 		        	int totalDocsIndexed = getTotalDocsIndexed(baseUrl, collection);
 		        			
@@ -134,20 +136,15 @@ public class BenchmarksMain {
 			        }
 			        outFile.close();
 		        } else if (StressMain.validate && benchmark.validationFile != null && new File("suites/" + benchmark.validationFile).exists()) {
-		        	Map<String, Pair<Integer, String>> validations = new HashMap<>();
-		        	for (String line: FileUtils.readLines(new File("suites/" + benchmark.validationFile))) {
-		        		String parts[] = line.split("\t");
-		        		validations.put(parts[0], new Pair(Integer.valueOf(parts[1]), parts[2]));
-		        	}
+		        	Map<String, Pair<Integer, String>> validations = loadValidations(benchmark);
 		        	log.info("Loaded " + validations.size() + " validations from " + benchmark.validationFile);
 		        	
-		        	int success = 0, failure = 0;
 			        for (SolrBenchQuery sbq: queryResults) {
 			        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
 			        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
 			        	String key = sbq.queryString.replace('\n', ' ').replace('\r', ' ');
-			        	String facetsString = new ObjectMapper().writeValueAsString(facets).replace('\n', ' ');
 			        	int expectedNumFound = validations.get(key).first();
+			        	String facetsString = new ObjectMapper().writeValueAsString(facets).replace('\n', ' ');
 			        	String expectedFacetsString = validations.get(key).second();
 			        	if (numFound == expectedNumFound && facetsString.trim().equals(expectedFacetsString.trim())) {
 			        		success++;
@@ -164,14 +161,31 @@ public class BenchmarksMain {
 		        long time = System.currentTimeMillis() - start;
 		        System.out.println("Took time: " + time);
 		        if (time > 0) {
-		            System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
-		                    ", 95th latency: " + controlledExecutor.stats.getPercentile(95));
-		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(
-		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
-		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
+		            Map<String, Number> taskResults = new LinkedHashMap<>();
+		            taskResults.put("threads", threads);
+		            taskResults.put("50th", controlledExecutor.stats.getPercentile(50));
+		            taskResults.put("90th", controlledExecutor.stats.getPercentile(90));
+		            taskResults.put("95th", controlledExecutor.stats.getPercentile(95));
+		            taskResults.put("mean", controlledExecutor.stats.getMean());
+		            taskResults.put("total-queries", controlledExecutor.stats.getN());
+		            taskResults.put("total-time", time);
+		            if (StressMain.validate) taskResults.put("validations-succeeded", success);
+		            if (StressMain.validate) taskResults.put("validations-failed", failure);
+
+		            System.out.println("Query task results: " + taskResults);
+		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(taskResults);
 		        }
 		    }
 		}
+	}
+
+	private static Map<String, Pair<Integer, String>> loadValidations(QueryBenchmark benchmark) throws IOException {
+		Map<String, Pair<Integer, String>> validations = new HashMap<>();
+		for (String line: FileUtils.readLines(new File("suites/" + benchmark.validationFile))) {
+			String parts[] = line.split("\t");
+			validations.put(parts[0], new Pair(Integer.valueOf(parts[1]), parts[2]));
+		}
+		return validations;
 	}
 
 	private static int getTotalDocsIndexed(String baseUrl, String collection)
