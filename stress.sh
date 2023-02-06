@@ -272,9 +272,9 @@ echo_blue "Running Stress suite from working directory: $BASEDIR"
 if [ -z "$SOLR_BENCH_JAR" ] #then no explicit jar provided
 then
   java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
-   StressMain -f $CONFIGFILE -c $COMMIT
+   org.apache.solr.benchmarks.StressMain -f $CONFIGFILE -c $COMMIT
 else
-  java -Xmx12g -cp ${SOLR_BENCH_JAR}:. StressMain -f $CONFIGFILE -c $COMMIT
+  java -Xmx12g -cp ${SOLR_BENCH_JAR}:. org.apache.solr.benchmarks.StressMain -f $CONFIGFILE -c $COMMIT
 fi
 
 
