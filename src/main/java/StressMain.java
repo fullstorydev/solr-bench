@@ -8,12 +8,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 
@@ -113,7 +108,7 @@ public class StressMain {
 		}
 	}
 
-	private static WorkflowResult executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException {
+	private static WorkflowResult executeWorkflow(Workflow workflow, SolrCloud cloud) throws InterruptedException, JsonGenerationException, JsonMappingException, IOException, ExecutionException {
 		Map<String, AtomicInteger> globalVariables = new ConcurrentHashMap<String, AtomicInteger>();
 
 		// Initialize the common threadpools
@@ -169,7 +164,7 @@ public class StressMain {
 			finalResults.put(taskName, new ArrayList<>());
 			for (int i=1; i<=instance.instances; i++) {
 
-				Callable c = taskCallable(workflow, cloud, globalVariables, taskExecutors, finalResults, executionStart, taskName, instance, type);
+				Callable c = taskCallable(workflow, cloud, globalVariables, taskExecutors, finalResults, taskFutures, executionStart, taskName, instance, type);
 
 				if (!commonThreadpoolTask) {
 					taskFutures.get(taskName).add(executor.submit(c));
@@ -206,6 +201,13 @@ public class StressMain {
 			metricsCollector.stop();
 			metricsThread.stop();
 		}
+
+		for (Map.Entry<String, List<Future>> futuresByTaskNames : taskFutures.entrySet()) {
+			for (Future future : futuresByTaskNames.getValue()) {
+					future.get(); //check if there are any uncaught exceptions in those tasks
+			}
+		}
+
 		log.info("Final results: "+finalResults);
 		if (metricsCollector != null) {
 			metricsCollector.metrics.put("zookeeper", metricsCollector.zkMetrics);
@@ -215,12 +217,21 @@ public class StressMain {
 		}
 	}
 
-	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, long executionStart, String taskName, TaskInstance instance, TaskType type) {
+	private static Callable taskCallable(Workflow workflow, SolrCloud cloud, Map<String, AtomicInteger> globalVariables, Map<String, ExecutorService> taskExecutors, Map<String, List<Map>> finalResults, Map<String, List<Future>> taskFutures, long executionStart, String taskName, TaskInstance instance, TaskType type) {
 		Callable c = () -> {
 			if (instance.waitFor != null) {
 				log.info("Waiting for "+ instance.waitFor+" to finish");
 				boolean await = taskExecutors.get(instance.waitFor).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 				log.info(instance.waitFor+" finished! "+await);
+				for (Future future : taskFutures.get(instance.waitFor)) {
+					try {
+						future.get();
+					} catch (ExecutionException e) { //check if the waitFor task had exceptions
+						String warning = "Task [" + taskName + "] which relies on Task [" + instance.waitFor + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task";
+						log.warn("Task [" + taskName + "] which relies on Task [" + instance.waitFor + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task");
+						throw new RuntimeException(warning, e); //throw a new exception to stop all waitFor tasks as well
+					}
+				}
 			}
 			Map<String, Integer> copyOfGlobalVarialbes = new HashMap<String, Integer>();
 			if (instance.preTaskEvals != null) {
@@ -302,8 +313,10 @@ public class StressMain {
 				ConcurrentHashMap<String, Long> minHeaps = new ConcurrentHashMap<>();
 				try {
 					executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(taskName + "-restart-thread-pool").build());
+
+					List<Future> restartFutures = new ArrayList<>(); //could have used CompletableFuture, but it gets hairy with checked exceptions
 					for (SolrNode restartNode : restartNodes) {
-						executor.submit(() -> {
+						restartFutures.add(executor.submit(() -> {
 							String nodeName = restartNode.getNodeName();
 							log.info("Restarting " + nodeName);
 							long marker = System.currentTimeMillis();
@@ -315,11 +328,15 @@ public class StressMain {
 									restartNode.start();
 									startTimes.put(nodeName, System.currentTimeMillis() - marker);
 								} else {
-									restartNode.restart();
+									int exitCode = restartNode.restart();
+									if (exitCode != 0) {
+										throw new Exception("Restart exit code is not 0, found: " + exitCode);
+									}
 									startTimes.put(nodeName, System.currentTimeMillis() - marker); //for non local node, we only have the restart (stop+start) time
 								}
 							} catch (Exception ex) {
-								ex.printStackTrace();
+								log.warn("Restarted failed with exception: ", ex.getMessage());
+								throw ex;
 							}
 							if (type.awaitRecoveries) {
 								marker = System.currentTimeMillis();
@@ -341,7 +358,8 @@ public class StressMain {
 										}
 									} while (numInactive > 0);
 								} catch (Exception ex) {
-									ex.printStackTrace();
+									log.warn("Await restart recoveries failed with exception: ", ex.getMessage());
+									throw ex;
 								}
 								startTimes.put(nodeName, startTimes.getOrDefault(nodeName, 0L) + (System.currentTimeMillis() - marker));
 							}
@@ -358,9 +376,18 @@ public class StressMain {
 								}
 								minHeaps.put(nodeName, minHeap);
 
-							} catch (Exception ex) {}
-						});
+							} catch (Exception ex) {
+								log.warn("Gather metrics after restart failed with exception: ", ex.getMessage());
+								//missing heap data is not fatal, let's warn and proceed for now
+							}
+							return null;
+						}));
 					}
+					for (Future restartFuture : restartFutures) {
+						restartFuture.get(); //check and throw exception if there are any thrown exceptions from the task
+					}
+
+
 				} finally {
 					if (executor != null) {
 						executor.shutdown();
