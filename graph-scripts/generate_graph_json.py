@@ -103,7 +103,7 @@ def get_commit_date(props):
     return int(props["commit_date"])
 
 
-benchmark_results = collections.OrderedDict()  # key as branch name
+benchmark_results = collections.OrderedDict()  # key as tag, which usually is just the branch name
 test_name = os.path.splitext(os.path.basename(result_dir))[0]
 
 meta_files = [f for f in os.listdir(result_dir) if
