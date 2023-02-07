@@ -15,16 +15,17 @@ parser.add_argument('-o', '--output',
                     help='Output path of the graph json. If undefined it will be saved as the working dir with name '
                          '<test_name>.json ',
                     required=False)
-parser.add_argument('-b', '--compare-tags',
-                    help='Chart results that matches a single tag <tag> or compare different tags in format of '
-                         '<tag1>...<tag2>. Tags are usually just branch names, for example "master...branch_8x"',
+parser.add_argument('-b', '--compare-groups',
+                    help='Chart results that matches a single group <group> or compare different groups in format of '
+                         '<group 1>...<group 2>. Groupings are usually just branch names, '
+                         'for example "main" or "master...branch_8x"',
                     required=True)
 args = vars(parser.parse_args())
 
 result_dir = args['result_dir']
 logging.info("Reading results from dir: " + result_dir)
-target_tags = args['compare-tags'].split('...')
-logging.info("Comparing tags: " + str(target_tags))
+target_groups = args['compare-groups'].split('...')
+logging.info("Comparing groups: " + str(target_groups))
 
 def load_properties(filepath, sep='=', comment_char='#'):
     """
@@ -103,13 +104,13 @@ def get_commit_date(props):
     return int(props["commit_date"])
 
 
-benchmark_results = collections.OrderedDict()  # key as tag, which usually is just the branch name
+benchmark_results = collections.OrderedDict()  # key as group, which usually is just the branch name
 test_name = os.path.splitext(os.path.basename(result_dir))[0]
 
 meta_files = [f for f in os.listdir(result_dir) if
               os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
 
-for tag in target_tags:
+for group in target_groups:
     test_run_dirs = [f for f in os.listdir(result_dir) if
                   os.path.isdir(os.path.join(result_dir, f))]
     meta_props = []
@@ -121,8 +122,8 @@ for tag in target_tags:
         except OSError as e:
             logging.warning(f'failed to open meta.prop in {test_run_dir}. Skipping...')
             continue
-        if "tags" not in props or tag not in props["tags"].split(','):
-            logging.debug(f'skipping {test_run_dir} for tag {tag}')
+        if "groups" not in props or group not in props["groups"].split(','):
+            logging.debug(f'skipping {test_run_dir} for group {group}')
             continue
         props["test_run_dir"] = test_run_dir
         meta_props.append(props)
@@ -130,7 +131,7 @@ for tag in target_tags:
     # now sort the props by commit date
     meta_props.sort(key=get_commit_date)
 
-    benchmark_results[tag] = parse_benchmark_results(meta_props)
+    benchmark_results[group] = parse_benchmark_results(meta_props)
 
 
 output_path = None

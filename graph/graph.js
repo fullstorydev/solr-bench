@@ -1,17 +1,17 @@
 function drawAllCharts() {
     var allResultsByTaskName = {}
-    var tags = [] //tags are usually just branch names, but it could be some other customized values
-    $.each(graph_data, function(tag, dataByTag) { //collect tag names first. then figure out how many pages are there
-       tags.push(tag)
+    var groups = [] //groups are usually just branch names, but it could be some other customized values
+    $.each(graph_data, function(group, dataByGroup) { //collect group names first. then figure out how many pages are there
+       groups.push(group)
     })
 
-    $.each(graph_data, function(tag, dataByTag) {
-        var $page = generatePage(tag, dataByTag.length == 1)
+    $.each(graph_data, function(group, dataByGroup) {
+        var $page = generatePage(group, dataByGroup.length == 1)
 
         var resultsByTaskName = {}
-        $.each(dataByTag, function(index, resultByCommit) {
+        $.each(dataByGroup, function(index, resultByCommit) {
             var commitMeta = {
-                tag: tag,
+                group: group,
                 commitHash: resultByCommit.commit_hash,
                 commitDate: resultByCommit.commit_date,
                 commitMsg: resultByCommit.commit_msg
@@ -29,9 +29,9 @@ function drawAllCharts() {
                 resultsOfThisTask.push(entry)
             })
         })
-        //plot graph for this tag of this task
+        //plot graph for this group of this task
         $.each(resultsByTaskName, function(taskName, resultsByTask) {
-            drawChartInPage([tag], taskName, resultsByTask, $page)
+            drawChartInPage([group], taskName, resultsByTask, $page)
             if (!allResultsByTaskName[taskName]) {
                 allResultsByTaskName[taskName] = [].concat(resultsByTask)
             } else {
@@ -40,11 +40,11 @@ function drawAllCharts() {
         })
     })
 
-    //generate a graph that compare all tags/branches
-    if (tags.length > 1) {
-        var $page = generatePage(tags.join(' vs '), true)
+    //generate a graph that compare all groups/branches
+    if (groups.length > 1) {
+        var $page = generatePage(groups.join(' vs '), true)
         $.each(allResultsByTaskName, function(taskName, resultsByTask) {
-            drawChartInPage(tags, taskName, resultsByTask, $page)
+            drawChartInPage(groups, taskName, resultsByTask, $page)
         })
         //have to refresh here, if the page is hidden on render then the graph dimension is rendered incorrectly...
         $page.siblings('.page').hide()
@@ -78,13 +78,13 @@ function detectChartType(graphData) {
 }
 
 var graphIndex = 0
-function drawChartInPage(tags, taskName, graphDataByCommit, $page) {
+function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
     var elementId = 'graph_' + graphIndex++
     var $graphDiv = $('<div class="graph" id="' + elementId + '"></div>')
     $page.append($graphDiv)
 
 //TODO xaxis, yaxis
-    var title = taskName + ' (' + tags.join(' vs ') + ')'
+    var title = taskName + ' (' + groups.join(' vs ') + ')'
     var options = {
                     title: title,
                     pointSize: 5,
@@ -113,10 +113,10 @@ function drawChartInPage(tags, taskName, graphDataByCommit, $page) {
     var columns = []
 
     columns.push({type: 'date', id:'Commit date'})
-    $.each(tags, function(index, tag) {
+    $.each(groups, function(index, group) {
         var suffix = ''
-        if (tags.length > 1) {
-            suffix = ' (' + tag + ')'
+        if (groups.length > 1) {
+            suffix = ' (' + group + ')'
         }
         //Property "visible" is NOT used by google chart, is it simply for us to track the column state
         if (chartType === ChartTypes.Simple) {
@@ -154,24 +154,24 @@ function drawChartInPage(tags, taskName, graphDataByCommit, $page) {
         var commitDate = new Date(0)
         commitDate.setUTCSeconds(dataOfCommit.commitMeta.commitDate);
         row.push(commitDate)
-        //iterate through tags and pad if necessary, even if the same task were performed for each tag, in order
-        //to have different lines for each tag, we have to treat tasks from each tag as all unique
-        $.each(tags, function(walkerBranchIndex, tag) {
-            if (tag == dataOfCommit.commitMeta.tag) {
+        //iterate through groups and pad if necessary, even if the same task were performed for each group, in order
+        //to have different lines for each group, we have to treat tasks from each group as all unique
+        $.each(groups, function(walkerBranchIndex, group) {
+            if (group == dataOfCommit.commitMeta.group) {
                 if (chartType === ChartTypes.Simple) {
                     var duration = dataOfCommit['result']['end-time'] - dataOfCommit['result']['start-time']
                     row.push(duration)
-                    row.push(duration.toFixed(2) + ' (' + tag + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(duration.toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
                 } else if (chartType === ChartTypes.Percentile) {
                     var timingResult = dataOfCommit['result']['timings'][0] //TODO first element only?
                     row.push(timingResult['50th'])
-                    row.push(timingResult['50th'].toFixed(2) + ' (' + tag + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['50th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
                     row.push(timingResult['90th'])
-                    row.push(timingResult['90th'].toFixed(2) + ' (' + tag + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['90th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
                     row.push(timingResult['95th'])
-                    row.push(timingResult['95th'].toFixed(2) + ' (' + tag + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['95th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
                     row.push(timingResult['mean'])
-                    row.push(timingResult['mean'].toFixed(2) + ' (' + tag + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(timingResult['mean'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
                 }
             } else {
                 columnPerBranchCount = chartType === ChartTypes.Simple ? 2 : 8
