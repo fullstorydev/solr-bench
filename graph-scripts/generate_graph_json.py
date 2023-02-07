@@ -24,7 +24,7 @@ args = vars(parser.parse_args())
 
 result_dir = args['result_dir']
 logging.info("Reading results from dir: " + result_dir)
-target_groups = args['compare-groups'].split('...')
+target_groups = args['compare_groups'].split('...')
 logging.info("Comparing groups: " + str(target_groups))
 
 def load_properties(filepath, sep='=', comment_char='#'):
