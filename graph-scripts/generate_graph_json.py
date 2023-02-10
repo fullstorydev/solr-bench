@@ -80,7 +80,7 @@ def parse_benchmark_results(meta_props):
             commit_hash = meta_prop["commit"]
             commit_date = int(meta_prop["commit_date"])
             commit_msg = meta_prop["message"]
-            test_date = meta_prop["date"]
+            test_date = meta_prop["test_date"]
 
             result_path = os.path.join(test_run_dir, "results.json")
             json_results = json.load(open(result_path))
