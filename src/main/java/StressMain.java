@@ -224,6 +224,7 @@ public class StressMain {
 				String[] waitForTasks = instance.waitFor.split(",");
 
 				for (String waitForTask : waitForTasks) { //probably more accurate to spawn threads and wait for it, but for simplicity just iterate each wait for
+					waitForTask = waitForTask.trim();
 					boolean await = taskExecutors.get(waitForTask).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 					log.info(waitForTask+" finished! "+await);
 					for (Future future : taskFutures.get(waitForTask)) {
