@@ -97,6 +97,7 @@ public class BenchmarksMain {
 		    log.info("Starting querying benchmarks...");
 
 		for (QueryBenchmark benchmark : queryBenchmarks) {
+      log.info("Query Benchmark name: " + benchmark.name);
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
       List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
       String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
