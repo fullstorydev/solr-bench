@@ -107,9 +107,9 @@ public class BenchmarksMain {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
-		                benchmark.duration,
+		                benchmark.durationSecs,
 		                benchmark.rpm,
-		                benchmark.totalCount,
+		                benchmark.runCount,
 		                benchmark.warmCount,
 		                getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride));
 		        long start = System.currentTimeMillis();
@@ -144,7 +144,7 @@ public class BenchmarksMain {
 		    	List setupMetrics = new ArrayList();
 		    	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
 
-		        for (int i = setup.minThreads; i <= setup.maxThreads; i += setup.threadStep) {
+		        for (int i = benchmark.minThreads; i <= benchmark.maxThreads; i += setup.threadStep) {
 		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
 		            String configsetName = setup.configset==null? null: collectionName+".SOLRBENCH";
 		            if (setup.shareConfigset) configsetName = setup.configset;
@@ -169,7 +169,7 @@ public class BenchmarksMain {
 		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
 		            long end = System.nanoTime();
 
-		            if (i != setup.maxThreads && setup.createCollection) {
+		            if (i != benchmark.maxThreads && setup.createCollection) {
 		            	if (deleteAfter) {
 		            		solrCloud.deleteCollection(collectionName);
 		            	}
@@ -327,7 +327,7 @@ public class BenchmarksMain {
             				(String) map.get(benchmark.idField):
             				map.get(benchmark.idField).toString();
             				
-            RateLimiter rateLimiter = setup.rpm == null? null: new RateLimiter(setup.rpm);
+            RateLimiter rateLimiter = benchmark.rpm == null? null: new RateLimiter(benchmark.rpm);
 
             try {
               while ((line = br.readLine()) != null) {
@@ -370,9 +370,9 @@ public class BenchmarksMain {
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             httpClient.close();
         }
-	HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-	client.commit(collection);
-	client.close();
+        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+        client.commit(collection);
+        client.close();
 
         log.info("Indexed " + count + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
     }

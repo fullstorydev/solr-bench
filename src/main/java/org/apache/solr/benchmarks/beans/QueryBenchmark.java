@@ -5,13 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.HashMap;
 import java.util.Map;
 
-public class QueryBenchmark {
-  @JsonProperty("name")
-  public String name;
-
-  @JsonProperty("description")
-  public String description;
-
+public class QueryBenchmark extends BaseBenchmark {
   @JsonProperty("collection")
   public String collection;
 
@@ -30,23 +24,8 @@ public class QueryBenchmark {
   @JsonProperty("client-type")
   public String clientType;
 
-  @JsonProperty("min-threads")
-  public int minThreads;
-
-  @JsonProperty("max-threads")
-  public int maxThreads;
-
-  @JsonProperty
-  public Integer rpm;
-
-  @JsonProperty("duration-secs")
-  public Integer duration;
-
   @JsonProperty("offset")
   public Integer offset = 0;
-  
-  @JsonProperty("total-count")
-  public Long totalCount;
 
   @JsonProperty("warm-count")
   public int warmCount = -1;
