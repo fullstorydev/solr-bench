@@ -80,20 +80,21 @@ public class ControlledExecutor {
                     
                 	  long currentCount = count.incrementAndGet();
                     if (totalCount != null) {
-                        printProgress(currentCount, totalCount, initTime);
+                        printCountProgress(currentCount, totalCount, initTime);
                     }
                 });
             }
         } finally {
             long currTime = System.currentTimeMillis();
-            System.out.println("exiting,time over at " + currTime + " time elapsed : " + (currTime - initTime)  + "total tasks : "+ count +", benchmarked queries: "+stats.getN()) ;
+            long rpm = count.get() * 1000 * 60 / (currTime - initTime);
+            System.out.println("exiting,time over at " + currTime + " time elapsed : " + (currTime - initTime)  + "total tasks : "+ count +" rpm : " + rpm + " benchmarked queries: "+stats.getN()) ;
             executor.shutdown();
             executor.awaitTermination(15, TimeUnit.SECONDS);
         }
 
     }
 
-    private void printProgress(long currentCount, long totalCount, long startTime) {
+    private void printCountProgress(long currentCount, long totalCount, long startTime) {
         long chunkSize = totalCount / 100;
         if (currentCount % chunkSize == 0) {
             long percentage = currentCount / chunkSize;
@@ -106,10 +107,10 @@ public class ControlledExecutor {
             }
         } else if (currentCount == totalCount) {
             System.out.println("100%");
-            printRpm(currentCount, startTime);
             System.out.println();
         }
     }
+
 
     private void printRpm(long currentCount, long startTime) {
         long timeElapsed = System.currentTimeMillis() - startTime;
