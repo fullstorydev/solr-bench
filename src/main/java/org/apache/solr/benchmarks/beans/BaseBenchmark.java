@@ -15,8 +15,8 @@ public abstract class BaseBenchmark {
   /**
    * Number of total executions
    */
-  @JsonProperty("run-count")
-  public Long runCount;
+  @JsonProperty("total-count")
+  public Long totalCount;
 
   @JsonProperty ("rpm")
   public Integer rpm;
