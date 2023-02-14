@@ -80,7 +80,7 @@ public class ControlledExecutor {
                     
                 	  long currentCount = count.incrementAndGet();
                     if (totalCount != null) {
-                        printProgress(currentCount, totalCount);
+                        printProgress(currentCount, totalCount, initTime);
                     }
                 });
             }
@@ -93,17 +93,30 @@ public class ControlledExecutor {
 
     }
 
-    private void printProgress(long currentCount, long totalCount) {
+    private void printProgress(long currentCount, long totalCount, long startTime) {
         long chunkSize = totalCount / 100;
         if (currentCount % chunkSize == 0) {
             long percentage = currentCount / chunkSize;
             if (percentage % 10 == 0) {
-                System.out.println(percentage + "%"); //using println as some logs (k8s for example) only updates on new line
+                System.out.print(percentage + "%"); //using println as some logs (k8s for example) only updates on new line
+                printRpm(currentCount, startTime);
+                System.out.println();
             } else {
                 System.out.print(".");
             }
         } else if (currentCount == totalCount) {
             System.out.println("100%");
+            printRpm(currentCount, startTime);
+            System.out.println();
+        }
+    }
+
+    private void printRpm(long currentCount, long startTime) {
+        long timeElapsed = System.currentTimeMillis() - startTime;
+        long currentRpm = currentCount * 1000 * 60 / timeElapsed;
+        System.out.print(" current rpm: " + currentRpm);
+        if (rateLimiter != null) {
+           System.out.print(" target rpm: " + rateLimiter.rpm);
         }
     }
 
