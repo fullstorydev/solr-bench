@@ -87,7 +87,7 @@ public class ControlledExecutor {
         } finally {
             long currTime = System.currentTimeMillis();
             long rpm = count.get() * 1000 * 60 / (currTime - initTime);
-            System.out.println("exiting,time over at " + currTime + " time elapsed : " + (currTime - initTime)  + "total tasks : "+ count +" rpm : " + rpm + " benchmarked queries: "+stats.getN()) ;
+            System.out.println("exiting,time over at " + currTime + " time elapsed : " + (currTime - initTime)  + " total execution count : "+ count + " rpm : " + rpm + " benchmarked queries: "+stats.getN()) ;
             executor.shutdown();
             executor.awaitTermination(15, TimeUnit.SECONDS);
         }
