@@ -27,6 +27,12 @@ public class QueryBenchmark extends BaseBenchmark {
   @JsonProperty("offset")
   public Integer offset = 0;
 
+  /**
+   * Number of total executions
+   */
+  @JsonProperty("total-count")
+  public Long totalCount;
+
   @JsonProperty("warm-count")
   public int warmCount = -1;
 

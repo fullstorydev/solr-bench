@@ -12,12 +12,6 @@ public abstract class BaseBenchmark {
   @JsonProperty("duration-secs")
   public Integer durationSecs;
 
-  /**
-   * Number of total executions
-   */
-  @JsonProperty("total-count")
-  public Long totalCount;
-
   @JsonProperty ("rpm")
   public Integer rpm;
 
