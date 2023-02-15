@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -38,13 +37,8 @@ import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.solr.benchmarks.beans.Cluster;
-import org.apache.solr.benchmarks.beans.Configuration;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
-import org.apache.solr.benchmarks.beans.Repository;
 import org.apache.solr.benchmarks.readers.JsonlFileType;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
@@ -52,7 +46,6 @@ import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
@@ -107,7 +100,7 @@ public class BenchmarksMain {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
-		                benchmark.duration,
+		                benchmark.durationSecs,
 		                benchmark.rpm,
 		                benchmark.totalCount,
 		                benchmark.warmCount,
@@ -144,7 +137,7 @@ public class BenchmarksMain {
 		    	List setupMetrics = new ArrayList();
 		    	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
 
-		        for (int i = setup.minThreads; i <= setup.maxThreads; i += setup.threadStep) {
+		        for (int i = benchmark.minThreads; i <= benchmark.maxThreads; i += setup.threadStep) {
 		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
 		            String configsetName = setup.configset==null? null: collectionName+".SOLRBENCH";
 		            if (setup.shareConfigset) configsetName = setup.configset;
@@ -169,7 +162,7 @@ public class BenchmarksMain {
 		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
 		            long end = System.nanoTime();
 
-		            if (i != setup.maxThreads && setup.createCollection) {
+		            if (i != benchmark.maxThreads && setup.createCollection) {
 		            	if (deleteAfter) {
 		            		solrCloud.deleteCollection(collectionName);
 		            	}
@@ -327,7 +320,7 @@ public class BenchmarksMain {
             				(String) map.get(benchmark.idField):
             				map.get(benchmark.idField).toString();
             				
-            RateLimiter rateLimiter = setup.rpm == null? null: new RateLimiter(setup.rpm);
+            RateLimiter rateLimiter = benchmark.rpm == null? null: new RateLimiter(benchmark.rpm);
 
             try {
               while ((line = br.readLine()) != null) {
@@ -370,9 +363,9 @@ public class BenchmarksMain {
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             httpClient.close();
         }
-	HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-	client.commit(collection);
-	client.close();
+        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+        client.commit(collection);
+        client.close();
 
         log.info("Indexed " + count + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
     }

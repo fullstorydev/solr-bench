@@ -5,13 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
-public class IndexBenchmark {
-  @JsonProperty("name")
-  public String name;
-
-  @JsonProperty("description")
-  public String description;
-
+public class IndexBenchmark extends BaseBenchmark {
   @JsonProperty("replication-type")
   public String replicationType;
 
@@ -23,12 +17,6 @@ public class IndexBenchmark {
 
   @JsonProperty("setups")
   public List<Setup> setups;
-
-  @JsonProperty("duration-secs")
-  public Integer durationSecs;
-
-  @JsonProperty("run-count")
-  public Integer runCount;
 
   @JsonProperty("offset")
   public Integer offset = 0;
@@ -77,24 +65,12 @@ public class IndexBenchmark {
     @JsonProperty("shards")
     public int shards;
 
-    @JsonProperty ("rpm")
-    public Integer rpm;
-    
     // Reuse client or create a new client instance per batch of indexing?
     @JsonProperty ("single-client")
     public boolean singleClient = false;
 
-    @JsonProperty("min-threads")
-    public int minThreads;
-
-    @JsonProperty("max-threads")
-    public int maxThreads;
-    
     @JsonProperty("thread-step")
     public int threadStep;
-
-
-
   }
 }
 
