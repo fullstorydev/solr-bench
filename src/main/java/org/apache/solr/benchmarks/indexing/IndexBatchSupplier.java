@@ -108,7 +108,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
             while ((batch = pendingBatches.poll(1, TimeUnit.SECONDS)) == null && !exit) {
             }
             if (batch == null) { //rare race condition can fill the queue even if above loop exits, just try it once last time...
-                batch = pendingBatches.poll(1, TimeUnit.SECONDS);
+                batch = pendingBatches.poll();
             }
 
             return batch;
