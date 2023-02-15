@@ -62,7 +62,7 @@ public class FileDocReader implements DocReader {
       return docs.isEmpty() ? null : docs;
     } catch (java.io.EOFException e) {
       log.info("Likely the Unexpected end of ZLIB input. Likely similar to https://stackoverflow.com/q/55608979. Ignoring for now. Actual exception message: " + e.getMessage());
-      return docs;
+      return docs.isEmpty() ? null : docs;
     }
   }
 
