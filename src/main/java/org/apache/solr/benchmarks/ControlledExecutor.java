@@ -2,137 +2,145 @@ package org.apache.solr.benchmarks;
 
 
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.lang.invoke.MethodHandles;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
+/**
+ * A custom executor that blocks on `run` until one of the below condition fulfills:
+ * <ol>
+ *  <li>If duration is defined, such duration is reached since run is invoked</li>
+ *  <li>If taskSupplier no longer provides any more tasks</li>
+ *  <li>If execution count has reached maxExecution if provided</li>
+ *  <li>If there is any uncaught exception</li>
+ * </ol>
+ *
+ * More precisely, the executor would stop drawing tasks from task supplier but would still complete tasks that are
+ * already submitted
+ *
+ * Tasks will be submitted adhering to the rpm if provided.
+ */
 public class ControlledExecutor {
-    private final int threads;
-    private final Supplier<Runnable> runnerSupplier;
-    private final LinkedBlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
+    private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private final Supplier<Callable> taskSupplier;
     private final ExecutorService executor;
-    private final Integer duration;
-    private final Long totalCount;
-    private final int warmCount;
-    private Long endTime;
-    final SynchronizedDescriptiveStatistics stats;
-    private RateLimiter rateLimiter;
-    AtomicLong count = new AtomicLong(0);
+    private final Integer duration; //if defined, this executor should cease executing more tasks once duration is reached
+    private Long endTime; //this executor should cease executing more tasks once this time is reached, computed from duration
+    private final Long maxExecution; //max execution count, once this read the executor should no longer execute more tasks
+    private final int warmCount; //executions before this would not be tracked in stats
 
-    public ControlledExecutor(int threads, Integer duration, Integer rpm, Long totalCount, int warmCount, Supplier<Runnable> runnerSupplier) {
-        this.threads = threads;
+    final SynchronizedDescriptiveStatistics stats;
+    private final RateLimiter rateLimiter;
+    private final BackPressureLimiter backPressureLimiter;
+    private long startTime;
+
+    public ControlledExecutor(int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable> taskSupplier) {
         this.duration = duration;
-        this.totalCount = totalCount;
+        this.maxExecution = maxExecution;
         this.warmCount = warmCount;
         this.stats = new SynchronizedDescriptiveStatistics();
-        this.runnerSupplier = runnerSupplier;
+        this.taskSupplier = taskSupplier;
         executor = new ThreadPoolExecutor(threads, threads,
                 0L, TimeUnit.MILLISECONDS,
-                workQueue);
-        if (rpm != null) rateLimiter = new RateLimiter(rpm);
+                new LinkedBlockingQueue<>());
+        rateLimiter = rpm != null ? new RateLimiter(rpm) : null;
+
+        backPressureLimiter = new BackPressureLimiter(threads * 10); //at most 10 * # of thread pending tasks
     }
 
     public void run() throws InterruptedException {
-        long initTime = System.currentTimeMillis();
+        startTime = System.currentTimeMillis();
 
         if (duration != null) {
-            endTime = initTime + (1000 * duration);
+            endTime = startTime + (1000 * duration);
         }
+        AtomicLong submissionCount = new AtomicLong();
+        AtomicLong executionCount = new AtomicLong();
 
-        int maxItemsWaiting = 10 * threads;
+        Timer progressTimer = new Timer();
+
+        progressTimer.schedule( new TimerTask() {
+            public void run() {
+                log.info("Submitted " + submissionCount.get() + " task(s), executed " + executionCount.get());
+                long timeElapsed = System.currentTimeMillis() - startTime;
+                if (timeElapsed > 0) {
+                    long currentRpm = executionCount.get() * 1000 * 60 / timeElapsed;
+                    log.info("Current rpm: " + currentRpm + (rateLimiter != null ? (" target rpm: " + rateLimiter.targetRpm) : ""));
+                }
+            }
+        }, 0, 10*1000);
+
         try {
-            for (; ; ) {
-                if (isEnd(initTime)) break;
-                for (; ; ) {
-                    if (workQueue.size() < maxItemsWaiting)
-                        break;// keep a max '10* threads' no:of tasks in queue
-                    Thread.sleep(5);//There are a lot of tasks waiting.  let's wait before pumping in more tasks (avoid OOM)
+            while (!isEnd(submissionCount.get())) {
+                if (rateLimiter != null) {
+                    rateLimiter.waitIfRequired();
                 }
-                Runnable r;
-                try {
-                	r = runnerSupplier.get();
-                } catch (Exception ex) {
-                	ex.printStackTrace();
-                	continue;
-                }
-                if (r == null) {
+                backPressureLimiter.waitIfRequired(submissionCount.get(), executionCount, 10000);
+
+                Callable task = taskSupplier.get();
+                if (task == null) { //no more runners available
                     break;
                 }
-
                 executor.submit(() -> {
-                	if (rateLimiter != null) {
-                        if (isEnd(initTime)) return;
-                        rateLimiter.waitIfRequired();
-                    }
-                	
-                    if (isEnd(initTime)) return;
-
                     long start = System.nanoTime();
-                    r.run();
-                    if (count.get() >= warmCount) {
-                    	stats.addValue((System.nanoTime() - start) / 1000_000.0);
+                    task.call();
+                    if (executionCount.incrementAndGet() > warmCount) {
+                        stats.addValue((System.nanoTime() - start) / 1000_000.0);
                     }
-
-                    
-                	  long currentCount = count.incrementAndGet();
-                    if (totalCount != null) {
-                        printCountProgress(currentCount, totalCount, initTime);
-                    }
+                    return null;
                 });
+                submissionCount.incrementAndGet();
             }
         } finally {
-            long currTime = System.currentTimeMillis();
-            long rpm = count.get() * 1000 * 60 / (currTime - initTime);
-            System.out.println("exiting,time over at " + currTime + " time elapsed : " + (currTime - initTime)  + " total execution count : "+ count + " rpm : " + rpm + " benchmarked queries: "+stats.getN()) ;
+            progressTimer.cancel();
             executor.shutdown();
             executor.awaitTermination(15, TimeUnit.SECONDS);
-        }
 
-    }
-
-    private void printCountProgress(long currentCount, long totalCount, long startTime) {
-        long chunkSize = totalCount / 100;
-        if (currentCount % chunkSize == 0) {
-            long percentage = currentCount / chunkSize;
-            if (percentage % 10 == 0) {
-                System.out.print(percentage + "%"); //using println as some logs (k8s for example) only updates on new line
-                printRpm(currentCount, startTime);
-                System.out.println();
-            } else {
-                System.out.print(".");
-            }
-        } else if (currentCount == totalCount) {
-            System.out.println("100%");
-            System.out.println();
+            long currTime = System.currentTimeMillis();
+            long rpm = (currTime - startTime) > 0 ? executionCount.get() * 1000 * 60 / (currTime - startTime) : executionCount.get() * 1000 * 60;
+            System.out.println("Time elapsed : " + (currTime - startTime)  + " total execution count : "+ executionCount.get() + " rpm : " + rpm + " benchmarked executions: "+stats.getN()) ;
         }
     }
 
-
-    private void printRpm(long currentCount, long startTime) {
-        long timeElapsed = System.currentTimeMillis() - startTime;
-        long currentRpm = currentCount * 1000 * 60 / timeElapsed;
-        System.out.print(" current rpm: " + currentRpm);
-        if (rateLimiter != null) {
-           System.out.print(" target rpm: " + rateLimiter.rpm);
-        }
-    }
-
-
-    private synchronized boolean isEnd(long initTime) {
-    	if (totalCount != null && totalCount > 0 && count != null && count.get() >= totalCount) {
+    private synchronized boolean isEnd(long currentCount) {
+    	if (maxExecution != null && currentCount >= maxExecution) {
+            log.info("Max execution count " + maxExecution + " reached, exiting...");
    			return true;
     	}
         if (endTime != null) {
-            long l = System.currentTimeMillis();
-            if (l > endTime) {
-                if(rateLimiter != null) rateLimiter.isEnd = true;
+            long currentTime = System.currentTimeMillis();
+            if (currentTime > endTime) {
+                log.info("Duration " + duration + " secs reached, exiting...");
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Pause job submission if the execution cannot catch up
+     */
+    private class BackPressureLimiter {
+        private final int maxPendingTasks;
+
+        private BackPressureLimiter(int maxPendingTasks) {
+            this.maxPendingTasks = maxPendingTasks;
+        }
+
+        public void waitIfRequired(long submissionCount, AtomicLong executionCount, long timeout) throws InterruptedException {
+            long endTime = System.currentTimeMillis() + timeout;
+            while ((submissionCount - executionCount.get()) >= maxPendingTasks) {
+                if (System.currentTimeMillis() >= endTime) {
+                    return;
+                }
+                TimeUnit.MILLISECONDS.sleep(100);
+            }
+        }
     }
 }
