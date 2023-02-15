@@ -70,7 +70,9 @@ public class BenchmarksMain {
 		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
+		        ControlledExecutor controlledExecutor = new ControlledExecutor(
+						benchmark.name,
+						threads,
 		                benchmark.durationSecs,
 		                benchmark.rpm,
 		                benchmark.totalCount,
@@ -231,7 +233,9 @@ public class BenchmarksMain {
             File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
             try (DocReader docReader = new FileDocReader(datasetFile, benchmark.maxDocs != null ? benchmark.maxDocs.longValue() : null, benchmark.offset)) {
               try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(docReader, benchmark, coll, httpClient, shardVsLeader)) {
-                ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
+                ControlledExecutor controlledExecutor = new ControlledExecutor(
+						benchmark.name,
+						threads,
                         benchmark.durationSecs,
                         benchmark.rpm,
                         null, //total is controlled by docReader's maxDocs

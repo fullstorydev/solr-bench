@@ -30,6 +30,7 @@ public class ControlledExecutor {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private final Supplier<Callable> taskSupplier;
     private final ExecutorService executor;
+    private String label;
     private final Integer duration; //if defined, this executor should cease executing more tasks once duration is reached
     private Long endTime; //this executor should cease executing more tasks once this time is reached, computed from duration
     private final Long maxExecution; //max execution count, once this read the executor should no longer execute more tasks
@@ -40,7 +41,8 @@ public class ControlledExecutor {
     private final BackPressureLimiter backPressureLimiter;
     private long startTime;
 
-    public ControlledExecutor(int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable> taskSupplier) {
+    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable> taskSupplier) {
+        this.label = label;
         this.duration = duration;
         this.maxExecution = maxExecution;
         this.warmCount = warmCount;
@@ -48,7 +50,13 @@ public class ControlledExecutor {
         this.taskSupplier = taskSupplier;
         executor = new ThreadPoolExecutor(threads, threads,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>());
+                new LinkedBlockingQueue<>(),
+                new ThreadFactory() {
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        return new Thread(r, ControlledExecutor.class.getSimpleName() + "-" + label);
+                    }
+                });
         rateLimiter = rpm != null ? new RateLimiter(rpm) : null;
 
         backPressureLimiter = new BackPressureLimiter(threads * 10); //at most 10 * # of thread pending tasks
@@ -67,11 +75,11 @@ public class ControlledExecutor {
 
         progressTimer.schedule( new TimerTask() {
             public void run() {
-                log.info("Submitted " + submissionCount.get() + " task(s), executed " + executionCount.get());
+                log("Submitted " + submissionCount.get() + " task(s), executed " + executionCount.get());
                 long timeElapsed = System.currentTimeMillis() - startTime;
                 if (timeElapsed > 0) {
                     long currentRpm = executionCount.get() * 1000 * 60 / timeElapsed;
-                    log.info("Current rpm: " + currentRpm + (rateLimiter != null ? (" target rpm: " + rateLimiter.targetRpm) : ""));
+                    log("Current rpm: " + currentRpm + (rateLimiter != null ? (" target rpm: " + rateLimiter.targetRpm) : ""));
                 }
             }
         }, 0, 10*1000);
@@ -110,17 +118,21 @@ public class ControlledExecutor {
 
     private synchronized boolean isEnd(long currentCount) {
     	if (maxExecution != null && currentCount >= maxExecution) {
-            log.info("Max execution count " + maxExecution + " reached, exiting...");
+            log("Max execution count " + maxExecution + " reached, exiting...");
    			return true;
     	}
         if (endTime != null) {
             long currentTime = System.currentTimeMillis();
             if (currentTime > endTime) {
-                log.info("Duration " + duration + " secs reached, exiting...");
+                log("Duration " + duration + " secs reached, exiting...");
                 return true;
             }
         }
         return false;
+    }
+
+    private void log(String message) {
+        log.info("(" + label + ") " +  message);
     }
 
     /**
