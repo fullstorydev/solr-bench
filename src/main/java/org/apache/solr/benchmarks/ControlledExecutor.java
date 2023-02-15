@@ -9,6 +9,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
@@ -22,7 +23,8 @@ import java.util.function.Supplier;
  * </ol>
  *
  * More precisely, the executor would stop drawing tasks from task supplier but would still complete tasks that are
- * already submitted
+ * currently executing. For tasks that are submitted to the underlying executor but not yet executed, they will be
+ * dropped iff the `StopReason` is `Duration`.
  *
  * Tasks will be submitted adhering to the rpm if provided.
  */
@@ -85,7 +87,9 @@ public class ControlledExecutor {
         }, 0, 10*1000);
 
         try {
-            while (!isEnd(submissionCount.get())) {
+            StopReason stopReason;
+            AtomicBoolean dropTaskFlag = new AtomicBoolean(false);
+            while ((stopReason = shouldStop(submissionCount.get())) == null) {
                 if (rateLimiter != null) {
                     rateLimiter.waitIfRequired();
                 }
@@ -93,9 +97,13 @@ public class ControlledExecutor {
 
                 Callable task = taskSupplier.get();
                 if (task == null) { //no more runners available
+                    log("Exhausted task supplier.");
                     break;
                 }
                 executor.submit(() -> {
+                    if (dropTaskFlag.get()) { //do not process the rest of this
+                        return null;
+                    }
                     long start = System.nanoTime();
                     task.call();
                     if (executionCount.incrementAndGet() > warmCount) {
@@ -105,10 +113,16 @@ public class ControlledExecutor {
                 });
                 submissionCount.incrementAndGet();
             }
+
+            if (stopReason == StopReason.DURATION) { //if it was stopped because of duration, drop the remaining tasks
+                dropTaskFlag.set(true);
+            }
+
         } finally {
-            progressTimer.cancel();
             executor.shutdown();
-            executor.awaitTermination(15, TimeUnit.SECONDS);
+            log("Now waiting for submitted jobs to finish execution");
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+            progressTimer.cancel();
 
             long currTime = System.currentTimeMillis();
             long rpm = (currTime - startTime) > 0 ? executionCount.get() * 1000 * 60 / (currTime - startTime) : executionCount.get() * 1000 * 60;
@@ -116,19 +130,22 @@ public class ControlledExecutor {
         }
     }
 
-    private synchronized boolean isEnd(long currentCount) {
+    enum StopReason {
+        DURATION, MAX_EXECUTION
+    }
+    private synchronized StopReason shouldStop(long currentCount) {
     	if (maxExecution != null && currentCount >= maxExecution) {
             log("Max execution count " + maxExecution + " reached, exiting...");
-   			return true;
+   			return StopReason.MAX_EXECUTION;
     	}
         if (endTime != null) {
             long currentTime = System.currentTimeMillis();
             if (currentTime > endTime) {
                 log("Duration " + duration + " secs reached, exiting...");
-                return true;
+                return StopReason.DURATION;
             }
         }
-        return false;
+        return null;
     }
 
     private void log(String message) {
