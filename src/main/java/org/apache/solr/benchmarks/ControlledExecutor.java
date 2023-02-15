@@ -86,9 +86,9 @@ public class ControlledExecutor {
             }
         }, 0, 10*1000);
 
+        AtomicBoolean dropTaskFlag = new AtomicBoolean(false);
         try {
             StopReason stopReason;
-            AtomicBoolean dropTaskFlag = new AtomicBoolean(false);
             while ((stopReason = shouldStop(submissionCount.get())) == null) {
                 if (rateLimiter != null) {
                     rateLimiter.waitIfRequired();
@@ -120,7 +120,12 @@ public class ControlledExecutor {
 
         } finally {
             executor.shutdown();
-            log("Now waiting for submitted jobs to finish execution");
+            if (dropTaskFlag.get()) {
+                log("Now waiting for executing jobs to finish execution. The rest of the submitted jobs will be dropped");
+            } else {
+                log("Now waiting for all executing/submitted jobs to finish execution.");
+            }
+
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
             progressTimer.cancel();
 
