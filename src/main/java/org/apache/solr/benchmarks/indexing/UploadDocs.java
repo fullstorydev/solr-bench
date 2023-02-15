@@ -19,7 +19,10 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class UploadDocs implements Callable {
+/**
+ * An upload task to a single shard with a list of docs
+ */
+class UploadDocs implements Callable {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     final List<String> docs;
     final HttpClient client;
