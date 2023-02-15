@@ -34,7 +34,7 @@ public class FileDocReader implements DocReader {
    */
   @Override
   synchronized public List<String> readDocs(int count) throws IOException {
-    if (docsRead >= maxDocs || count <= 0) {
+    if ((maxDocs != null && docsRead >= maxDocs) || count <= 0) {
       return null;
     }
 
