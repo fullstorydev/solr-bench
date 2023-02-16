@@ -6,6 +6,7 @@ import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.solr.benchmarks.beans.SetConfigProperties;
 
 public class TaskType {
 	@JsonProperty("command")
@@ -59,6 +60,9 @@ public class TaskType {
 
 	@JsonProperty("pause-seconds")
 	int pauseSeconds;
+
+	@JsonProperty("set-config-properties")
+	SetConfigProperties setConfigProperties;
 	
 	@JsonProperty("defaults")
 	Map<String, String> defaults;

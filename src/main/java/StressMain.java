@@ -21,6 +21,12 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.util.EntityUtils;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.MetricsCollector;
 import org.apache.solr.benchmarks.Util;
@@ -632,6 +638,28 @@ public class StressMain {
 				long taskEnd = System.currentTimeMillis();
 				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode,
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+			} else if (type.setConfigProperties != null) {
+				String baseUrl = "http://" + cloud.nodes.get(0).getNodeName();
+				try (HttpSolrClient solrClient = new HttpSolrClient.Builder(baseUrl).build()){
+
+					HttpClient httpClient = solrClient.getHttpClient();
+
+					String url = baseUrl + "/api/collections/" + type.setConfigProperties.collection + "/config";
+
+					Map<String, Map<String, Object>> jsonMap = Collections.singletonMap("set-property", type.setConfigProperties.properties);
+					String jsonString = new ObjectMapper().writeValueAsString(jsonMap);
+					log.info("Setting config properties with payload: " + jsonString);
+					StringEntity requestEntity = new StringEntity(
+							jsonString,
+							ContentType.APPLICATION_JSON);
+
+					HttpPost postMethod = new HttpPost(url);
+					postMethod.setEntity(requestEntity);
+
+					HttpResponse rawResponse = httpClient.execute(postMethod);
+
+					log.info("Response code :" + rawResponse.getStatusLine().getStatusCode() + " body: " + EntityUtils.toString(rawResponse.getEntity(), "UTF-8"));
+				}
 			}
 			long end = System.currentTimeMillis();
 
