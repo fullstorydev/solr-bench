@@ -1,10 +1,171 @@
-<html>
+<!DOCTYPE html>
+<html lang="eng">
 <head>
 
 <style>
 %s
 </style>
+    <!-------Bootstrap----------------------------->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <!----------------------------------------------->
+
     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+        <script type="text/javascript">
+                google.charts.load('current', {packages: ['corechart', 'line']});
+                google.charts.setOnLoadCallback(drawTrendlines);
+        
+                function allGraph(data){
+                    for (var key in data) {
+                        var keysAll = Object.keys(data[key]);
+                        return keysAll;
+                    }
+                }
+                function taskGraph(metrics_cluster_test, graphName, start, end){
+                    $('.modal-body .graphs').append('<div id="'+graphName+'"></div>');
+                    var metrics_data = new google.visualization.DataTable();
+                    metrics_data.addColumn('number', 'X');
+                    metrics_data.addColumn('number', 'Y');
+                    for (var key in metrics_cluster_test) {
+                        if(metrics_cluster_test[key][graphName]!=undefined){                
+                            for (var i = 0; i < metrics_cluster_test[key][graphName].length; i++) {
+                                if (metrics_cluster_test[key][graphName][i] != -1) {
+                                    if (end == -1 || i*2>=start && i*2<=end) {
+                                        row = [i*2,metrics_cluster_test[key][graphName][i]];
+                                        metrics_data.addRow(row);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    var options = {
+                        title: graphName
+                    };
+                    var metrics_chart = new google.visualization.LineChart(document.getElementById(graphName));
+                    metrics_chart.draw(metrics_data, options);
+                }
+                function graph(metrics_cluster_test, graphName){
+                    $('.modal-body .graphs').append('<div id="'+graphName+'"></div>');
+                    var metrics_data = new google.visualization.DataTable();           
+                    metrics_data.addColumn('number', 'X');
+                    metrics_data.addColumn('number', 'Y');
+                    for (var key in metrics_cluster_test) {
+                        if(metrics_cluster_test[key][graphName]!=undefined){
+                            for (var i = 0; i < metrics_cluster_test[key][graphName].length; i++){
+                                if (metrics_cluster_test[key][graphName][i] != -1) {
+                                    row = [i*2,metrics_cluster_test[key][graphName][i]];
+                                    metrics_data.addRow(row);
+                                }
+                            }
+                        }                
+                    }
+                    var options = {
+                        title: graphName
+                    };
+                    var metrics_chart = new google.visualization.LineChart(document.getElementById(graphName));
+                    metrics_chart.draw(metrics_data, options);
+                }
+                function drawTrendlines(metrics_cluster_test, start, end) {
+                    if (metrics_cluster_test == undefined) return;
+                    const clearGraphs = document.getElementById("graphs");
+                    clearGraphs.innerHTML = '';
+                    var graphs = allGraph(metrics_cluster_test);
+                    var totalGraph = graphs.length;
+                    for(var x=0; x < totalGraph; x++){
+                        var graphName = graphs[x];
+                        if(start && end){
+                            console.log(graphName);
+                            taskGraph(metrics_cluster_test, graphName, start, end);//for tasks
+                        } else {
+                            graph(metrics_cluster_test, graphName); 
+                        }
+                    }
+                }
+                ///////////////////////// Code for addTaskUI ///////////////////////
+                function addTaskUI(results_cluster_test){
+                    for (var key in results_cluster_test) {
+                        var keyUpperCase = key.toUpperCase();
+                        if(results_cluster_test[key].length!=0){
+                            $(".tasks").append('<a href="#" class="list-group-item" id="'+key+'">'+keyUpperCase+'</a>');     
+                        }
+                    }
+                }
+                Object.size = function(obj) {
+                  var size = 0,
+                    key;
+                  for (key in obj) {
+                    if (obj.hasOwnProperty(key)) size++;
+                  }
+                  return size;
+                };
+                function findStartEnd(data, taskNum){
+                    var start, end, obj;
+                    for(key in data){
+                        if(taskNum==key){
+                            var tasksSize = Object.size(data[key]);
+                            for(var key in data[taskNum]){
+                                if(key==0){
+                                    obj = data[taskNum][key];
+                                    start = obj["start-time"];
+                                }
+                                if(key==tasksSize-1){
+                                    obj = data[taskNum][key];
+                                    end = obj["end-time"];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    return [start, end];
+                }
+                var results_cluster_test,metrics_cluster_test;
+                function plotStressModal(){
+                    var commit = document.getElementById("branch_9x_metrics_button").value;
+                    $.ajax({
+                        type: 'GET',
+                        url: "suites/results/cluster-test/results-"+commit+".json",
+                        dataType: 'json',
+                        async: false,
+                        success: function (data) {
+                           results_cluster_test = data;
+                           addTaskUI(data);
+                        }
+                    });
+                    //addTaskUI(results_cluster);
+                    $.ajax({
+                        type: 'GET',
+                        url: "suites/results/cluster-test/metrics-"+commit+".json",
+                        dataType: 'json',
+                        async: false,
+                        success: function (data) {
+                           metrics_cluster_test=data;
+                           drawTrendlines(data);
+                        }
+                    });
+                }
+                $(document).on('click', '.list-group-item', function () {
+                    $('.active').removeClass("active");
+                    $(this).addClass("active");
+                    var startEnd = findStartEnd(results_cluster_test, $(this).attr('id'));     
+                    var start = startEnd[0];
+                    var end = startEnd[1];
+                    drawTrendlines(metrics_cluster_test, start, end);
+                });
+                
+            </script>
+        
+        
+            <!--------------------------------------------------->
+            
+
+
     <script type="text/javascript">
 
 function drawAllCharts() {
@@ -143,6 +304,10 @@ function drawChart(title, element, xaxis, yaxis, branchColumns, branchRows) {
         var sel = chart.getChart().getSelection();
         // if selection length is 0, we deselected an element
         if (sel.length > 0) {
+            tooltip = branchRows[sel[0].row][sel[0].column+1]
+            commit = tooltip.substring(tooltip.indexOf(":")+1, tooltip.indexOf(":", tooltip.indexOf(":") + 1));
+            document.getElementById("branch_9x_metrics_button").value=commit.trim();
+
             // if row is undefined, we clicked on the legend
             if (sel[0].row == null) {
                 var col = sel[0].column;
@@ -193,6 +358,39 @@ google.load('visualization', '1', {packages: ['corechart'], callback: drawAllCha
 
     <body>
 %s
+
+    <div id="branch_9x_buttons" class="text-center"> 
+        <button type="button" value="" onclick="plotStressModal()" id="branch_9x_metrics_button" class="btn btn-info btn-lg" data-toggle="modal" data-target="#myModal">metrics</button>
+        <!-- Modal -->
+        <div id="myModal" class="modal fade" role="dialog">
+            <div class="modal-dialog modal-lg">
+                <!-- Modal content-->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Modal Header</h4>
+                    </div>
+                    <div class="modal-body" >
+                        <div class="row">
+                            <div  class="col-md-3">
+                                <div class="list-group tasks">
+                                    <a href="#" class="list-group-item active" id="all">All TASKS</a>
+                                </div>
+                            </div>
+                            <div class="col-md-9 graphs" id="graphs">
+                                <!----------charts------------------>    
+                            </div>
+                        </div>
+                                                        
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     </body>
 </html>
 
