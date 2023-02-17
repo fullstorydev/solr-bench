@@ -1,0 +1,149 @@
+{
+  "task-types": {
+    "cluster-state-benchmark-non-prs": {
+      "cluster-state-benchmark": {
+        "filename": "clusterstatus-small-1000.json.gz",
+        "collection-creation-params": {
+          "perReplicaState": "false"
+        },
+        "collections-limit": 1000,
+        "simulation-concurrency-fraction": 0.5
+      }
+    },
+    "cluster-state-benchmark-prs": {
+      "cluster-state-benchmark": {
+        "filename": "clusterstatus-small-1000.json.gz",
+        "collection-creation-params": {
+          "perReplicaState": "true"
+        },
+        "collections-limit": 1000,
+        "simulation-concurrency-fraction": 0.5
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    },
+    "collection-deletion": {
+      "command": "${SOLRURL}admin/collections?action=DELETE&name=coll${INDEX}",
+      "defaults": {
+          "INDEX": 0,
+          "SHARDS": 1
+      }
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "deletion-counter": 0,
+    "restart-counter1": 1,
+    "restart-counter2": 1,
+    "restart-counter3": 1
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "non-prs-collection-creation": {
+      "description": "Create 1000 Non PRS collections",
+      "type": "cluster-state-benchmark-non-prs",
+      "instances": 1,
+      "concurrency": 1,
+      "mode": "sync"
+    },
+    "restart-1": {
+      "description": "Restart non-overseer nodes after non-PRS collections",
+      "instances": 7,
+      "concurrency": 2,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter1}"
+      },
+      "wait-for": "non-prs-collection-creation",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter1,1)"
+      ]
+    },
+    "cleanup": {
+      "description": "Delete all collections",
+      "type": "collection-deletion",
+      "instances": 1000,
+      "concurrency": 20,
+      "parameters": {
+          "INDEX": "${deletion-counter}",
+          "SHARD": "shard1_1"
+      },
+      "pre-task-evals": [
+          "inc(deletion-counter,1)"
+      ],
+      "wait-for": "restart-1",
+      "mode": "sync"
+    },
+    "restart-2": {
+      "description": "Restart after cleanup",
+      "instances": 7,
+      "concurrency": 2,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter1}"
+      },
+      "wait-for": "cleanup",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter1,1)"
+      ]
+    },
+    "prs-collection-creation": {
+      "description": "Create 1000 Non PRS collections",
+      "type": "cluster-state-benchmark-non-prs",
+      "instances": 1,
+      "concurrency": 1,
+      "mode": "sync",
+      "wait-for": "restart-2"
+    },
+    "restart-3": {
+      "description": "Restart non-overseer nodes after PRS collections",
+      "instances": 7,
+      "concurrency": 2,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter3}"
+      },
+      "wait-for": "prs-collection-creation",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter3,1)"
+      ]
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 8,
+    "startup-params": "-m 4096m",
+    "provisioning-method": "local"
+  },
+  "repositories": [
+    {
+      "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+      "description": "Solr 8.4",
+      "name": "git-repository",
+      "package-subdir": "/solr/package/",
+      "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+      "submodules": false,
+      "url": "https://github.com/apache/lucene-solr",
+      "user": "ishan"
+    },
+    { 
+      "commit-id": "dfde16a004206cc92e21cc5a6cad9030fbe13c20",
+      "description": "Solr 10x",
+      "name": "solr-repository",
+      "package-subdir": "/solr/packaging/",
+      "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
+      "submodules": false,
+      "url": "https://github.com/apache/solr",
+      "user": "ishan"
+    }
+
+  ],
+  "metrics": ["jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"]
+}
