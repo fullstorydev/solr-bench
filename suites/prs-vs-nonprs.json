@@ -67,7 +67,7 @@
     "cleanup": {
       "description": "Delete all collections",
       "type": "collection-deletion",
-      "instances": 100,
+      "instances": 1000,
       "concurrency": 20,
       "parameters": {
           "INDEX": "${deletion-counter}",
