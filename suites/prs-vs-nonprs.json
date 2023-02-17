@@ -33,7 +33,6 @@
     }
   },
   "global-variables": {
-    "collection-counter": 0,
     "deletion-counter": 0,
     "restart-counter1": 1,
     "restart-counter2": 1,
@@ -54,7 +53,7 @@
     "restart-1": {
       "description": "Restart non-overseer nodes after non-PRS collections",
       "instances": 7,
-      "concurrency": 2,
+      "concurrency": 4,
       "type": "restart-solr-node",
       "parameters": {
         "NODE_INDEX": "${restart-counter1}"
@@ -68,7 +67,7 @@
     "cleanup": {
       "description": "Delete all collections",
       "type": "collection-deletion",
-      "instances": 1000,
+      "instances": 100,
       "concurrency": 20,
       "parameters": {
           "INDEX": "${deletion-counter}",
@@ -83,20 +82,20 @@
     "restart-2": {
       "description": "Restart after cleanup",
       "instances": 7,
-      "concurrency": 2,
+      "concurrency": 4,
       "type": "restart-solr-node",
       "parameters": {
-        "NODE_INDEX": "${restart-counter1}"
+        "NODE_INDEX": "${restart-counter2}"
       },
       "wait-for": "cleanup",
       "mode": "sync",
       "pre-task-evals": [
-        "inc(restart-counter1,1)"
+        "inc(restart-counter2,1)"
       ]
     },
     "prs-collection-creation": {
-      "description": "Create 1000 Non PRS collections",
-      "type": "cluster-state-benchmark-non-prs",
+      "description": "Create 1000 PRS collections",
+      "type": "cluster-state-benchmark-prs",
       "instances": 1,
       "concurrency": 1,
       "mode": "sync",
@@ -105,7 +104,7 @@
     "restart-3": {
       "description": "Restart non-overseer nodes after PRS collections",
       "instances": 7,
-      "concurrency": 2,
+      "concurrency": 4,
       "type": "restart-solr-node",
       "parameters": {
         "NODE_INDEX": "${restart-counter3}"
