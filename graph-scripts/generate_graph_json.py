@@ -105,7 +105,6 @@ def parse_benchmark_results(meta_props):
 def get_commit_date(props):
     return int(props["commit_date"])
 
-#for result_dir in result_dirs:
 benchmark_results = collections.OrderedDict()  # key as group, which usually is just the branch name
 
 for group in target_groups:
