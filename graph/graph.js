@@ -1,50 +1,59 @@
 function drawAllCharts() {
     var allResultsByTaskName = {}
+    var testnames;
     var groups = [] //groups are usually just branch names, but it could be some other customized values
     $.each(graph_data, function(group, dataByGroup) { //collect group names first. then figure out how many pages are there
        groups.push(group)
+       testnames = Object.keys(dataByGroup);
     })
+
 
     $.each(graph_data, function(group, dataByGroup) {
         var $page = generatePage(group, dataByGroup.length == 1)
 
         var resultsByTaskName = {}
-        $.each(dataByGroup, function(index, resultByCommit) {
-            var commitMeta = {
-                group: group,
-                commitHash: resultByCommit.commit_hash,
-                commitDate: resultByCommit.commit_date,
-                commitMsg: resultByCommit.commit_msg
-            }
-            $.each(resultByCommit.results, function(taskName, resultByTask) {
-                var resultsOfThisTask = resultsByTaskName[taskName]
-                if (!resultsOfThisTask) {
-                    resultsOfThisTask = []
-                    resultsByTaskName[taskName] = resultsOfThisTask
+        for (const testname of testnames) {
+            resultsByTaskName[testname] = {}
+            $.each(dataByGroup[testname], function(index, resultByCommit) {
+                var commitMeta = {
+                    group: group,
+                    commitHash: resultByCommit.commit_hash,
+                    commitDate: resultByCommit.commit_date,
+                    commitMsg: resultByCommit.commit_msg
                 }
-                var entry = {
-                    commitMeta : commitMeta,
-                    result: resultByTask[0]
-                }
-                resultsOfThisTask.push(entry)
+                $.each(resultByCommit.results, function(taskName, resultByTask) {
+                    var resultsOfThisTask = resultsByTaskName[testname][taskName]
+                    if (!resultsOfThisTask) {
+                        resultsOfThisTask = []
+                        resultsByTaskName[testname][taskName] = resultsOfThisTask
+                    }
+                    var entry = {
+                        commitMeta : commitMeta,
+                        result: resultByTask[0]
+                    }
+                    resultsOfThisTask.push(entry)
+                })
             })
-        })
+        }
         //plot graph for this group of this task
-        $.each(resultsByTaskName, function(taskName, resultsByTask) {
-            drawChartInPage([group], taskName, resultsByTask, $page)
-            if (!allResultsByTaskName[taskName]) {
-                allResultsByTaskName[taskName] = [].concat(resultsByTask)
-            } else {
-                allResultsByTaskName[taskName].push(...resultsByTask)
-            }
-        })
+        for (const testname of testnames) {
+            $.each(resultsByTaskName[testname], function(taskName, resultsByTask) {
+                drawChartInPage([group], taskName + " (" + testname + ")", resultsByTask, $page)
+                var testTaskKey = taskName + " (" + testname + ")"
+                if (!allResultsByTaskName[testTaskKey]) {
+                    allResultsByTaskName[testTaskKey] = [].concat(resultsByTask)
+                } else {
+                    allResultsByTaskName[testTaskKey].push(...resultsByTask)
+                }
+            })
+        }
     })
 
     //generate a graph that compare all groups/branches
     if (groups.length > 1) {
         var $page = generatePage(groups.join(' vs '), true)
-        $.each(allResultsByTaskName, function(taskName, resultsByTask) {
-            drawChartInPage(groups, taskName, resultsByTask, $page)
+        $.each(allResultsByTaskName, function(testTaskName, resultsByTask) {
+            drawChartInPage(groups, testTaskName, resultsByTask, $page)
         })
         //have to refresh here, if the page is hidden on render then the graph dimension is rendered incorrectly...
         $page.siblings('.page').hide()
@@ -83,7 +92,7 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
     var $graphDiv = $('<div class="graph" id="' + elementId + '"></div>')
     $page.append($graphDiv)
 
-//TODO xaxis, yaxis
+    //TODO xaxis, yaxis
     var title = taskName + ' (' + groups.join(' vs ') + ')'
     var options = {
                     title: title,
