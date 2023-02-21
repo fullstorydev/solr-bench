@@ -63,10 +63,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
                     for (String inputDoc : inputDocs) {
                         rdr.streamRecords(new StringReader(inputDoc), idParser);
                         Slice targetSlice = docCollection.getRouter().getTargetSlice(idParser.idParsed, null, null, null, docCollection);
-                        List<String> shardDocs = shardVsDocs.get(targetSlice.getName());
-                        if (shardDocs == null) {
-                            shardVsDocs.put(targetSlice.getName(), shardDocs = new ArrayList<>(benchmark.batchSize));
-                        }
+                        List<String> shardDocs = shardVsDocs.computeIfAbsent(targetSlice.getName(), key -> new ArrayList<>(benchmark.batchSize));
                         shardDocs.add(inputDoc);
                         if (shardDocs.size() >= benchmark.batchSize) {
                             shardVsDocs.remove(targetSlice.getName());
