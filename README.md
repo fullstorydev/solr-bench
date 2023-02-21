@@ -51,49 +51,39 @@ Example: `./cleanup.sh ./stress.sh -c dfde16a004206cc92e21cc5a6cad9030fbe13c20 s
 
 #### Available tests
 ```
-note: This is subject to change
+Note: This is subject to change
 ```
 
 1. `cluster-test.json` : Creates an 8 node cluster and create 1000 collections of various `numShards` and measure shutdown & restart performance
 2. `stress-facets-local.json` : Indexes 20 million documents from an ecommerce events dataset, issues 5k facet queries against it.
+3. `prs-vs-nonprs.json` : Creates 1k collections using non-PRS mode (default), then restarts 7 nodes, then cleans up, and repeats the same for PRS.
 
 ### Results
 
-* Results are available after the benchmark in `./suites/results/results-\<configfile\>-\<commit-id\>.json` file. 
+* Results are available after the benchmark in `./suites/results/<testname (without the .json suffix)>/<commit-id>/results.json` file.
 
 ### Datasets
 
 TBD
 
-### Visualization (WIP)
-
-Test results can be visualized in charts using the following command. 
-
-`./python3 createGraph.py`
-
-This will plot a graph into an html file that plots values of each test on a line chart `./suites/results/<config-file>.html`. The HTML file can be directly opened in a browser
-
-### Visualization (Multi-branch)
+### Visualization
 
 To select/process the test results of specific branch or branch comparisons:
 * `python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main` (only select tests with commits that belongs to `main` branch)
 * `python3 graph-scripts/generate_graph_json.py -r suites/results/<test name> -b main...my-branch` (compare tests between `main` and `my-branch`)
 
-note: that `<test name>` currently is the test config file name w/o the  `.json` file extension
+```
+Note: The `<test name>` currently is the test config file name without the `.json` file extension.
+
+Note: Many result directories can be specified at once, in case multiple tests have been performed. Example: `python3 graph-scripts/generate_graph_json.py -r suites/results/stress-facets-local -r suites/results/cluster-test -b branch_9x...branch_9_1`
+```
 
 The script should generate `graph/graph-data.js`. Open `graph/graph.html`, it should show graphs grouped by branches and test tasks
 
-
-####  dependencies on mac
+####  Dependencies on mac
 Mac OS requires a few tools to run this script. Install the following:
 
 1. `brew install coreutils` 
-2. `pip3 install gitpython`
-
-####  dependencies on Linux
-Linux requires a few tools to run this script. Install the following:
-
-1. `pip install git-python`
 
 ## Acknowledgement
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
