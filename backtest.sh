@@ -16,8 +16,8 @@ do echo; echo "Running $commit"
         echo "Trying commit: $commit"
         ./cleanup.sh
         ./stress.sh -c $commit -v suites/$testnamefile
-	python3 graph-scripts/generate_graph_json.py -r suites/results/cluster-test -r suites/results/prs-vs-nonprs -r suites/results/stress-facets-local -b branch_9x...branch_9_1
-	mv graph/* /var/www/html
+        python3 graph-scripts/generate_graph_json.py -r suites/results/cluster-test -r suites/results/prs-vs-nonprs -r suites/results/stress-facets-local -b branch_9x...branch_9_1
+        mv graph/* /var/www/html
     fi
 
   done
