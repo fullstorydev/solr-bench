@@ -328,7 +328,7 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
         for (const i in graphDataByCommit[0].results[task]) {
             var taskData = graphDataByCommit[0].results[task][i]
             for (const subkey of Object.keys(taskData)) {
-                if (subkey.endsWith("-time") || subkey.endsWith("-timestamp")) continue;
+                if (subkey.endsWith("-time") || subkey.endsWith("-timestamp") || subkey=="heap-mb" || subkey=="status") continue;
                 if (subkey == "timings") {
                     timings = taskData[subkey]
                     for (const timingSubkeyIdx of Object.keys(timings)) {
@@ -387,7 +387,7 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
             for (const i in results[task]) {
                 var taskInstanceData = results[task][i]
                 for (const subkey of Object.keys(taskInstanceData)) {
-                    if (subkey.endsWith("-time") || subkey.endsWith("-timestamp")) continue;
+                    if (subkey.endsWith("-time") || subkey.endsWith("-timestamp") || subkey=="heap-mb" || subkey=="status") continue;
                     if (subkey == "timings") {
                         timings = taskInstanceData[subkey]
                         for (const timingSubkeyIdx of Object.keys(timings)) {
