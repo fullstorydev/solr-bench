@@ -444,11 +444,9 @@ public class StressMain {
 				Map<String, Map> results = new HashMap<>();
 				results.put("indexing-benchmarks", new LinkedHashMap<String, List<Map>>());
 				long taskStart = System.currentTimeMillis();
-				try {
-					BenchmarksMain.runIndexingBenchmarks(Collections.singletonList(type.indexBenchmark), collectionName, false, cloud, results);
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
+
+				BenchmarksMain.runIndexingBenchmarks(Collections.singletonList(type.indexBenchmark), collectionName, false, cloud, results);
+
 				long taskEnd = System.currentTimeMillis();
 				log.info("Results: "+results.get("indexing-benchmarks"));
 				try {
