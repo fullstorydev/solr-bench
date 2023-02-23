@@ -187,7 +187,7 @@ public class SolrCloud {
     } else if ("external".equalsIgnoreCase(cluster.provisioningMethod)) {
         log.info("ZK node: " + cluster.externalSolrConfig.zkHost);
         String[] tokens = cluster.externalSolrConfig.zkHost.split(":");
-        zookeeper = new GenericZookeeper(tokens[0], Integer.parseInt(tokens[1]), cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
+        zookeeper = new GenericZookeeper(tokens[0], tokens.length > 1 ? Integer.parseInt(tokens[1]) : null, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
 
         try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).withZkChroot(cluster.externalSolrConfig.zkChroot).build()) {
           Set<String> liveNodes = client.getZkStateReader().getClusterState().getLiveNodes();

@@ -221,15 +221,20 @@ public class StressMain {
 		Callable c = () -> {
 			if (instance.waitFor != null) {
 				log.info("Waiting for "+ instance.waitFor+" to finish");
-				boolean await = taskExecutors.get(instance.waitFor).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
-				log.info(instance.waitFor+" finished! "+await);
-				for (Future future : taskFutures.get(instance.waitFor)) {
-					try {
-						future.get();
-					} catch (ExecutionException e) { //check if the waitFor task had exceptions
-						String warning = "Task [" + taskName + "] which relies on Task [" + instance.waitFor + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task";
-						log.warn("Task [" + taskName + "] which relies on Task [" + instance.waitFor + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task");
-						throw new RuntimeException(warning, e); //throw a new exception to stop all waitFor tasks as well
+				String[] waitForTasks = instance.waitFor.split(",");
+
+				for (String waitForTask : waitForTasks) { //probably more accurate to spawn threads and wait for it, but for simplicity just iterate each wait for
+					waitForTask = waitForTask.trim();
+					boolean await = taskExecutors.get(waitForTask).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+					log.info(waitForTask+" finished! "+await);
+					for (Future future : taskFutures.get(waitForTask)) {
+						try {
+							future.get();
+						} catch (ExecutionException e) { //check if the waitFor task had exceptions
+							String warning = "Task [" + taskName + "] which relies on Task [" + waitForTask + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task";
+							log.warn("Task [" + taskName + "] which relies on Task [" + waitForTask + "], which ended in exception [" + (e.getCause() != null ? e.getCause().getMessage() : "unknown") + "]. Do not proceed with this task");
+							throw new RuntimeException(warning, e); //throw a new exception to stop all waitFor tasks as well
+						}
 					}
 				}
 			}
