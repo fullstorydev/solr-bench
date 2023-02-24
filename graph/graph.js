@@ -11,11 +11,11 @@ function drawAllCharts() {
     $.each(graph_data, function(group, dataByGroup) {
         var $page = generatePage(group, dataByGroup.length == 1, dataByGroup)
 
+        var testnames = Object.keys(dataByGroup);
         var resultsByTaskName = calculateResultsByTaskName(testnames, group, dataByGroup)
-        //plot graph for this group of this task
+        // compute comparison data
         for (const testname of testnames) {
             $.each(resultsByTaskName[testname], function(taskName, resultsByTask) {
-                drawChartInPage([group], taskName + " (" + testname + ")", resultsByTask, $page)
                 var testTaskKey = taskName + " (" + testname + ")"
                 if (!allResultsByTaskName[testTaskKey]) {
                     allResultsByTaskName[testTaskKey] = [].concat(resultsByTask)
@@ -24,6 +24,12 @@ function drawAllCharts() {
                 }
             })
         }
+
+        //plot collapsed graph for this group
+        $.each(dataByGroup, function(testname, results) {
+            drawChartInPageCollapsed(group, testname, results, $page);
+        })
+
     })
 
     //generate a graph that compare all groups/branches
@@ -290,6 +296,8 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
 }
 
 function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
+    if (graphDataByCommit.length == 0) return;
+
     var elementId = 'graph_' + graphIndex++
     var $graphDiv = $('<div class="graph" id="' + elementId + '"></div>')
     $page.append($graphDiv)
