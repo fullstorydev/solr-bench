@@ -19,7 +19,7 @@ public class QueryBenchmark extends BaseBenchmark {
   public String uri = "/select";
 
   @JsonProperty("shuffle")//"random" , "sequential"
-  public Boolean shuffle = Boolean.TRUE;
+  public Boolean shuffle = Boolean.FALSE;
 
   @JsonProperty("client-type")
   public String clientType;
