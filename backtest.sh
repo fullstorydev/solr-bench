@@ -10,7 +10,7 @@ do echo; echo "Running $commit"
   do
     cd $ORIGINAL_DIR
     testname=`echo $testnamefile|cut -d "." -f 1`
-    if [ -f "suites/results/$testname/results-$commit.json" ]; then
+    if [ -f "suites/results/$testname/$commit/results.json" ]; then
         echo "Result file already exists for $commit"
     else
         echo "Trying commit: $commit"
