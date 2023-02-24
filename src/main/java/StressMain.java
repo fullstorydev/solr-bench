@@ -124,7 +124,7 @@ public class StressMain {
 		Map<String, List<Future>> taskFutures = new HashMap<>();
 		Map<String, ExecutorService> taskExecutors = new HashMap<String, ExecutorService>();
 
-		Map<String, List<Map>> finalResults = new ConcurrentHashMap<>();
+		Map<String, List<Map>> finalResults = Collections.synchronizedMap(new LinkedHashMap());
 
 		if (workflow.metrics != null) {
 			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, 2);
