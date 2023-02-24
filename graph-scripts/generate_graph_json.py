@@ -119,6 +119,13 @@ for group in target_groups:
         result_paths = []
         for test_run_base_dir in test_run_dirs:
             test_run_dir = os.path.join(result_dir, test_run_base_dir)
+
+
+            results_file = os.path.join(test_run_dir, "results.json")
+            if os.path.isfile(results_file) is False:
+                logging.warning("Results file not found: " + results_file)
+                continue
+
             try:
                 props = load_properties(os.path.join(test_run_dir, "meta.prop"))
             except OSError as e:

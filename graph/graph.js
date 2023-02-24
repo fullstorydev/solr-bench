@@ -195,6 +195,7 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
 
     var rows = []
     $.each(graphDataByCommit, function(index, dataOfCommit) {
+        if (dataOfCommit['result'] == undefined) return;
         var row = []
         var commitDate = new Date(0)
         commitDate.setUTCSeconds(dataOfCommit.commitMeta.commitDate);
