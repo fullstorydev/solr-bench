@@ -151,6 +151,6 @@ if args.get("output") is not None:
 else:
     output_path = "graph/graph-data.js"
 with open(output_path, "w") as output_file:
-    output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=4))
+    output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=1))
 
 logging.info(f'Processed results {output_path} generated')
