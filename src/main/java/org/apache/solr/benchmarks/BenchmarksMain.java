@@ -29,6 +29,7 @@ import java.lang.invoke.MethodHandles;
 import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
 
@@ -56,7 +57,7 @@ public class BenchmarksMain {
     }
 
 	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
-            throws IOException, InterruptedException, ParseException {
+            throws IOException, InterruptedException, ParseException, ExecutionException {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
 

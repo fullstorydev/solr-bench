@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.*;
@@ -64,7 +66,7 @@ public class ControlledExecutor {
         backPressureLimiter = new BackPressureLimiter(threads * 10); //at most 10 * # of thread pending tasks
     }
 
-    public void run() throws InterruptedException {
+    public void run() throws InterruptedException, ExecutionException {
         startTime = System.currentTimeMillis();
 
         if (duration != null) {
@@ -87,6 +89,7 @@ public class ControlledExecutor {
         }, 0, 10*1000);
 
         AtomicBoolean dropTaskFlag = new AtomicBoolean(false);
+        List<Future> futures = new ArrayList<>();
         try {
             StopReason stopReason;
             while ((stopReason = shouldStop(submissionCount.get())) == null) {
@@ -100,7 +103,7 @@ public class ControlledExecutor {
                     log("Exhausted task supplier.");
                     break;
                 }
-                executor.submit(() -> {
+                futures.add(executor.submit(() -> {
                     if (dropTaskFlag.get()) { //do not process the rest of this
                         return null;
                     }
@@ -110,7 +113,7 @@ public class ControlledExecutor {
                         stats.addValue((System.nanoTime() - start) / 1000_000.0);
                     }
                     return null;
-                });
+                }));
                 submissionCount.incrementAndGet();
             }
 
@@ -125,6 +128,15 @@ public class ControlledExecutor {
             } else {
                 log("Now waiting for all executing/submitted jobs to finish execution.");
             }
+
+            for (Future future : futures) { //check for exceptions
+                try {
+                    future.get();
+                } catch (InterruptedException | CancellationException e) {
+                    //ok
+                }
+            }
+
 
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
             progressTimer.cancel();

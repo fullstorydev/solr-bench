@@ -470,11 +470,8 @@ public class StressMain {
 				Map<String, Map> results = new HashMap<>();
 				results.put("query-benchmarks", new LinkedHashMap<String, List<Map>>());
 				long taskStart = System.currentTimeMillis();
-				try {
-					BenchmarksMain.runQueryBenchmarks(Collections.singletonList(type.queryBenchmark), collectionName, cloud, results);
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
+				BenchmarksMain.runQueryBenchmarks(Collections.singletonList(type.queryBenchmark), collectionName, cloud, results);
+
 				long taskEnd = System.currentTimeMillis();
 				log.info("Results: "+results.get("query-benchmarks"));
 				try {
