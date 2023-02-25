@@ -96,7 +96,13 @@ public class ControlledExecutor {
                 if (rateLimiter != null) {
                     rateLimiter.waitIfRequired();
                 }
-                backPressureLimiter.waitIfRequired(submissionCount.get(), executionCount, 10000);
+                while (backPressureLimiter.waitIfRequired(submissionCount.get(), executionCount, 1000) && (stopReason = shouldStop(submissionCount.get())) == null) {
+                    //keep blocking until either back pressure no longer an issue or the executor is stopped
+                    //this could block for quite a while hence should check stop reason
+                }
+                if (stopReason != null) {
+                    break;
+                }
 
                 Callable task = taskSupplier.get();
                 if (task == null) { //no more runners available
@@ -179,14 +185,23 @@ public class ControlledExecutor {
             this.maxPendingTasks = maxPendingTasks;
         }
 
-        public void waitIfRequired(long submissionCount, AtomicLong executionCount, long timeout) throws InterruptedException {
+        /**
+         *
+         * @param submissionCount
+         * @param executionCount
+         * @param timeout
+         * @return true  if back pressure still exists and this exits because of timeout. false if back pressure no longer should block
+         * @throws InterruptedException
+         */
+        public boolean waitIfRequired(long submissionCount, AtomicLong executionCount, long timeout) throws InterruptedException {
             long endTime = System.currentTimeMillis() + timeout;
             while ((submissionCount - executionCount.get()) >= maxPendingTasks) {
                 if (System.currentTimeMillis() >= endTime) {
-                    return;
+                    return true;
                 }
                 TimeUnit.MILLISECONDS.sleep(100);
             }
+            return false;
         }
     }
 }
