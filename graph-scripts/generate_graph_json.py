@@ -10,23 +10,24 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser(description='Description of your program')
-parser.add_argument('-r', '--result-dir', help='Directory that contains the json result files', required=True)
+parser.add_argument('-r', '--result-dir',
+                    help='Directory that contains the json result dirs/files. Can repeat this '
+                         'multiple times for plotting more than one test in the graphs', required=True, action='append')
 parser.add_argument('-o', '--output',
                     help='Output path of the graph json. If undefined it will be saved as the working dir with name '
                          '<test_name>.json ',
                     required=False)
-parser.add_argument('-b', '--branches',
-                    help='Result for a single branch <branch> or compare branches in format of <branch1>...<branch2>',
+parser.add_argument('-b', '--compare-groups',
+                    help='Chart results that matches a single group <group> or compare different groups in format of '
+                         '<group 1>...<group 2>. Groupings are usually just branch names, '
+                         'for example "main" or "master...branch_8x"',
                     required=True)
 args = vars(parser.parse_args())
 
-result_dir = args['result_dir']
-logging.info("Reading results from dir: " + result_dir)
-target_branches = None
-if args.get("branches") is not None:
-    target_branches = args['branches'].split('...')
-    logging.info("Comparing branches: " + str(target_branches))
-
+result_dirs = args['result_dir']
+logging.info("Reading results from dir: " + str(result_dirs))
+target_groups = args['compare_groups'].split('...')
+logging.info("Comparing groups: " + str(target_groups))
 
 def load_properties(filepath, sep='=', comment_char='#'):
     """
@@ -54,105 +55,94 @@ def get_element_id(key):
 
 
 class BenchmarkResult:
-    def __init__(self, branch, commit_hash, commit_date, commit_msg, results):
-        self.branch = branch
+    def __init__(self, commit_hash, commit_date, commit_msg, test_date, results):
         self.commit_hash = commit_hash
         self.commit_date = commit_date
         self.commit_msg = commit_msg
+        self.test_date = test_date
         self.results = results
 
     # def add_timing(self, key, timing):
     #     self.task_timing[key] = timing
 
     def __str__(self):
-        return "Branch: %s Hash: %s Commit Date: %s Commit Msg: %s Results: %s" % (
-        self.branch, self.commit_hash, self.commit_date, self.commit_msg, str(self.results))
+        return "Hash: %s Commit Date: %s Commit Msg: %s Test Date: %s Results: %s" % (
+        self.commit_hash, self.commit_date, self.commit_msg, self.test_date, str(self.results))
 
     def __repr__(self):
         return str(self)
 
-
-def parse_benchmark_results(result_paths):
+def parse_benchmark_results(meta_props):
     benchmark_results = []
-    for result_path in result_paths:
-        result_dir = os.path.dirname(result_path)
-        commit_hash = os.path.basename(result_path)[len("results-"):-1 * len(".json")]
-        logging.info("Hash: " + commit_hash)
-        meta_path = os.path.join(result_dir, "meta-" + commit_hash + ".prop")
-        logging.info("Meta file: " + meta_path)
-        props = load_properties(meta_path)
-        logging.info("Loaded props" + str(props))
 
-        # commit_date = time.gmtime(int(props["committed_date"]))
-        commit_date = int(props["committed_date"])
-        commit_msg = props["message"]
-
+    for meta_prop in meta_props:
         try:
+            test_run_dir = meta_prop["test_run_dir"]
+            # commit_date = time.gmtime(int(props["committed_date"]))
+            commit_hash = meta_prop["commit"]
+            commit_date = int(meta_prop["commit_date"])
+            commit_msg = meta_prop["message"]
+            test_date = meta_prop["test_date"]
+
+            result_path = os.path.join(test_run_dir, "results.json")
             json_results = json.load(open(result_path))
         except OSError as e:
-            logging.warning(f"Skipping {commit_hash}. Unable to open {result_path}: {e}")
+            logging.warning(f"Skipping meta data parsing. Unable to open {result_path}: {e}")
+            continue
+        except KeyError as e:
+            logging.warning(f"Skipping meta data parsing for {result_path}. KeyError: {e}")
+            continue
+        except BaseException as e:
+            logging.warning(f"Skipping meta data parsing for {result_path}. Unexpected exception: {e}")
             continue
 
-        benchmark_result = BenchmarkResult(branch, commit_hash, commit_date, commit_msg, json_results)
+        benchmark_result = BenchmarkResult(commit_hash, commit_date, commit_msg, test_date, json_results)
         benchmark_results.append(benchmark_result.__dict__)
 
     return benchmark_results
 
 
-def get_committed_date(props):
-    return int(props["committed_date"])
+def get_commit_date(props):
+    return int(props["commit_date"])
+
+benchmark_results = collections.OrderedDict()  # key as group, which usually is just the branch name
+
+for group in target_groups:
+    for result_dir in result_dirs:
+        test_name = os.path.splitext(os.path.basename(result_dir))[0]
+        meta_files = [f for f in os.listdir(result_dir) if
+            os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
+
+        test_run_dirs = [f for f in os.listdir(result_dir) if
+                    os.path.isdir(os.path.join(result_dir, f))]
+        meta_props = []
+        result_paths = []
+        for test_run_base_dir in test_run_dirs:
+            test_run_dir = os.path.join(result_dir, test_run_base_dir)
 
 
-class BranchTaskKey:
-    def __init__(self, branch, task_key):
-        self.branch = branch
-        self.task_key = task_key
+            results_file = os.path.join(test_run_dir, "results.json")
+            if os.path.isfile(results_file) is False:
+                logging.warning("Results file not found: " + results_file)
+                continue
 
-    def __eq__(self, other):
-        return (self.branch, self.task_key) == (other.branch, other.task_key)
+            try:
+                props = load_properties(os.path.join(test_run_dir, "meta.prop"))
+            except OSError as e:
+                logging.warning(f'failed to open meta.prop in {test_run_dir}. Skipping...')
+                continue
+            if "groups" not in props or group not in props["groups"].split(','):
+                logging.debug(f'skipping {test_run_dir} for group {group}')
+                continue
+            props["test_run_dir"] = test_run_dir
+            meta_props.append(props)
 
-    def __ne__(self, other):
-        return not (self == other)
+        # now sort the props by commit date
+        meta_props.sort(key=get_commit_date)
 
-    def __lt__(self, other):
-        return (self.branch, self.task_key) < (other.branch, other.task_key)
-
-    def __repr__(self):
-        return f"{self.task_key}({self.branch})"
-
-    def __hash__(self):
-        # necessary for instances to behave sanely in dicts and sets.
-        return hash((self.branch, self.task_key))
-
-
-
-branches = []
-benchmark_results = collections.OrderedDict()  # key as branch name
-test_name = os.path.splitext(os.path.basename(result_dir))[0]
-
-meta_files = [f for f in os.listdir(result_dir) if
-              os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
-
-for branch in target_branches:
-    meta_files = [f for f in os.listdir(result_dir) if
-                  os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
-    meta_props = []
-    result_paths = []
-    for meta_file in meta_files:
-        props = load_properties(os.path.join(result_dir, meta_file))
-        if branch not in props["branches"].split(','):
-            logging.debug(f'skipping {meta_file} for branch {branch}')
-            continue
-        commit_hash = meta_file[len("meta-"):-1 * len(".json")]
-        props["hash"] = commit_hash
-        meta_props.append(props)
-
-    # now sort the props by commit date
-    meta_props.sort(key=get_committed_date)
-    for props in meta_props:
-        result_paths.append(os.path.join(result_dir, f'results-{props["hash"]}.json'))
-
-    benchmark_results[branch] = parse_benchmark_results(result_paths)
+        if group not in benchmark_results.keys():
+            benchmark_results[group] = collections.OrderedDict()
+        benchmark_results[group][test_name] = parse_benchmark_results(meta_props)
 
 
 output_path = None
@@ -161,6 +151,6 @@ if args.get("output") is not None:
 else:
     output_path = "graph/graph-data.js"
 with open(output_path, "w") as output_file:
-    output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=4))
+    output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=1))
 
 logging.info(f'Processed results {output_path} generated')

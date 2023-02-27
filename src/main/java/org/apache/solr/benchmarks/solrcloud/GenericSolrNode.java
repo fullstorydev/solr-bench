@@ -64,8 +64,7 @@ public class GenericSolrNode implements SolrNode {
   
   @Override
   public int restart() throws Exception {
-	  Util.execute("./restartsolr.sh " + host + " " + user, Util.getWorkingDir());
-	  return 0;
+	  return Util.execute("./restartsolr.sh " + host + " " + user, Util.getWorkingDir());
   }
 
 

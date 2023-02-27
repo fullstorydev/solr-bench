@@ -8,14 +8,14 @@
                 "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
                 "file-format": "tsv",
                 "id-field": "id",
+                "min-threads": 2,
+                "max-threads": 2,
                 "setups": [
                     {
                         "setup-name": "cloud_2x2",
                         "collection": "small-wikipedia-${INDEX}",
                         "replication-factor": 3,
                         "shards": 1,
-                        "min-threads": 2,
-                        "max-threads": 2,
                         "thread-step": 1
                     }
                 ]

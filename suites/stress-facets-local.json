@@ -11,6 +11,8 @@
         "max-docs": 20000000,
         "batch-size": 50000,
         "id-field": "id",
+        "min-threads": 6,
+        "max-threads": 6,
         "setups": [
           {
             "setup-name": "cloud_3x1",
@@ -18,8 +20,6 @@
             "configset": "conf_ecommerce_events",
             "replication-factor": 1,
             "shards": 3,
-            "min-threads": 6,
-            "max-threads": 6,
             "thread-step": 1
           }
         ]
