@@ -10,7 +10,9 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser(description='Description of your program')
-parser.add_argument('-r', '--result-dir', help='Directory that contains the json result dirs/files', required=True)
+parser.add_argument('-r', '--result-dir',
+                    help='Directory that contains the json result dirs/files. Can repeat this '
+                         'multiple times for plotting more than one test in the graphs', required=True, action='append')
 parser.add_argument('-o', '--output',
                     help='Output path of the graph json. If undefined it will be saved as the working dir with name '
                          '<test_name>.json ',
@@ -22,8 +24,8 @@ parser.add_argument('-b', '--compare-groups',
                     required=True)
 args = vars(parser.parse_args())
 
-result_dir = args['result_dir']
-logging.info("Reading results from dir: " + result_dir)
+result_dirs = args['result_dir']
+logging.info("Reading results from dir: " + str(result_dirs))
 target_groups = args['compare_groups'].split('...')
 logging.info("Comparing groups: " + str(target_groups))
 
@@ -103,35 +105,44 @@ def parse_benchmark_results(meta_props):
 def get_commit_date(props):
     return int(props["commit_date"])
 
-
 benchmark_results = collections.OrderedDict()  # key as group, which usually is just the branch name
-test_name = os.path.splitext(os.path.basename(result_dir))[0]
-
-meta_files = [f for f in os.listdir(result_dir) if
-              os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
 
 for group in target_groups:
-    test_run_dirs = [f for f in os.listdir(result_dir) if
-                  os.path.isdir(os.path.join(result_dir, f))]
-    meta_props = []
-    result_paths = []
-    for test_run_base_dir in test_run_dirs:
-        test_run_dir = os.path.join(result_dir, test_run_base_dir)
-        try:
-            props = load_properties(os.path.join(test_run_dir, "meta.prop"))
-        except OSError as e:
-            logging.warning(f'failed to open meta.prop in {test_run_dir}. Skipping...')
-            continue
-        if "groups" not in props or group not in props["groups"].split(','):
-            logging.debug(f'skipping {test_run_dir} for group {group}')
-            continue
-        props["test_run_dir"] = test_run_dir
-        meta_props.append(props)
+    for result_dir in result_dirs:
+        test_name = os.path.splitext(os.path.basename(result_dir))[0]
+        meta_files = [f for f in os.listdir(result_dir) if
+            os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
 
-    # now sort the props by commit date
-    meta_props.sort(key=get_commit_date)
+        test_run_dirs = [f for f in os.listdir(result_dir) if
+                    os.path.isdir(os.path.join(result_dir, f))]
+        meta_props = []
+        result_paths = []
+        for test_run_base_dir in test_run_dirs:
+            test_run_dir = os.path.join(result_dir, test_run_base_dir)
 
-    benchmark_results[group] = parse_benchmark_results(meta_props)
+
+            results_file = os.path.join(test_run_dir, "results.json")
+            if os.path.isfile(results_file) is False:
+                logging.warning("Results file not found: " + results_file)
+                continue
+
+            try:
+                props = load_properties(os.path.join(test_run_dir, "meta.prop"))
+            except OSError as e:
+                logging.warning(f'failed to open meta.prop in {test_run_dir}. Skipping...')
+                continue
+            if "groups" not in props or group not in props["groups"].split(','):
+                logging.debug(f'skipping {test_run_dir} for group {group}')
+                continue
+            props["test_run_dir"] = test_run_dir
+            meta_props.append(props)
+
+        # now sort the props by commit date
+        meta_props.sort(key=get_commit_date)
+
+        if group not in benchmark_results.keys():
+            benchmark_results[group] = collections.OrderedDict()
+        benchmark_results[group][test_name] = parse_benchmark_results(meta_props)
 
 
 output_path = None
@@ -140,6 +151,6 @@ if args.get("output") is not None:
 else:
     output_path = "graph/graph-data.js"
 with open(output_path, "w") as output_file:
-    output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=4))
+    output_file.write("var graph_data=" + json.dumps(benchmark_results, indent=1))
 
 logging.info(f'Processed results {output_path} generated')
