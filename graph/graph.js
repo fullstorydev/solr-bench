@@ -25,10 +25,17 @@ function drawAllCharts() {
             })
         }
 
-        //plot collapsed graph for this group
-        $.each(dataByGroup, function(testname, results) {
-            drawChartInPageCollapsed(group, testname, results, $page);
-        })
+        if (!getValueFromParam("expand", false)) { //plot collapsed graph for this group
+            $.each(dataByGroup, function(testname, results) {
+                drawChartInPageCollapsed(group, testname, results, $page);
+            })
+        } else { //plot graph for this group of this task
+            for (const testname of testnames) {
+                $.each(resultsByTaskName[testname], function(taskName, resultsByTask) {
+                    drawChartInPage([group], taskName + " (" + testname + ")", resultsByTask, $page)
+                })
+            }
+        }
 
     })
 
@@ -499,6 +506,12 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
 function addColumn(columns, columnName, visible) {
     columns.push({type: 'number', label: columnName, visible: visible})
     columns.push({type: 'string', role:'tooltip'})
+}
+
+function getValueFromParam(paramKey, defaultVal) {
+    const urlSearchParams = new URLSearchParams(window.location.search)
+    const params = Object.fromEntries(urlSearchParams.entries())
+    return params[paramKey] === undefined ? defaultVal : params[paramKey]
 }
 
 google.load('visualization', '1', {packages: ['corechart'], callback: drawAllCharts});
