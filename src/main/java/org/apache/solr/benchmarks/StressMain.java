@@ -651,9 +651,6 @@ public class StressMain {
 			}
 			long end = System.currentTimeMillis();
 
-			runValidations(instance.validations, workflow, cloud);
-
-			
 			return end-start;			
 		};
 		return c;
@@ -694,26 +691,6 @@ public class StressMain {
 		return numInactive;
 	}
 	
-	public static void runValidations(List<String> validations, Workflow workflow, SolrCloud cloud) {
-		if (validations == null) return;
-		for (String v: validations) {
-			Workflow.Validation validationDefinition = workflow.validations.get(v);
-			if (validationDefinition.numInactiveReplicas != null) {
-				// get num inactive replicas
-				try (CloudSolrClient client = buildSolrClient(cloud);) {
-					int numInactive = getNumInactiveReplicas(null, client);
-					log.info("Validation: inactive replicas are " + numInactive);
-					if (numInactive > validationDefinition.numInactiveReplicas) {
-						log.error("Failed validation: " + new ObjectMapper().writeValueAsString(validationDefinition));
-					}
-				} catch (KeeperException | InterruptedException | IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		}
-	}
-
 	/**
 	 * Populate some random variables like RANDOM_COLLECTION or RANDOM_SHARD
 	 */

@@ -38,10 +38,6 @@ public class Workflow {
 	@JsonProperty("execution-plan")
 	Map<String, TaskInstance> executionPlan;
 	
-	// Validations definition
-	@JsonProperty("validations")
-	Map<String, Validation> validations;
-	
 	@JsonProperty("metrics")
 	public List<String> metrics;
 
