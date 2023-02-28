@@ -452,4 +452,8 @@ public class SolrCloud {
 
 
   }
+
+  public String getProvisioningMethod() {
+      return cluster.provisioningMethod;
+  }
 }

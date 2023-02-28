@@ -69,6 +69,16 @@ public class IndexBenchmark extends BaseBenchmark {
     @JsonProperty ("single-client")
     public boolean singleClient = false;
 
+    /**
+     * Whether to delete the collection (if exists) on start. Mostly a safeguard for "external" provisioning method
+     *
+     * In the code, this will be default to false for "external" mode; otherwise true
+     *
+     * @see  Cluster#provisioningMethod
+     */
+    @JsonProperty("delete-collection-on-start")
+    public Boolean deleteCollectionOnStart;
+
     @JsonProperty("thread-step")
     public int threadStep;
   }
