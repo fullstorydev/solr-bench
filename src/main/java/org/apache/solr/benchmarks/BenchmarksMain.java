@@ -117,16 +117,27 @@ public class BenchmarksMain {
 		            if (setup.shareConfigset) configsetName = setup.configset;
 
 		            if (setup.createCollection) {
-		            	log.info("Creating collection1: " + collectionName);
-		            	try {
-                            solrCloud.deleteCollection(collectionName);
-		            	} catch (Exception ex) {
-		            		if (ex instanceof SolrException && ((SolrException)ex).code() ==  ErrorCode.NOT_FOUND.code) {
-		            			//log.debug("Error trying to delete collection: " + ex);
-		            		} else {
-		            			//log.warn("Error trying to delete collection: " + ex);
-		            		}
-		            	}
+		            	log.info("Creating collection: " + collectionName);
+						boolean deleteCollectionOnStart;
+						if (setup.deleteCollectionOnStart == null) {
+							//to play safe for external mode, only delete the collection if it has been explicitly stated to do so
+							deleteCollectionOnStart = solrCloud.getProvisioningMethod().equalsIgnoreCase("external") ? false : true;
+						} else {
+							deleteCollectionOnStart = setup.deleteCollectionOnStart;
+						}
+						if (deleteCollectionOnStart) {
+							log.info("Attempt to delete existing collection: " + collectionName);
+							try {
+								solrCloud.deleteCollection(collectionName);
+								log.info("Existing collection deleted");
+							} catch (Exception ex) {
+								if (ex instanceof SolrException && ((SolrException) ex).code() == ErrorCode.NOT_FOUND.code) {
+									log.info("No existing collection to delete");
+								} else {
+									//log.warn("Error trying to delete collection: " + ex);
+								}
+							}
+						}
                         if (solrCloud.shouldUploadConfigSet()) {
                             solrCloud.uploadConfigSet(setup.configset, setup.shareConfigset, configsetName);
                         }
