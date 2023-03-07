@@ -302,8 +302,8 @@ public class SolrCloud {
   public void deleteCollection(String collectionName) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
 		  Delete delete = Delete.deleteCollection(collectionName); //Create.createCollection(collectionName, shards, replicas);
-		  CollectionAdminResponse resp = delete.process(hsc);
-		  log.info("Collection delete: "+resp.getCollectionStatus());
+          CollectionAdminResponse resp = delete.process(hsc);
+          log.info("Collection delete: "+resp);
 	  }
   }
 
