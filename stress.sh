@@ -275,8 +275,10 @@ if [ -z "$SOLR_BENCH_JAR" ] #then no explicit jar provided
 then
   java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
    StressMain -f $CONFIGFILE -c $COMMIT
+  java_exit_code=$?
 else
   java -Xmx12g -cp ${SOLR_BENCH_JAR}:. StressMain -f $CONFIGFILE -c $COMMIT
+  java_exit_code=$?
 fi
 
 
@@ -348,3 +350,9 @@ then
      rm id_rsa*
 fi
 
+if [ $java_exit_code -eq 0 ]; then
+  echo "solr bench java succeeded!"
+else
+  echo "solr bench java failed with exit code $java_exit_code"
+  exit 1
+fi
