@@ -146,6 +146,10 @@ public class StressMain {
 		for (String taskName: workflow.executionPlan.keySet()) {
 			TaskInstance instance = workflow.executionPlan.get(taskName);
 			TaskType type = workflow.taskTypes.get(instance.type);
+
+			if (type == null) {
+				throw new IllegalArgumentException("Task [" + taskName + "] has type [" + instance.type + "] which is invalid/unknown");
+			}
 			System.out.println(taskName+" is of type: "+new ObjectMapper().writeValueAsString(type));
 
 			taskFutures.put(taskName, new ArrayList<>());
@@ -479,9 +483,22 @@ public class StressMain {
 					//String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
 					String totalTime = String.valueOf(taskEnd - taskStart);
 
+					Iterator<Map.Entry> resultIter = results.get("query-benchmarks").entrySet().iterator();
 					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
-							"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue(),
+							"end-time", (taskEnd- executionStart)/1000.0, "timings", resultIter.next().getValue(),
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
+					if (type.queryBenchmark.detailedStats) { //then add more to final results
+						while (resultIter.hasNext()) {
+							Map.Entry entry = resultIter.next();
+							String taskWithStatType = taskName + entry.getKey();
+							List<Map> resultsPerStatType = finalResults.computeIfAbsent(taskWithStatType, key -> new ArrayList<>());
+							resultsPerStatType.add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+									"end-time", (taskEnd- executionStart)/1000.0, "timings", entry.getValue(),
+									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+						}
+					}
+
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
