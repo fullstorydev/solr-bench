@@ -30,10 +30,11 @@ import java.util.function.Supplier;
  *
  * Tasks will be submitted adhering to the rpm if provided.
  */
-public class ControlledExecutor {
+public class ControlledExecutor<T, R> {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private final Supplier<Callable> taskSupplier;
+    private final Supplier<Callable<R>> taskSupplier;
     private final ExecutorService executor;
+    private final ExecutionListener<T, R> executionListener;
     private String label;
     private final Integer duration; //if defined, this executor should cease executing more tasks once duration is reached
     private Long endTime; //this executor should cease executing more tasks once this time is reached, computed from duration
@@ -45,13 +46,36 @@ public class ControlledExecutor {
     private final BackPressureLimiter backPressureLimiter;
     private long startTime;
 
-    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable> taskSupplier) {
+    interface ExecutionListener<T, R> {
+        /**
+         * Gets invoked when a callable finishes execution by this executor. Take note that execution of warmups will
+         * not trigger this. And this might get invoked by multiple threads concurrently
+         *
+         * Take note that this gets executed within the same thread as the executor worker. Therefore, slow operation
+         * can affect the actual RPM (runs per minute)
+         *
+         * @param typeKey   A key that indicates the type of callable executed, null if the callable is not of {@link CallableWithType}
+         * @param result    The result from callable
+         * @param duration  The duration of to execute the callable in nano second
+         */
+        void onExecutionComplete(T typeKey, R result, long duration);
+    }
+
+    interface CallableWithType<T, V> extends Callable<V> {
+        T getType();
+    }
+
+    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier) {
+        this(label, threads, duration, rpm, maxExecution, warmCount, taskSupplier, null);
+    }
+    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier, ExecutionListener<T, R> executionListener) {
         this.label = label;
         this.duration = duration;
         this.maxExecution = maxExecution;
         this.warmCount = warmCount;
         this.stats = new SynchronizedDescriptiveStatistics();
         this.taskSupplier = taskSupplier;
+        this.executionListener = executionListener;
         executor = new ThreadPoolExecutor(threads, threads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
@@ -104,7 +128,7 @@ public class ControlledExecutor {
                     break;
                 }
 
-                Callable task = taskSupplier.get();
+                Callable<R> task = taskSupplier.get();
                 if (task == null) { //no more runners available
                     log("Exhausted task supplier.");
                     break;
@@ -114,9 +138,17 @@ public class ControlledExecutor {
                         return null;
                     }
                     long start = System.nanoTime();
-                    task.call();
+                    R result = task.call();
                     if (executionCount.incrementAndGet() > warmCount) {
-                        stats.addValue((System.nanoTime() - start) / 1000_000.0);
+                        long durationInNanoSec = (System.nanoTime() - start);
+                        stats.addValue(durationInNanoSec  / 1000_000.0);
+                        if (executionListener != null) {
+                            T type = null;
+                            if (task instanceof CallableWithType) {
+                                type = ((CallableWithType<T, ?>)task).getType();
+                            }
+                            executionListener.onExecutionComplete(type, result, durationInNanoSec);
+                        }
                     }
                     return null;
                 }));
