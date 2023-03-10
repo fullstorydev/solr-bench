@@ -492,10 +492,26 @@ public class StressMain {
 						while (resultIter.hasNext()) {
 							Map.Entry entry = resultIter.next();
 							String taskWithStatType = taskName + entry.getKey();
+							//not sure what exactly is this list - different task instances?
 							List<Map> resultsPerStatType = finalResults.computeIfAbsent(taskWithStatType, key -> new ArrayList<>());
-							resultsPerStatType.add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
-									"end-time", (taskEnd- executionStart)/1000.0, "timings", entry.getValue(),
-									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+							Map resultOfThisStateType = Util.map("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+									"end-time", (taskEnd- executionStart)/1000.0,
+									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd);
+							if (((List) entry.getValue()).size() > 0) {
+								//finalResults is a little hard to reason as the map nested several levels (Map<String, List<Map<String, ?>>)
+								//while the ? could be another List of Maps
+								//and lacked description of what each level corresponds to. Might be better to rewrite
+								//this to a more structured custom class for readability
+								Map<String, BenchmarksMain.DetailedStats> firstEntry = (Map<String, BenchmarksMain.DetailedStats>) ((List) entry.getValue()).get(0);
+								String category = firstEntry.keySet().iterator().next(); //one entry map, the key is the category, the value is the stats
+								List<Map> statsByThreadCount = new ArrayList<>(); //each entry in the list is the test result per run by thread count
+								for (Map<String, BenchmarksMain.DetailedStats> entryByThreadCount : ((List<Map<String, BenchmarksMain.DetailedStats>>) entry.getValue())) {
+									BenchmarksMain.DetailedStats stats = entryByThreadCount.values().iterator().next(); //again a one entry map to get around the existing structure
+									statsByThreadCount.add(stats.values()); //convert to the expected structure
+								}
+								resultOfThisStateType.put(category, statsByThreadCount); //category could be "timing", "percentile" or "simple" etc
+							}
+							resultsPerStatType.add(resultOfThisStateType);
 						}
 					}
 
