@@ -104,15 +104,12 @@ public class BenchmarksMain {
 		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
 					if (listener instanceof DetailedQueryStatsListener) {
 						//add the detailed stats (per query in the input query file) collected by the listener
-						for (DetailedQueryStatsListener.DetailedStats stats : ((DetailedQueryStatsListener) listener).getStats()) {
+						for (DetailedStats stats : ((DetailedQueryStatsListener) listener).getStats()) {
 							String statsName = stats.getStatsName();
 							List<Map> outputStats = (List<Map>)(results.get("query-benchmarks").computeIfAbsent(statsName, key -> new ArrayList<>()));
-							Map valueMap = stats.values();
-							if (valueMap != null) {
-								valueMap.put("threads", threads);
-								valueMap.put("total-time", time);
-								outputStats.add(valueMap);
-							}
+							stats.setExtraProperty("threads", threads);
+							stats.setExtraProperty("total-time", time);
+							outputStats.add(Util.map(stats.metricType.dataCategory, stats)); //forced by the design that this has to be a map, otherwise we shouldn't need to do this one entry map
 						}
 					}
 		        }
@@ -323,7 +320,6 @@ public class BenchmarksMain {
 				SynchronizedDescriptiveStatistics durationStats = durationStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
 				durationStats.addValue(duration / 1_000_000.0);
 				if (queryRsp != null) {
-					SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
 
 					InputStream responseStream = (InputStream) queryRsp.get("stream");
 					String responseStreamAsString = "";
@@ -334,6 +330,7 @@ public class BenchmarksMain {
 					}
 
 					if (isSuccessfulRsp(queryRsp.get("closeableResponse"))) {
+						SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
 						int hitCount = getHitCount(responseStreamAsString);
 						if (hitCount != -1) {
 							hitCountStats.addValue(hitCount);
@@ -396,35 +393,51 @@ public class BenchmarksMain {
 			return results;
 		}
 		private enum StatsMetricType {
-			DURATION, DOC_HIT_COUNT, ERROR_COUNT;
+			DURATION("timings"), DOC_HIT_COUNT("percentile"), ERROR_COUNT("error_count");
+			private final String dataCategory;
+
+			StatsMetricType(String dataCategory) {
+				this.dataCategory = dataCategory;
+			}
+			
 		}
-		private static class DetailedStats {
-			private final StatsMetricType metricType;
-			private final Object statsObj;
-			private final String queryType;
+	}
 
-			private DetailedStats(StatsMetricType metricType, String queryType, Object stats) {
-				this.metricType = metricType;
-				this.queryType = queryType;
-				this.statsObj = stats;
-			}
+	public static class DetailedStats {
+		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+		private final DetailedQueryStatsListener.StatsMetricType metricType;
+		private final Object statsObj;
+		private final String queryType;
+		private final Map<String, Object> extraProperties = new HashMap<>();
 
-			private String getStatsName(){
-				return "(" + metricType + ") " + queryType;
-			}
+		private DetailedStats(DetailedQueryStatsListener.StatsMetricType metricType, String queryType, Object stats) {
+			this.metricType = metricType;
+			this.queryType = queryType;
+			this.statsObj = stats;
+		}
 
-			private Map values() {
-				if (statsObj instanceof SynchronizedDescriptiveStatistics) {
-					SynchronizedDescriptiveStatistics stats = (SynchronizedDescriptiveStatistics) statsObj;
-					return Util.map("50th", stats.getPercentile(50), "90th", stats.getPercentile(90),
+		private String getStatsName(){
+			return "(" + metricType + ") " + queryType;
+		}
+
+		private void setExtraProperty(String key, Object value) {
+			extraProperties.put(key, value);
+		}
+
+		public Map values() {
+			Map resultMap;
+			if (statsObj instanceof SynchronizedDescriptiveStatistics) {
+				SynchronizedDescriptiveStatistics stats = (SynchronizedDescriptiveStatistics) statsObj;
+				resultMap = Util.map("50th", stats.getPercentile(50), "90th", stats.getPercentile(90),
 						"95th", stats.getPercentile(95), "mean", stats.getMean(), "total-queries", stats.getN());
-				} else if (statsObj instanceof Number) {
-					return Util.map("count", ((Number)statsObj).doubleValue());
-				} else {
-					logger.warn("Unexpected stats type " + statsObj.getClass());
-					return null;
-				}
+			} else if (statsObj instanceof Number) {
+				resultMap = Util.map("count", ((Number)statsObj).doubleValue());
+			} else {
+				logger.warn("Unexpected stats type " + statsObj.getClass());
+				return null;
 			}
+			resultMap.putAll(extraProperties);
+			return resultMap;
 		}
 	}
 
