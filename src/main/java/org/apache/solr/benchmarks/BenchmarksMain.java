@@ -341,9 +341,11 @@ public class BenchmarksMain {
 					} else {
 						AtomicLong errorCount = errorCountStatsByType.computeIfAbsent(typeKey, (key) -> new AtomicLong(0));
 						errorCount.incrementAndGet();
-						logQueryRspError("Non successful response. The response stream is " + responseStreamAsString + " And the full rsp list " + queryRsp);
+						//this could be noisy
+						if (!loggedQueryRspError.getAndSet(true) || logger.isDebugEnabled()) {
+							logger.warn("Non successful response. The response stream is " + responseStreamAsString + " And the full rsp list " + queryRsp);
+						}
 					}
-
 				}
 			}
 		}
@@ -354,11 +356,9 @@ public class BenchmarksMain {
 				if (statusCode == 200) {
 					return true;
 				} else {
-					logQueryRspError("Non 200 status code : " + statusCode);
 					return false;
 				}
 			} else {
-				logQueryRspError("Could not find closeableResponse from the query rsp!");
 				return false;
 			}
 		}
@@ -368,14 +368,14 @@ public class BenchmarksMain {
 			try {
 				jsonResponse = new ObjectMapper().readValue(response, Map.class);
 			} catch (JsonProcessingException e) {
-				logQueryRspError("Failed to json parse the response stream " + response);
+				logger.warn("Failed to json parse the response stream " + response);
 				return -1;
 			}
 
 			if (jsonResponse.containsKey("response")) {
 				return (int)((Map<String, Object>) jsonResponse.get("response")).get("numFound");
 			} else {
-				logQueryRspError("The json response stream does not have key `response`. The json response stream : " + jsonResponse);
+				logger.warn("The json response stream does not have key `response`. The json response stream : " + jsonResponse);
 				return -1;
 			}
 		}
@@ -385,13 +385,6 @@ public class BenchmarksMain {
 			IOUtils.copy(responseStream, baos);
 
 			return new String(baos.toByteArray());
-		}
-
-		private void logQueryRspError(String message) {
-			//avoid spamming the logs by default, first error might be good enough?
-			if (!loggedQueryRspError.getAndSet(true) || logger.isDebugEnabled()) {
-				logger.warn(message);
-			}
 		}
 
 		public List<DetailedStats> getStats() {
