@@ -132,7 +132,19 @@ function calculateResultsByTaskName(testnames, group, dataByGroup) {
 }
 
 function detectChartType(graphData) {
-    return graphData['result']['timings'] ? ChartTypes.Percentile : ChartTypes.Simple
+    return (graphData['result']['timings'] || graphData['result']['percentile']) ? ChartTypes.Percentile : ChartTypes.Simple
+}
+
+function detectFieldKey(graphData) {
+    if (graphData['result']['timings'])  {
+      return 'timings'
+    } else if (graphData['result']['percentile']) {
+      return 'percentile'
+    } else if (graphData['result']['error_count']) {
+      return 'error_count'
+    } else {
+      return ''
+    }
 }
 
 var graphIndex = 0
@@ -168,6 +180,7 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
 
     var data = new google.visualization.DataTable();
     var chartType = detectChartType(graphDataByCommit[0])
+    var fieldKey = detectFieldKey(graphDataByCommit[0])
     var columns = []
 
     columns.push({type: 'date', id:'Commit date'})
@@ -178,10 +191,14 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
         }
         //Property "visible" is NOT used by google chart, is it simply for us to track the column state
         if (chartType === ChartTypes.Simple) {
-            columns.push({type: 'number', label: "duration" + suffix, visible: true})
+            if (fieldKey === '') {
+                options['vAxis']['title'] = 'Time (seconds)'
+                columns.push({type: 'number', label: "duration" + suffix, visible: true})
+            } else {
+                options['vAxis']['title'] = 'Value'
+                columns.push({type: 'number', label: fieldKey + suffix, visible: true})
+            }
             columns.push({type: 'string', role:'tooltip'})
-
-            options['vAxis']['title'] = 'Time (seconds)'  //assume results are in sec, should improve this
         } else if (chartType === ChartTypes.Percentile) {
             columns.push({type: 'number', label: "median" + suffix, visible: true})
             columns.push({type: 'string', role:'tooltip'})
@@ -192,7 +209,11 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
             columns.push({type: 'number', label: "mean" + suffix, visible: false})
             columns.push({type: 'string', role:'tooltip'})
 
-            options['vAxis']['title'] = 'Time (milliseconds)' //assume results are in millisec, should improve this
+            if (fieldKey === 'timings') {
+                options['vAxis']['title'] = 'Time (milliseconds)'
+            } else {
+                options['vAxis']['title'] = 'Value'
+            }
         }
     })
 
@@ -218,19 +239,25 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
         $.each(groups, function(walkerBranchIndex, group) {
             if (group == dataOfCommit.commitMeta.group) {
                 if (chartType === ChartTypes.Simple) {
-                    var duration = dataOfCommit['result']['end-time'] - dataOfCommit['result']['start-time']
-                    row.push(duration)
-                    row.push(duration.toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    if (fieldKey === '') { //no special field key, just calculate duration
+                        var duration = dataOfCommit['result']['end-time'] - dataOfCommit['result']['start-time']
+                        row.push(duration)
+                        row.push(duration.toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    } else {
+                        var simpleValue = dataOfCommit['result'][fieldKey][0].count
+                        row.push(simpleValue)
+                        row.push(simpleValue + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    }
                 } else if (chartType === ChartTypes.Percentile) {
-                    var timingResult = dataOfCommit['result']['timings'][0] //TODO first element only?
-                    row.push(timingResult['50th'])
-                    row.push(timingResult['50th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
-                    row.push(timingResult['90th'])
-                    row.push(timingResult['90th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
-                    row.push(timingResult['95th'])
-                    row.push(timingResult['95th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
-                    row.push(timingResult['mean'])
-                    row.push(timingResult['mean'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    var percentileResult = dataOfCommit['result'][fieldKey][0] //TODO first element only?
+                    row.push(percentileResult['50th'])
+                    row.push(percentileResult['50th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(percentileResult['90th'])
+                    row.push(percentileResult['90th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(percentileResult['95th'])
+                    row.push(percentileResult['95th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
+                    row.push(percentileResult['mean'])
+                    row.push(percentileResult['mean'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
                 }
             } else {
                 columnPerBranchCount = chartType === ChartTypes.Simple ? 2 : 8
