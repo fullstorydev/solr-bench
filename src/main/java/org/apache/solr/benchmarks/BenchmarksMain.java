@@ -28,7 +28,6 @@ import org.apache.solr.common.util.NamedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.transform.ErrorListener;
 import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.text.ParseException;
@@ -104,7 +103,7 @@ public class BenchmarksMain {
 		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
 		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
 					if (listener instanceof DetailedQueryStatsListener) {
-						//add the detailed spec (per query type)
+						//add the detailed stats (per query in the input query file) collected by the listener
 						for (DetailedQueryStatsListener.DetailedStats stats : ((DetailedQueryStatsListener) listener).getStats()) {
 							String statsName = stats.getStatsName();
 							List<Map> outputStats = (List<Map>)(results.get("query-benchmarks").computeIfAbsent(statsName, key -> new ArrayList<>()));
@@ -196,8 +195,8 @@ public class BenchmarksMain {
 			@Override
 			public NamedList<Object> call() throws Exception {
 				NamedList<Object> rsp = client.request(queryRequest, collection);
-				//let's not do this here as this reads the input stream and once read it cannot be read anymore
-				//Probably better to let the caller handle the return values
+				//let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
+				//Probably better to let the caller handle the return values instead
 				//printErrOutput(queryRequest, rsp);
 				return rsp;
 			}
@@ -389,15 +388,9 @@ public class BenchmarksMain {
 		}
 
 		private void logQueryRspError(String message) {
+			//avoid spamming the logs by default, first error might be good enough?
 			if (!loggedQueryRspError.getAndSet(true) || logger.isDebugEnabled()) {
 				logger.warn(message);
-//				if (rsp != null) {
-//					try {
-//						logger.warn("The response stream as string: " + getResponseStreamAsString(rsp));
-//					} catch (IOException e) {
-//						logger.warn("Failed to extract response stream from " + rsp);
-//					}
-//				}
 			}
 		}
 
