@@ -38,13 +38,11 @@
          <groupId>org.apache.solr</groupId>
          <artifactId>solr-solrj-zookeeper</artifactId>
          <version>9.1.0</version>
-         <scope>provided</scope>
       </dependency>
       <dependency>
          <groupId>org.apache.zookeeper</groupId>
          <artifactId>zookeeper</artifactId>
          <version>3.8.0</version>
-         <scope>provided</scope>
       </dependency>
 
       <dependency>
