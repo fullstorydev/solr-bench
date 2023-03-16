@@ -44,6 +44,11 @@
          <artifactId>zookeeper</artifactId>
          <version>3.8.0</version>
       </dependency>
+      <dependency>
+         <groupId>org.eclipse.jetty</groupId>
+         <artifactId>jetty-client</artifactId>
+         <version>9.4.48.v20220622</version>
+      </dependency>
 
       <dependency>
          <groupId>commons-codec</groupId>
