@@ -1,3 +1,5 @@
+var chartDetailedStats = getValueFromParam('detailed-stats', false)
+
 function drawAllCharts() {
     var allResultsByTaskName = {}
     var testnames;
@@ -37,6 +39,7 @@ function drawAllCharts() {
             }
         }
 
+        appendDetailsStatsTable(resultsByTaskName, $page)
     })
 
     //generate a graph that compare all groups/branches
@@ -65,7 +68,7 @@ function generatePage(title, selected, dataByGroup) {
 
         $collapseButton.click(function(data) {
             $page = $(this).parent()
-            $page.find('div').remove()
+            $page.find('div.graph').remove()
             var group = title;
             var testnames = Object.keys(dataByGroup);
             var resultsByTaskName = calculateResultsByTaskName(testnames, group, dataByGroup)
@@ -76,7 +79,7 @@ function generatePage(title, selected, dataByGroup) {
 
         $expandButton.click(function(data) {
             $page = $(this).parent()
-            $page.find('div').remove()
+            $page.find('div.graph').remove()
             var group = title;
             var testnames = Object.keys(dataByGroup);
             var resultsByTaskName = calculateResultsByTaskName(testnames, group, dataByGroup)
@@ -101,6 +104,81 @@ function generatePage(title, selected, dataByGroup) {
     })
     $('#sideBar').append($item)
     return $page
+}
+
+function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
+    var $table
+    $.each(dataByTestAndTaskName, function(testName, dataByTaskName) {
+        $.each(dataByTaskName, function(taskName, dataByCommit) {
+                if (taskName.startsWith("detailed-stats-")) {
+                    if (! $table) {
+                        $table = $('<div class="detailed-stats-table"></div>').appendTo($page)
+                        $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
+                        $tableHeader.append('<div style="display: table-cell; width: 70%;">Task</div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;">Value</div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;">Delta to previous run</div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;">Delta to all runs median</div>')
+                    }
+                    taskName = taskName.substring("detailed-stats-".length) //still yike...
+                    var allValues = []
+                    $.each(dataByCommit, function(runI, data) {
+                        var keyValue = getDetailStatsKeyValue(data)
+                        if (keyValue != null) {
+                            allValues.push(keyValue)
+                        }
+                    })
+
+
+                    $tableRow = $('<div class="table-row"></div>').appendTo($table)
+                    $tableRow.append('<div style="display: table-cell;">' + taskName + '</div>')
+                    if (allValues.length >= 1) { //change from the run before this
+                        var latestValue = allValues[allValues.length - 1]
+                        $tableRow.append('<div style="display: table-cell;">' + latestValue + '</div>')
+                        if (allValues.length >= 2) { //change from the run before this
+                            var previousValue = allValues[allValues.length - 2]
+                            var delta = latestValue - previousValue
+                            $tableRow.append('<div style="display: table-cell;">' + getChangeText(previousValue, delta) + '</div>')
+                            if (allValues.length >= 3) { //change from median of all runs
+                                allValues.sort()
+                                var median = allValues[allValues.length / 2]
+                                var delta = latestValue - median
+                                $tableRow.append('<div style="display: table-cell;">' + getChangeText(median, delta) + '</div>')
+                            } else {
+                                $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
+                            }
+                        } else {
+                            $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
+                        }
+                    } else {
+                        $tableRow.append('<div style="display: table-cell;">-</div>')
+                    }
+                }
+            })
+     })
+}
+
+function getDetailStatsKeyValue(data) {
+    var fieldKey = detectFieldKey(data)
+    if (data.result[fieldKey].length > 0) {
+        //only take the first instance for now, to be honest, at this level I don't quite get what the list is anymore...
+        var stats = data.result[fieldKey][0]
+        if (stats.hasOwnProperty('50th')) {
+            return stats['50th']
+        } else if (stats.hasOwnProperty('count')){
+           return stats['count']
+        } else {
+           console.warn("cannot find property for details stats for entry " + stats)
+           return null
+        }
+    } else {
+        return null
+    }
+}
+
+function getChangeText(baseValue, delta) {
+   var percentageChange = (baseValue > 0) ? delta * 100 / baseValue : 0
+   var percentageChangeText = percentageChange >= 0 ? ('+' + percentageChange + '%') : (percentageChange + '%')
+   return delta + '(' + percentageChangeText + ')'
 }
 
 function calculateResultsByTaskName(testnames, group, dataByGroup) {
@@ -149,6 +227,9 @@ function detectFieldKey(graphData) {
 
 var graphIndex = 0
 function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
+    if (taskName.startsWith("detailed-stats-") && !chartDetailedStats) { //not great! we should have better structure
+        return
+    }
     var elementId = 'graph_' + graphIndex++
     var $graphDiv = $('<div class="graph" id="' + elementId + '"></div>')
     $page.append($graphDiv)
@@ -367,6 +448,9 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
 
     // Collect the column names for the graph from the first commit
     for (const task in graphDataByCommit[0].results) {
+        if (task.startsWith("detailed-stats-") && !chartDetailedStats) { //not great! we should have better structure
+            continue
+        }
         addColumn(columns, task, true);
         for (const i in graphDataByCommit[0].results[task]) {
             var taskData = graphDataByCommit[0].results[task][i]
@@ -413,6 +497,9 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
 
         var results = commit["results"];
         for (const task in results) {
+            if (task.startsWith("detailed-stats-") && !chartDetailedStats) { //not great! we should have better structure
+                continue
+            }
             var taskStart = Infinity, taskEnd = 0
             for (const i in results[task]) {
                 var taskInstanceData = results[task][i]
