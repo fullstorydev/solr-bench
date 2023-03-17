@@ -103,10 +103,11 @@ public class BenchmarksMain {
 		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
 		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
 					if (listener instanceof DetailedQueryStatsListener) {
+						Map detailedStats = (Map) results.get("query-benchmarks").computeIfAbsent("detailed-stats", key -> new LinkedHashMap<>());
 						//add the detailed stats (per query in the input query file) collected by the listener
 						for (DetailedStats stats : ((DetailedQueryStatsListener) listener).getStats()) {
 							String statsName = stats.getStatsName();
-							List<Map> outputStats = (List<Map>)(results.get("query-benchmarks").computeIfAbsent(statsName, key -> new ArrayList<>()));
+							List<Map> outputStats = (List<Map>)(detailedStats.computeIfAbsent(statsName, key -> new ArrayList<>()));
 							stats.setExtraProperty("threads", threads);
 							stats.setExtraProperty("total-time", time);
 							outputStats.add(Util.map(stats.metricType.dataCategory, stats)); //forced by the design that this has to be a map, otherwise we shouldn't need to do this one entry map

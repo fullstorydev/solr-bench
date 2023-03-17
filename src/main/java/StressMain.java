@@ -489,9 +489,14 @@ public class StressMain {
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
 					if (type.queryBenchmark.detailedStats) { //then add more to final results
-						while (resultIter.hasNext()) {
-							Map.Entry entry = resultIter.next();
-							String taskWithStatType = taskName + entry.getKey();
+						Map<String, List> detailedStats = (Map) results.get("query-benchmarks").get("detailed-stats");
+
+						for (Map.Entry entry : detailedStats.entrySet()) {
+							//TODO using a prefix to identify detailed-stats
+							// this is not great! but limited by the current finalResults structure now.
+							// we should either make a new file or create a specific class for finalResults that knows
+							// about detailed-stats (instead of generic java collection structures with multiple layers)
+							String taskWithStatType = "detailed-stats-" + taskName + entry.getKey();
 							//not sure what exactly is this list - different task instances?
 							List<Map> resultsPerStatType = finalResults.computeIfAbsent(taskWithStatType, key -> new ArrayList<>());
 							Map resultOfThisStateType = Util.map("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
