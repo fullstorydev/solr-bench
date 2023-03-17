@@ -122,7 +122,7 @@
          <exclusions>
             <exclusion>
                <groupId>org.apache.httpcomponents</groupId>
-               <artifactId>httpcomponents-client</artifactId>
+               <artifactId>httpclient</artifactId>
             </exclusion>
          </exclusions>
       </dependency>
