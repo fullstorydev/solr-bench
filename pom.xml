@@ -35,6 +35,22 @@
       </dependency>
 
       <dependency>
+         <groupId>org.apache.solr</groupId>
+         <artifactId>solr-solrj-zookeeper</artifactId>
+         <version>9.1.0</version>
+      </dependency>
+      <dependency>
+         <groupId>org.apache.zookeeper</groupId>
+         <artifactId>zookeeper</artifactId>
+         <version>3.8.0</version>
+      </dependency>
+      <dependency>
+         <groupId>org.eclipse.jetty</groupId>
+         <artifactId>jetty-client</artifactId>
+         <version>9.4.48.v20220622</version>
+      </dependency>
+
+      <dependency>
          <groupId>commons-codec</groupId>
          <artifactId>commons-codec</artifactId>
          <version>1.10</version>
@@ -207,6 +223,7 @@
          </plugin>
          <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
+            <version>3.5.0</version>
             <executions>
                <execution>
                   <id>make-jar-with-dependencies</id>

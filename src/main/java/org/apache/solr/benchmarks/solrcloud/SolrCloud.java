@@ -17,31 +17,17 @@
 
 package org.apache.solr.benchmarks.solrcloud;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.beans.Cluster;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.ZkClientClusterStateProvider;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Delete;
@@ -52,17 +38,25 @@ import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
 import org.apache.solr.client.solrj.response.HealthCheckResponse;
 import org.apache.solr.common.cloud.SolrZkClient;
-import org.apache.solr.common.cloud.ZkConfigManager;
+import org.apache.solr.common.cloud.ZkMaintenanceUtils;
 import org.apache.solr.common.params.ConfigSetParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.lang.invoke.MethodHandles;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class SolrCloud {
 
@@ -164,7 +158,7 @@ public class SolrCloud {
       this.nodes = healthyNodes;
       log.info("Healthy nodes: "+healthyNodes.size());
       
-      try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(getZookeeperUrl()).build();) {
+      try (CloudSolrClient client = new CloudSolrClient.Builder(List.of(getZookeeperUrl()), Optional.ofNullable(getZookeeperChroot())).build()) {
 	      log.info("Cluster state: " + client.getClusterStateProvider().getClusterState());
 	      log.info("Overseer: " + client.request(new OverseerStatus()));
       }
@@ -189,8 +183,8 @@ public class SolrCloud {
         String[] tokens = cluster.externalSolrConfig.zkHost.split(":");
         zookeeper = new GenericZookeeper(tokens[0], tokens.length > 1 ? Integer.parseInt(tokens[1]) : null, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
 
-        try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).withZkChroot(cluster.externalSolrConfig.zkChroot).build()) {
-          Set<String> liveNodes = client.getZkStateReader().getClusterState().getLiveNodes();
+        try (CloudSolrClient client = new CloudSolrClient.Builder(List.of(cluster.externalSolrConfig.zkHost), Optional.ofNullable(cluster.externalSolrConfig.zkChroot)).build()) {
+          Set<String> liveNodes = client.getClusterState().getLiveNodes();
           for (String liveNode: liveNodes) {
             nodes.add(new ExternalSolrNode(
                     liveNode.split("_solr")[0].split(":")[0],
@@ -199,7 +193,7 @@ public class SolrCloud {
                     cluster.externalSolrConfig.restartScript));
           }
           try {
-            List<String> queryNodeList = client.getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
+            List<String> queryNodeList = ((ZkClientClusterStateProvider)client.getClusterStateProvider()).getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
             for (String queryNode : queryNodeList) {
               queryNodes.add(new ExternalSolrNode(
                       queryNode.split("_solr")[0].split(":")[0],
@@ -223,7 +217,7 @@ public class SolrCloud {
 
   List<String> getSolrNodesFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
 	  List<String> out = new ArrayList<String>();
-	  Map<String, Object> tfstate = new ObjectMapper().readValue(FileUtils.readFileToString(new File("terraform/terraform.tfstate"), "UTF-8"), Map.class);
+	  Map<String, Object> tfstate = new ObjectMapper().readValue(Files.readString(Paths.get("terraform/terraform.tfstate"), StandardCharsets.UTF_8), Map.class);
 	  for (Map m: (List<Map>)((Map)((Map)tfstate.get("outputs")).get("solr_node_details")).get("value")) {
 		  out.add(m.get("name").toString());
 	  }
@@ -231,7 +225,7 @@ public class SolrCloud {
   }
 
   String getZkNodeFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
-	  Map<String, Object> tfstate = new ObjectMapper().readValue(FileUtils.readFileToString(new File("terraform/terraform.tfstate"), "UTF-8"), Map.class);
+	  Map<String, Object> tfstate = new ObjectMapper().readValue(Files.readString(Paths.get("terraform/terraform.tfstate"), StandardCharsets.UTF_8), Map.class);
 	  for (Map m: (List<Map>)((Map)((Map)tfstate.get("outputs")).get("zookeeper_details")).get("value")) {
 		  return m.get("name").toString();
 	  }
@@ -240,7 +234,7 @@ public class SolrCloud {
 
   List<String> getSolrNodesFromVagrant() throws JsonMappingException, JsonProcessingException, IOException {
 	  List<String> out = new ArrayList<String>();
-	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/solr-servers.json"), "UTF-8"), Map.class);
+	  Map<String, Object> servers = new ObjectMapper().readValue(Files.readString(Paths.get("vagrant/solr-servers.json"), StandardCharsets.UTF_8), Map.class);
 	  for (String server: servers.keySet()) {
 		  out.add(servers.get(server).toString());
 	  }
@@ -248,7 +242,7 @@ public class SolrCloud {
   }
 
   String getZkNodeFromVagrant() throws JsonMappingException, JsonProcessingException, IOException {
-	  Map<String, Object> servers = new ObjectMapper().readValue(FileUtils.readFileToString(new File("vagrant/zk-servers.json"), "UTF-8"), Map.class);
+	  Map<String, Object> servers = new ObjectMapper().readValue(Files.readString(Paths.get("vagrant/zk-servers.json"), StandardCharsets.UTF_8), Map.class);
 	  for (String server: servers.keySet()) {
 		  return servers.get(server).toString();
 	  }
@@ -269,14 +263,9 @@ public class SolrCloud {
 		  Create create;
 		  if (setup.replicationFactor != null) {
 			  create = Create.createCollection(collectionName, configsetName, setup.shards, setup.replicationFactor);
-			  create.setMaxShardsPerNode(setup.shards*(setup.replicationFactor));
 		  } else {
 			  create = Create.createCollection(collectionName, configsetName, setup.shards,
 					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
-			  create.setMaxShardsPerNode(setup.shards
-					  * ((setup.pullReplicas==null? 0: setup.pullReplicas)
-					   + (setup.nrtReplicas==null? 0: setup.nrtReplicas)
-					   + (setup.tlogReplicas==null? 0: setup.tlogReplicas)));
 		  }
 		  CollectionAdminResponse resp;
 		  if (setup.collectionCreationParams != null && setup.collectionCreationParams.isEmpty()==false) {
@@ -401,10 +390,7 @@ public class SolrCloud {
           return new RequestWriter.ContentWriter() {
             @Override
             public void write(OutputStream os) throws IOException {
-
-              try (InputStream is = new FileInputStream(f)) {
-                IOUtils.copy(is, os);
-              }
+              Files.copy(f.toPath(), os);
             }
 
             @Override
@@ -440,10 +426,9 @@ public class SolrCloud {
     	  }    		  
       }
       configsets.add(configsetZkName);
-
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
       try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
-        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
+        zkClient.setData(ZkMaintenanceUtils.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
       }
       log.info("Configset: " + configsetZkName + " created successfully ");
 
