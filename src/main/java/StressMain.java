@@ -145,6 +145,10 @@ public class StressMain {
 		for (String taskName: workflow.executionPlan.keySet()) {
 			TaskInstance instance = workflow.executionPlan.get(taskName);
 			TaskType type = workflow.taskTypes.get(instance.type);
+
+			if (type == null) {
+				throw new IllegalArgumentException("Task [" + taskName + "] has type [" + instance.type + "] which is invalid/unknown");
+			}
 			System.out.println(taskName+" is of type: "+new ObjectMapper().writeValueAsString(type));
 
 			taskFutures.put(taskName, new ArrayList<>());
@@ -478,9 +482,48 @@ public class StressMain {
 					//String totalTime = ((List<Map>)((Map.Entry)((Map)((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue()).entrySet().iterator().next()).getValue()).get(0).get("total-time").toString();
 					String totalTime = String.valueOf(taskEnd - taskStart);
 
+					Iterator<Map.Entry> resultIter = results.get("query-benchmarks").entrySet().iterator();
 					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
-							"end-time", (taskEnd- executionStart)/1000.0, "timings", ((Map.Entry)results.get("query-benchmarks").entrySet().iterator().next()).getValue(),
+							"end-time", (taskEnd- executionStart)/1000.0, "timings", resultIter.next().getValue(),
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
+					if (type.queryBenchmark.detailedStats) { //then add more to final results
+						Map<String, List> detailedStats = (Map) results.get("query-benchmarks").get("detailed-stats");
+
+						for (Map.Entry entry : detailedStats.entrySet()) {
+							//TODO using a prefix to identify detailed-stats
+							// this is not great! but limited by the current finalResults structure now.
+							// we should either make a new file or create a specific class for finalResults that knows
+							// about detailed-stats (instead of generic java collection structures with multiple layers)
+							String taskWithStatType = "detailed-stats-" + taskName + entry.getKey();
+							//not sure what exactly is this list - different task instances?
+							List<Map> resultsPerStatType = finalResults.computeIfAbsent(taskWithStatType, key -> new ArrayList<>());
+							Map resultOfThisStatType = Util.map("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+									"end-time", (taskEnd- executionStart)/1000.0,
+									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd);
+							if (((List) entry.getValue()).size() > 0) {
+								//finalResults is a little hard to reason as the map nested several levels (Map<String, List<Map<String, ?>>)
+								//while the ? could be another List of Maps
+								//and lacked description of what each level corresponds to. Might be better to rewrite
+								//this to a more structured custom class for readability
+								Map<String, BenchmarksMain.DetailedStats> firstEntry = (Map<String, BenchmarksMain.DetailedStats>) ((List) entry.getValue()).get(0);
+								String category = firstEntry.keySet().iterator().next(); //one entry map, the key is the category, the value is the stats
+								BenchmarksMain.DetailedStats firstDetailedStats =  firstEntry.values().iterator().next();
+								resultOfThisStatType.put("query", firstDetailedStats.getQueryType());
+								resultOfThisStatType.put("metricType", firstDetailedStats.getMetricType());
+								resultOfThisStatType.put("taskName", taskName);
+
+								List<Map> statsByThreadCount = new ArrayList<>(); //each entry in the list is the test result per run by thread count
+								for (Map<String, BenchmarksMain.DetailedStats> entryByThreadCount : ((List<Map<String, BenchmarksMain.DetailedStats>>) entry.getValue())) {
+									BenchmarksMain.DetailedStats stats = entryByThreadCount.values().iterator().next(); //again a one entry map to get around the existing structure
+									statsByThreadCount.add(stats.values()); //convert to the expected structure
+								}
+								resultOfThisStatType.put(category, statsByThreadCount); //category could be "timing", "percentile" or "simple" etc
+							}
+							resultsPerStatType.add(resultOfThisStatType);
+						}
+					}
+
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}

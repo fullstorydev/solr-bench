@@ -1,0 +1,40 @@
+div.graph { width: 100%; height: 400px; }
+#sideBar {
+  box-shadow: inset -25px 0px 25px -25px rgba(0, 0, 0, 0.45);
+}
+#sideBar .item {
+    width: 100%;
+    text-align: center;
+    margin: auto;
+    min-height: 50px;
+    padding: 5px;
+    box-sizing: border-box;
+}
+body {
+    margin: 0px;
+    font-family: arial,sans-serif;
+}
+.clickable:hover {
+    cursor: pointer;
+
+}
+.clickable:hover, .selected {
+    color: rgba(95, 158, 160, 0.9);
+}
+.table-row {
+    display: table-row;
+}
+.detailed-stats-table .table-row:nth-child(even) {
+    background-color: #f2f2f2;
+}
+.detailed-stats-table .table-row:nth-child(odd) {
+    background-color: #ffffff;
+}
+div.section {
+   background-image: var(--section-background-image);
+   box-shadow: inset 0 0 2px white, 0 0 3px rgba(0, 0, 0, 0.5);
+   border-radius: 0.5em 0.5em 0.5em 0.5em;
+   margin: 10px;
+   padding: 10px 10px 20px 10px;
+   box-sizing: border-box;
+}
