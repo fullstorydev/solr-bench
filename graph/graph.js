@@ -116,14 +116,28 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
         $.each(dataByTaskName, function(taskName, dataByCommit) {
                 if (taskName.startsWith("detailed-stats-")) {
                     if (! $table) {
-                        $table = $('<div class="detailed-stats-table"></div>').appendTo($page)
+                        var $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
+//                        $tableContainer.append('<h4 style="margin: 0 0 10px 0;">Stats</h4>')
+                         //a header table, this only contains the header so scrolling the actual table will keep the header
+                        $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
+                        $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Task</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Metric</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Query</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="latestValue" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Value</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="previousDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to previous run</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="medianDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to all runs median</div>')
+
+                        //actual data table, the header row is for controlling the widths
+                        var $dataTableContainer = $('<div style="max-height:150px; overflow-y:auto; width: 100%;"></div>').appendTo($tableContainer)
+                        $table = $('<div class="detailed-stats-table" style="display: table; width: 100%;"></div>').appendTo($dataTableContainer)
                         $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Task</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Metric</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Query</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="latestValue" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Value</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="previousDeltaPercentage" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Delta to previous run</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="medianDeltaPercentage" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Delta to all runs median</div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 50%;"></div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                     }
                     taskName = taskName.substring("detailed-stats-".length) //still yike...
                     var allValues = []
@@ -187,7 +201,7 @@ function toggleStatsTableSort(sortHeader) {
 	sortHeader.siblings().removeClass("selected")
 	sortHeader.addClass("selected")
 
-	updateStatsTable(sortHeader.closest('.detailed-stats-table'), sortHeader.data("sort-property"), sortHeader.data("sort-order"))
+	updateStatsTable(sortHeader.closest('.page').find('.detailed-stats-table'), sortHeader.data("sort-property"), sortHeader.data("sort-order"))
 }
 
 function updateStatsTable($table, sortProperty, sortOrder) {
@@ -198,25 +212,37 @@ function updateStatsTable($table, sortProperty, sortOrder) {
 	loadedStatsRows = sortPreserveOrder(loadedStatsRows, sortProperty, sortOrder == "ascending")
 
 	$.each(loadedStatsRows, function(index, statsRow) {
-        var $tableRow = $('<div class="table-row"></div>').appendTo($table)
+        var $tableRow = $('<div class="table-row clickable"></div>').appendTo($table)
         $tableRow.append('<div style="display: table-cell;">' + statsRow.taskName + '</div>')
         $tableRow.append('<div style="display: table-cell;">' + statsRow.metricType + '</div>')
-        $tableRow.append('<div style="display: table-cell;">' + statsRow.query + '</div>')
+        var $queryCell = $('<div style="display: table-cell;"><div class="query-text" style="max-height: 15px; overflow: hidden;">' + statsRow.query + '</div></div>').appendTo($tableRow)
+        $queryCell.attr('title', statsRow.query)
+        $tableRow.click(function() {
+            $contentDiv = $queryCell.find('.query-text')
+            if ($contentDiv.css('max-height') === "none") {
+                $contentDiv.css({'max-height' : '15px'})
+            } else {
+                $contentDiv.css({'max-height' : ''})
+            }
+        })
         if (statsRow.latestValue !== undefined) {
-            $tableRow.append('<div style="display: table-cell;">' + statsRow.latestValue + '</div>')
+            $tableRow.append('<div style="display: table-cell; text-align:right;">' + statsRow.latestValue + '</div>')
         } else {
-            $tableRow.append('<div style="display: table-cell;">-</div>')
+            $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
         }
         if (statsRow.previousDeltaPercentage !== undefined) {
-            $tableRow.append('<div style="display: table-cell;">' + getChangeText(statsRow.previousValue, statsRow.previousDelta) + '</div>')
+            $tableRow.append('<div style="display: table-cell; text-align:right;">' + getChangeText(statsRow.previousValue, statsRow.previousDelta) + '</div>')
         } else {
-            $tableRow.append('<div style="display: table-cell;">-</div>')
+            $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
+            $tableRow.attr('title', 'Need at least 2 runs')
         }
         if (statsRow.medianDeltaPercentage !== undefined) {
-            $tableRow.append('<div style="display: table-cell;">' + getChangeText(statsRow.median, statsRow.medianDelta) + '</div>')
+            $tableRow.append('<div style="display: table-cell; text-align:right;">' + getChangeText(statsRow.median, statsRow.medianDelta) + '</div>')
         } else {
-            $tableRow.append('<div style="display: table-cell;">-</div>')
+            $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
+            $tableRow.attr('title', 'Need at least 3 runs')
         }
+        $tableRow.expand
 		$table.append($tableRow)
 	});
 }
