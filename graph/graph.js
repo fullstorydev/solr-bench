@@ -167,7 +167,7 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
 //                            $tableRow.append('<div style="display: table-cell;">' + getChangeText(previousValue, delta) + '</div>')
                         if (allValues.length >= 3) { //change from median of all runs
                             allValues.sort()
-                            var median = allValues[allValues.length / 2]
+                            var median = allValues[Math.floor(allValues.length / 2)]
                             var delta = latestValue - median
                             statsRow.median = median
                             statsRow.medianDelta = delta
