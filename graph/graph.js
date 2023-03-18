@@ -114,81 +114,82 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
     var $table
     $.each(dataByTestAndTaskName, function(testName, dataByTaskName) {
         $.each(dataByTaskName, function(taskName, dataByCommit) {
-                if (taskName.startsWith("detailed-stats-")) {
-                    if (! $table) {
-                        var $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
+            if (taskName.startsWith("detailed-stats-")) {
+                if (! $table) {
+                    var $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
 //                        $tableContainer.append('<h4 style="margin: 0 0 10px 0;">Stats</h4>')
-                         //a header table, this only contains the header so scrolling the actual table will keep the header
-                        $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
-                        $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Task</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Metric</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Query</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="latestValue" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Value</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="previousDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to previous run</div>')
-                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="medianDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to all runs median</div>')
+                     //a header table, this only contains the header so scrolling the actual table will keep the header
+                    $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
+                    $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Task</div>')
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Metric</div>')
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Query</div>')
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="latestValue" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Value</div>')
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="previousDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to previous run</div>')
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="medianDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to all runs median</div>')
 
-                        //actual data table, the header row is for controlling the widths
-                        var $dataTableContainer = $('<div style="max-height:150px; overflow-y:auto; width: 100%;"></div>').appendTo($tableContainer)
-                        $table = $('<div class="detailed-stats-table" style="display: table; width: 100%;"></div>').appendTo($dataTableContainer)
-                        $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 50%;"></div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                    //actual data table, the header row is for controlling the widths
+                    var $dataTableContainer = $('<div style="max-height:150px; overflow-y:auto; width: 100%;"></div>').appendTo($tableContainer)
+                    $table = $('<div class="detailed-stats-table" style="display: table; width: 100%;  table-layout: fixed;"></div>').appendTo($dataTableContainer)
+                    $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
+                    $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 50%;"></div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                }
+                taskName = taskName.substring("detailed-stats-".length) //still yike...
+                var allValues = []
+                $.each(dataByCommit, function(runI, data) {
+                    var keyValue = getDetailStatsKeyValue(data)
+                    if (keyValue != null) {
+                        allValues.push(keyValue)
                     }
-                    taskName = taskName.substring("detailed-stats-".length) //still yike...
-                    var allValues = []
-                    $.each(dataByCommit, function(runI, data) {
-                        var keyValue = getDetailStatsKeyValue(data)
-                        if (keyValue != null) {
-                            allValues.push(keyValue)
-                        }
-                    })
+                })
 
-                    var statsRow = []
+                var statsRow = []
 //                    $tableRow = $('<div class="table-row"></div>').appendTo($table)
 //                    $tableRow.append('<div style="display: table-cell;">' + taskName + '</div>')
-                    statsRow.taskName = dataByCommit[0].result.taskName
-                    statsRow.query = dataByCommit[0].result.query
-                    statsRow.metricType = dataByCommit[0].result.metricType
-                    if (allValues.length >= 1) { //change from the run before this
-                        var latestValue = allValues[allValues.length - 1]
-                        statsRow.latestValue = latestValue
+                statsRow.taskName = dataByCommit[0].result.taskName
+                statsRow.query = dataByCommit[0].result.query
+                statsRow.metricType = dataByCommit[0].result.metricType
+                if (allValues.length >= 1) { //change from the run before this
+                    var latestValue = allValues[allValues.length - 1]
+                    statsRow.latestValue = latestValue
 //                          $tableRow.append('<div style="display: table-cell;">' + latestValue + '</div>')
-                        if (allValues.length >= 2) { //change from the run before this
-                            var previousValue = allValues[allValues.length - 2]
-                            var delta = latestValue - previousValue
-                            statsRow.previousValue = previousValue
-                            statsRow.previousDelta = delta
-                            statsRow.previousDeltaPercentage = delta * 100 / previousValue
+                    if (allValues.length >= 2) { //change from the run before this
+                        var previousValue = allValues[allValues.length - 2]
+                        var delta = latestValue - previousValue
+                        statsRow.previousValue = previousValue
+                        statsRow.previousDelta = delta
+                        statsRow.previousDeltaPercentage = delta * 100 / previousValue
 //                            $tableRow.append('<div style="display: table-cell;">' + getChangeText(previousValue, delta) + '</div>')
-                            if (allValues.length >= 3) { //change from median of all runs
-                                allValues.sort()
-                                var median = allValues[allValues.length / 2]
-                                var delta = latestValue - median
-                                statsRow.median = median
-                                statsRow.medianDelta = delta
-                                statsRow.medianDeltaPercentage = delta * 100 / median
+                        if (allValues.length >= 3) { //change from median of all runs
+                            allValues.sort()
+                            var median = allValues[allValues.length / 2]
+                            var delta = latestValue - median
+                            statsRow.median = median
+                            statsRow.medianDelta = delta
+                            statsRow.medianDeltaPercentage = delta * 100 / median
 //                                $tableRow.append('<div style="display: table-cell;">' + getChangeText(median, delta) + '</div>')
-                            } else {
-//                                $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
-                            }
                         } else {
-//                            $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
+//                                $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
                         }
                     } else {
-//                        $tableRow.append('<div style="display: table-cell;">-</div>')
+//                            $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
                     }
-                    loadedStatsRows.push(statsRow)
+                } else {
+//                        $tableRow.append('<div style="display: table-cell;">-</div>')
                 }
-            })
-     })
-     if ($table) {
-        updateStatsTable($table, "medianDeltaPercentage", "descending")
-     }
+                loadedStatsRows.push(statsRow)
+            }
+       })
+   })
+    if ($table) {
+        loadedStatsRows = sortPreserveOrder(loadedStatsRows, "previousDeltaPercentage", false) // sort by previous delta first (if median delta not available or equal)
+        updateStatsTable($table, "medianDeltaPercentage", "descending") //then sort by median delta
+    }
 }
 
 function toggleStatsTableSort(sortHeader) {
@@ -226,7 +227,7 @@ function updateStatsTable($table, sortProperty, sortOrder) {
             }
         })
         if (statsRow.latestValue !== undefined) {
-            $tableRow.append('<div style="display: table-cell; text-align:right;">' + statsRow.latestValue + '</div>')
+            $tableRow.append('<div style="display: table-cell; text-align:right;">' + statsRow.latestValue.toFixed(2) + '</div>')
         } else {
             $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
         }
@@ -301,9 +302,9 @@ function getDetailStatsKeyValue(data) {
 }
 
 function getChangeText(baseValue, delta) {
-   var percentageChange = (baseValue > 0) ? delta * 100 / baseValue : 0
+   var percentageChange = (baseValue > 0) ? (delta * 100 / baseValue).toFixed(1) : 0
    var percentageChangeText = percentageChange >= 0 ? ('+' + percentageChange + '%') : (percentageChange + '%')
-   return delta + '(' + percentageChangeText + ')'
+   return delta.toFixed(2) + '(' + percentageChangeText + ')'
 }
 
 function calculateResultsByTaskName(testnames, group, dataByGroup) {
