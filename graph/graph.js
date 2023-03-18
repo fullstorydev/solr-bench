@@ -1,4 +1,4 @@
-var chartDetailedStats = getValueFromParam('detailed-stats', false)
+var chartDetailedStats = getValueFromParam('all-stats', false)
 
 function drawAllCharts() {
     var allResultsByTaskName = {}
