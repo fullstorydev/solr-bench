@@ -421,6 +421,14 @@ public class BenchmarksMain {
 			return "(" + metricType + ") " + queryType;
 		}
 
+		public String getQueryType() {
+			return queryType;
+		}
+
+		public DetailedQueryStatsListener.StatsMetricType getMetricType() {
+			return metricType;
+		}
+
 		private void setExtraProperty(String key, Object value) {
 			extraProperties.put(key, value);
 		}
