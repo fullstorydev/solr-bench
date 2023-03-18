@@ -12,9 +12,11 @@ function drawAllCharts() {
 
     $.each(graph_data, function(group, dataByGroup) {
         var $page = generatePage(group, dataByGroup.length == 1, dataByGroup)
-
         var testnames = Object.keys(dataByGroup);
         var resultsByTaskName = calculateResultsByTaskName(testnames, group, dataByGroup)
+
+        appendDetailsStatsTable(resultsByTaskName, $page)
+
         // compute comparison data
         for (const testname of testnames) {
             $.each(resultsByTaskName[testname], function(taskName, resultsByTask) {
@@ -39,7 +41,7 @@ function drawAllCharts() {
             }
         }
 
-        appendDetailsStatsTable(resultsByTaskName, $page)
+
     })
 
     //generate a graph that compare all groups/branches
@@ -106,6 +108,8 @@ function generatePage(title, selected, dataByGroup) {
     return $page
 }
 
+var loadedStatsRows = []
+
 function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
     var $table
     $.each(dataByTestAndTaskName, function(testName, dataByTaskName) {
@@ -114,10 +118,12 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
                     if (! $table) {
                         $table = $('<div class="detailed-stats-table"></div>').appendTo($page)
                         $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
-                        $tableHeader.append('<div style="display: table-cell; width: 70%;">Task</div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;">Value</div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;">Delta to previous run</div>')
-                        $tableHeader.append('<div style="display: table-cell; width: 10%;">Delta to all runs median</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Task</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Metric</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Query</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="latestValue" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Value</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="previousDeltaPercentage" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Delta to previous run</div>')
+                        $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="medianDeltaPercentage" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Delta to all runs median</div>')
                     }
                     taskName = taskName.substring("detailed-stats-".length) //still yike...
                     var allValues = []
@@ -128,34 +134,127 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
                         }
                     })
 
-
-                    $tableRow = $('<div class="table-row"></div>').appendTo($table)
-                    $tableRow.append('<div style="display: table-cell;">' + taskName + '</div>')
+                    var statsRow = []
+//                    $tableRow = $('<div class="table-row"></div>').appendTo($table)
+//                    $tableRow.append('<div style="display: table-cell;">' + taskName + '</div>')
+                    statsRow.taskName = dataByCommit[0].result.taskName
+                    statsRow.query = dataByCommit[0].result.query
+                    statsRow.metricType = dataByCommit[0].result.metricType
                     if (allValues.length >= 1) { //change from the run before this
                         var latestValue = allValues[allValues.length - 1]
-                        $tableRow.append('<div style="display: table-cell;">' + latestValue + '</div>')
+                        statsRow.latestValue = latestValue
+//                          $tableRow.append('<div style="display: table-cell;">' + latestValue + '</div>')
                         if (allValues.length >= 2) { //change from the run before this
                             var previousValue = allValues[allValues.length - 2]
                             var delta = latestValue - previousValue
-                            $tableRow.append('<div style="display: table-cell;">' + getChangeText(previousValue, delta) + '</div>')
+                            statsRow.previousValue = previousValue
+                            statsRow.previousDelta = delta
+                            statsRow.previousDeltaPercentage = delta * 100 / previousValue
+//                            $tableRow.append('<div style="display: table-cell;">' + getChangeText(previousValue, delta) + '</div>')
                             if (allValues.length >= 3) { //change from median of all runs
                                 allValues.sort()
                                 var median = allValues[allValues.length / 2]
                                 var delta = latestValue - median
-                                $tableRow.append('<div style="display: table-cell;">' + getChangeText(median, delta) + '</div>')
+                                statsRow.median = median
+                                statsRow.medianDelta = delta
+                                statsRow.medianDeltaPercentage = delta * 100 / median
+//                                $tableRow.append('<div style="display: table-cell;">' + getChangeText(median, delta) + '</div>')
                             } else {
-                                $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
+//                                $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
                             }
                         } else {
-                            $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
+//                            $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
                         }
                     } else {
-                        $tableRow.append('<div style="display: table-cell;">-</div>')
+//                        $tableRow.append('<div style="display: table-cell;">-</div>')
                     }
+                    loadedStatsRows.push(statsRow)
                 }
             })
      })
+     if ($table) {
+        updateStatsTable($table, "medianDeltaPercentage", "descending")
+     }
 }
+
+function toggleStatsTableSort(sortHeader) {
+	if (sortHeader.data("sort-order") == "ascending") {
+		sortHeader.data("sort-order", "descending")
+	} else {
+		sortHeader.data("sort-order", "ascending")
+	}
+
+	sortHeader.siblings().removeClass("selected")
+	sortHeader.addClass("selected")
+
+	updateStatsTable(sortHeader.closest('.detailed-stats-table'), sortHeader.data("sort-property"), sortHeader.data("sort-order"))
+}
+
+function updateStatsTable($table, sortProperty, sortOrder) {
+	$table.children("div.table-row").remove()
+
+	//sort the list
+	//loadedLinks.sort(sortByProperty(sortProperty, sortOrder == "ascending"))
+	loadedStatsRows = sortPreserveOrder(loadedStatsRows, sortProperty, sortOrder == "ascending")
+
+	$.each(loadedStatsRows, function(index, statsRow) {
+        var $tableRow = $('<div class="table-row"></div>').appendTo($table)
+        $tableRow.append('<div style="display: table-cell;">' + statsRow.taskName + '</div>')
+        $tableRow.append('<div style="display: table-cell;">' + statsRow.metricType + '</div>')
+        $tableRow.append('<div style="display: table-cell;">' + statsRow.query + '</div>')
+        if (statsRow.latestValue !== undefined) {
+            $tableRow.append('<div style="display: table-cell;">' + statsRow.latestValue + '</div>')
+        } else {
+            $tableRow.append('<div style="display: table-cell;">-</div>')
+        }
+        if (statsRow.previousDeltaPercentage !== undefined) {
+            $tableRow.append('<div style="display: table-cell;">' + getChangeText(statsRow.previousValue, statsRow.previousDelta) + '</div>')
+        } else {
+            $tableRow.append('<div style="display: table-cell;">-</div>')
+        }
+        if (statsRow.medianDeltaPercentage !== undefined) {
+            $tableRow.append('<div style="display: table-cell;">' + getChangeText(statsRow.median, statsRow.medianDelta) + '</div>')
+        } else {
+            $tableRow.append('<div style="display: table-cell;">-</div>')
+        }
+		$table.append($tableRow)
+	});
+}
+
+function sortPreserveOrder(array, property, ascending) {
+	if (ascending == undefined) {
+		ascending = true
+	}
+    var sortOrder = 1;
+
+    if(!ascending) {
+        sortOrder = -1;
+    }
+
+	var sortArray = array.map(function(data, idx){
+	    return {idx:idx, data:data}
+	})
+
+	sortArray.sort(function(a, b) {
+		var aVal = a.data[property]
+    	var bVal = b.data[property]
+
+    	var result = (aVal < bVal) ? -1 : (aVal > bVal) ? 1 : 0;
+    	if (result == 0) {
+    		return a.idx - b.idx
+    	} else {
+    		return result * sortOrder;
+    	}
+	});
+
+	var result = sortArray.map(function(val){
+	    return val.data
+	});
+
+	return result;
+}
+
+
 
 function getDetailStatsKeyValue(data) {
     var fieldKey = detectFieldKey(data)

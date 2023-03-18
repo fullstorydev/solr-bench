@@ -498,7 +498,7 @@ public class StressMain {
 							String taskWithStatType = "detailed-stats-" + taskName + entry.getKey();
 							//not sure what exactly is this list - different task instances?
 							List<Map> resultsPerStatType = finalResults.computeIfAbsent(taskWithStatType, key -> new ArrayList<>());
-							Map resultOfThisStateType = Util.map("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+							Map resultOfThisStatType = Util.map("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
 									"end-time", (taskEnd- executionStart)/1000.0,
 									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd);
 							if (((List) entry.getValue()).size() > 0) {
@@ -508,14 +508,19 @@ public class StressMain {
 								//this to a more structured custom class for readability
 								Map<String, BenchmarksMain.DetailedStats> firstEntry = (Map<String, BenchmarksMain.DetailedStats>) ((List) entry.getValue()).get(0);
 								String category = firstEntry.keySet().iterator().next(); //one entry map, the key is the category, the value is the stats
+								BenchmarksMain.DetailedStats firstDetailedStats =  firstEntry.values().iterator().next();
+								resultOfThisStatType.put("query", firstDetailedStats.getQueryType());
+								resultOfThisStatType.put("metricType", firstDetailedStats.getMetricType());
+								resultOfThisStatType.put("taskName", taskName);
+
 								List<Map> statsByThreadCount = new ArrayList<>(); //each entry in the list is the test result per run by thread count
 								for (Map<String, BenchmarksMain.DetailedStats> entryByThreadCount : ((List<Map<String, BenchmarksMain.DetailedStats>>) entry.getValue())) {
 									BenchmarksMain.DetailedStats stats = entryByThreadCount.values().iterator().next(); //again a one entry map to get around the existing structure
 									statsByThreadCount.add(stats.values()); //convert to the expected structure
 								}
-								resultOfThisStateType.put(category, statsByThreadCount); //category could be "timing", "percentile" or "simple" etc
+								resultOfThisStatType.put(category, statsByThreadCount); //category could be "timing", "percentile" or "simple" etc
 							}
-							resultsPerStatType.add(resultOfThisStateType);
+							resultsPerStatType.add(resultOfThisStatType);
 						}
 					}
 
