@@ -58,4 +58,7 @@ public class QueryBenchmark extends BaseBenchmark {
    */
   @JsonProperty("detailed-stats")
   public boolean detailedStats = false;
+
+  @JsonProperty("export-response")
+  public boolean exportResponse = false;
 }

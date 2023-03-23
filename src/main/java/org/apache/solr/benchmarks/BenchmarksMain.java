@@ -63,49 +63,50 @@ public class BenchmarksMain {
     	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration");
     }
 
-	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
+	public static Map<String, Object> runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
             throws IOException, InterruptedException, ParseException, ExecutionException {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
 
+		ControlledExecutor.ExecutionListener<String, NamedList<Object>> listener = null;
 		for (QueryBenchmark benchmark : queryBenchmarks) {
-      log.info("Query Benchmark name: " + benchmark.name);
+      		log.info("Query Benchmark name: " + benchmark.name);
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
-      List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
-      String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
-      log.info("Query base URL " + baseUrl);
+			List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
+			String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
+			log.info("Query base URL " + baseUrl);
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-				ControlledExecutor.ExecutionListener<String, NamedList<Object>> listener = benchmark.detailedStats ? new DetailedQueryStatsListener() : new ErrorListener();
-		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-		        ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
+				listener = benchmark.detailedStats || benchmark.exportResponse ? new QueryResponseListener() : new ErrorListener();
+				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
+				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+				ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
 						benchmark.name,
 						threads,
-		                benchmark.durationSecs,
-		                benchmark.rpm,
-		                benchmark.totalCount,
-		                benchmark.warmCount,
-		                getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
+						benchmark.durationSecs,
+						benchmark.rpm,
+						benchmark.totalCount,
+						benchmark.warmCount,
+						getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
 						listener);
-		        long start = System.currentTimeMillis();
-		        try {
-		            controlledExecutor.run();
-		        } finally {
-		            client.close();
-		        }
+				long start = System.currentTimeMillis();
+				try {
+					controlledExecutor.run();
+				} finally {
+					client.close();
+				}
 
-		        long time = System.currentTimeMillis() - start;
-		        System.out.println("Took time: " + time);
-		        if (time > 0) {
-		            System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
-		                    ", 95th latency: " + controlledExecutor.stats.getPercentile(95));
-		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(
-		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
-		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
-					if (listener instanceof DetailedQueryStatsListener) {
+				long time = System.currentTimeMillis() - start;
+				System.out.println("Took time: " + time);
+				if (time > 0) {
+					System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
+							", 95th latency: " + controlledExecutor.stats.getPercentile(95));
+					((List)results.get("query-benchmarks").get(benchmark.name)).add(
+							Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90),
+									"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
+					if (listener instanceof QueryResponseListener) {
 						Map detailedStats = (Map) results.get("query-benchmarks").computeIfAbsent("detailed-stats", key -> new LinkedHashMap<>());
 						//add the detailed stats (per query in the input query file) collected by the listener
-						for (DetailedStats stats : ((DetailedQueryStatsListener) listener).getStats()) {
+						for (DetailedStats stats : ((QueryResponseListener) listener).getStats()) {
 							String statsName = stats.getStatsName();
 							List<Map> outputStats = (List<Map>)(detailedStats.computeIfAbsent(statsName, key -> new ArrayList<>()));
 							stats.setExtraProperty("threads", threads);
@@ -113,8 +114,14 @@ public class BenchmarksMain {
 							outputStats.add(Util.map(stats.metricType.dataCategory, stats)); //forced by the design that this has to be a map, otherwise we shouldn't need to do this one entry map
 						}
 					}
-		        }
-		    }
+				}
+			}
+		}
+		
+		if (listener instanceof QueryResponseListener) {
+			return ((QueryResponseListener)listener).getQueryResponses();
+		} else {
+			return null;
 		}
 	}
 
@@ -309,26 +316,23 @@ public class BenchmarksMain {
 	 *     <li>Error count on the query (long)</li>
 	 * </ol>
 	 */
-	private static class DetailedQueryStatsListener implements ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
+	private static class QueryResponseListener implements ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> durationStatsByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> docHitCountStatsByType = new ConcurrentHashMap<>();
+		private final ConcurrentMap<String, Object> queryResponsesByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, AtomicLong> errorCountStatsByType= new ConcurrentHashMap<>();
 		private final AtomicBoolean loggedQueryRspError = new AtomicBoolean(false);
 		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+
 		@Override
 		public void onExecutionComplete(String typeKey, NamedList<Object> queryRsp, long duration) {
 			if (typeKey != null) {
 				SynchronizedDescriptiveStatistics durationStats = durationStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
 				durationStats.addValue(duration / 1_000_000.0);
 				if (queryRsp != null) {
-
 					InputStream responseStream = (InputStream) queryRsp.get("stream");
-					String responseStreamAsString = "";
-					try {
-						responseStreamAsString = getResponseStreamAsString(responseStream); //should only call this once, as this reads the stream!
-					} catch (IOException e) {
-						logger.warn("Failed to read the response stream for " + typeKey);
-					}
+					final String responseStreamAsString = getResponseStreamAsString(responseStream); //should only call this once, as this reads the stream!
 
 					if (isSuccessfulRsp(queryRsp.get("closeableResponse"))) {
 						SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
@@ -336,6 +340,7 @@ public class BenchmarksMain {
 						if (hitCount != -1) {
 							hitCountStats.addValue(hitCount);
 						}
+						queryResponsesByType.computeIfAbsent(typeKey, (key) -> getDocs(responseStreamAsString));
 					} else {
 						AtomicLong errorCount = errorCountStatsByType.computeIfAbsent(typeKey, (key) -> new AtomicLong(0));
 						errorCount.incrementAndGet();
@@ -378,11 +383,32 @@ public class BenchmarksMain {
 			}
 		}
 
-		private String getResponseStreamAsString(InputStream responseStream) throws IOException {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			IOUtils.copy(responseStream, baos);
+		private int getDocs(String response)  {
+			Map<String, Object> jsonResponse;
+			try {
+				jsonResponse = new ObjectMapper().readValue(response, Map.class);
+			} catch (JsonProcessingException e) {
+				logger.warn("Failed to json parse the response stream " + response);
+				return -1;
+			}
 
-			return new String(baos.toByteArray());
+			if (jsonResponse.containsKey("response")) {
+				return (int)((Map<String, Object>) jsonResponse.get("response")).get("docs");
+			} else {
+				logger.warn("The json response stream does not have key `response`. The json response stream : " + jsonResponse);
+				return -1;
+			}
+		}
+
+		private String getResponseStreamAsString(InputStream responseStream) {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			try {
+				IOUtils.copy(responseStream, baos);
+				return new String(baos.toByteArray());
+			} catch (IOException e) {
+				logger.warn("Failed to getResponseStreamAsString : " + e.getMessage(), e);
+				return "";
+			}
 		}
 
 		public List<DetailedStats> getStats() {
@@ -402,16 +428,20 @@ public class BenchmarksMain {
 			}
 			
 		}
+
+		public Map<String, Object> getQueryResponses() {
+			return Collections.unmodifiableMap(queryResponsesByType);
+		}
 	}
 
 	public static class DetailedStats {
 		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-		private final DetailedQueryStatsListener.StatsMetricType metricType;
+		private final QueryResponseListener.StatsMetricType metricType;
 		private final Object statsObj;
 		private final String queryType;
 		private final Map<String, Object> extraProperties = new HashMap<>();
 
-		private DetailedStats(DetailedQueryStatsListener.StatsMetricType metricType, String queryType, Object stats) {
+		private DetailedStats(QueryResponseListener.StatsMetricType metricType, String queryType, Object stats) {
 			this.metricType = metricType;
 			this.queryType = queryType;
 			this.statsObj = stats;
@@ -425,7 +455,7 @@ public class BenchmarksMain {
 			return queryType;
 		}
 
-		public DetailedQueryStatsListener.StatsMetricType getMetricType() {
+		public QueryResponseListener.StatsMetricType getMetricType() {
 			return metricType;
 		}
 

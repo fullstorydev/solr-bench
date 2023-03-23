@@ -337,7 +337,8 @@ then
      cp $CONFIGFILE $result_dir/config.json
      cp $BASEDIR/results.json $result_dir/results.json
      cp $BASEDIR/metrics.json $result_dir/metrics.json
-     rm $BASEDIR/results.json $BASEDIR/metrics.json
+     cp $BASEDIR/query-responses.json $result_dir/query-responses.json
+     rm $BASEDIR/results.json $BASEDIR/metrics.json $BASEDIR/query-responses.json
 
      echo_blue "Result can be found in $result_dir"
 fi
