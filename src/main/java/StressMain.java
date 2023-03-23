@@ -36,6 +36,7 @@ import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
+import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
 import org.apache.zookeeper.KeeperException;
@@ -474,10 +475,11 @@ public class StressMain {
 				Map<String, Map> results = new HashMap<>();
 				results.put("query-benchmarks", new LinkedHashMap<String, List<Map>>());
 				long taskStart = System.currentTimeMillis();
-				Map<String, Object> queryResponses = BenchmarksMain.runQueryBenchmarks(Collections.singletonList(type.queryBenchmark), collectionName, cloud, results);
+				BenchmarksMain.QueryResponses queryResponses = BenchmarksMain.runQueryBenchmarks(Collections.singletonList(type.queryBenchmark), collectionName, cloud, results);
 
 				if (queryResponses != null)  {
-					new ObjectMapper().writeValue(new File("query-responses.json"), queryResponses);
+					new ObjectMapper().writeValue(new File("docs.json"), queryResponses.docs);
+					new ObjectMapper().writeValue(new File("facets.json"), queryResponses.facets);
 				}
 
 				long taskEnd = System.currentTimeMillis();

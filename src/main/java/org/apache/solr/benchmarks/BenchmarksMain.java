@@ -63,7 +63,17 @@ public class BenchmarksMain {
     	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration");
     }
 
-	public static Map<String, Object> runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
+	public static class QueryResponses {
+		public Map<String, Object> docs;
+		public Map<String, Object> facets;
+
+		public QueryResponses(Map<String, Object> docs, Map<String, Object> facets) {
+			this.docs = docs;
+			this.facets = facets;
+		}
+	}
+
+	public static QueryResponses runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
             throws IOException, InterruptedException, ParseException, ExecutionException {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
@@ -119,7 +129,7 @@ public class BenchmarksMain {
 		}
 		
 		if (listener instanceof QueryResponseListener) {
-			return ((QueryResponseListener)listener).getQueryResponses();
+			return new QueryResponses(((QueryResponseListener)listener).getDocs(), ((QueryResponseListener)listener).getFacets());
 		} else {
 			return null;
 		}
@@ -319,7 +329,8 @@ public class BenchmarksMain {
 	private static class QueryResponseListener implements ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> durationStatsByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> docHitCountStatsByType = new ConcurrentHashMap<>();
-		private final ConcurrentMap<String, Object> queryResponsesByType = new ConcurrentHashMap<>();
+		private final ConcurrentMap<String, Object> docsByType = new ConcurrentHashMap<>();
+		private final ConcurrentMap<String, Object> facetsByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, AtomicLong> errorCountStatsByType= new ConcurrentHashMap<>();
 		private final AtomicBoolean loggedQueryRspError = new AtomicBoolean(false);
 		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -340,7 +351,8 @@ public class BenchmarksMain {
 						if (hitCount != -1) {
 							hitCountStats.addValue(hitCount);
 						}
-						queryResponsesByType.computeIfAbsent(typeKey, (key) -> getDocs(responseStreamAsString));
+						docsByType.computeIfAbsent(typeKey, (key) -> getDocs(responseStreamAsString));
+						facetsByType.computeIfAbsent(typeKey, (key) -> getFacets(responseStreamAsString));
 					} else {
 						AtomicLong errorCount = errorCountStatsByType.computeIfAbsent(typeKey, (key) -> new AtomicLong(0));
 						errorCount.incrementAndGet();
@@ -383,7 +395,7 @@ public class BenchmarksMain {
 			}
 		}
 
-		private int getDocs(String response)  {
+		private Object getDocs(String response)  {
 			Map<String, Object> jsonResponse;
 			try {
 				jsonResponse = new ObjectMapper().readValue(response, Map.class);
@@ -393,10 +405,26 @@ public class BenchmarksMain {
 			}
 
 			if (jsonResponse.containsKey("response")) {
-				return (int)((Map<String, Object>) jsonResponse.get("response")).get("docs");
+				return ((Map<String, Object>) jsonResponse.get("response")).get("docs");
 			} else {
 				logger.warn("The json response stream does not have key `response`. The json response stream : " + jsonResponse);
+				return null;
+			}
+		}
+
+		private Object getFacets(String response)  {
+			Map<String, Object> jsonResponse;
+			try {
+				jsonResponse = new ObjectMapper().readValue(response, Map.class);
+			} catch (JsonProcessingException e) {
+				logger.warn("Failed to json parse the response stream " + response);
 				return -1;
+			}
+
+			if (jsonResponse.containsKey("facets")) {
+				return jsonResponse.get("facets");
+			} else {
+				return null;
 			}
 		}
 
@@ -429,8 +457,12 @@ public class BenchmarksMain {
 			
 		}
 
-		public Map<String, Object> getQueryResponses() {
-			return Collections.unmodifiableMap(queryResponsesByType);
+		public Map<String, Object> getDocs() {
+			return Collections.unmodifiableMap(docsByType);
+		}
+
+		public Map<String, Object> getFacets() {
+			return Collections.unmodifiableMap(facetsByType);
 		}
 	}
 
