@@ -15,7 +15,7 @@ function drawAllCharts() {
         var testnames = Object.keys(dataByGroup);
         var resultsByTaskName = calculateResultsByTaskName(testnames, group, dataByGroup)
 
-        appendDetailsStatsTable(resultsByTaskName, $page)
+        appendDetailsStatsTable(resultsByTaskName, $page, group)
 
         // compute comparison data
         for (const testname of testnames) {
@@ -108,10 +108,12 @@ function generatePage(title, selected, dataByGroup) {
     return $page
 }
 
-var loadedStatsRows = []
+var loadedStatsRowsByGroup = {}
 
-function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
+function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
     var $table
+    var loadedStatsRows = []
+    loadedStatsRowsByGroup[group] = loadedStatsRows
     $.each(dataByTestAndTaskName, function(testName, dataByTaskName) {
         $.each(dataByTaskName, function(taskName, dataByCommit) {
             if (taskName.startsWith("detailed-stats-")) {
@@ -138,6 +140,8 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page) {
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+
+                    $table.data('group', group)
                 }
                 taskName = taskName.substring("detailed-stats-".length) //still yike...
                 var allValues = []
@@ -210,7 +214,9 @@ function updateStatsTable($table, sortProperty, sortOrder) {
 
 	//sort the list
 	//loadedLinks.sort(sortByProperty(sortProperty, sortOrder == "ascending"))
+	var loadedStatsRows = loadedStatsRowsByGroup[$table.data('group')]
 	loadedStatsRows = sortPreserveOrder(loadedStatsRows, sortProperty, sortOrder == "ascending")
+	loadedStatsRowsByGroup[$table.data('group')] = loadedStatsRows //has to update the map as the returned array is new
 
 	$.each(loadedStatsRows, function(index, statsRow) {
         var $tableRow = $('<div class="table-row clickable"></div>').appendTo($table)
