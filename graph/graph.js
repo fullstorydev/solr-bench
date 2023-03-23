@@ -113,7 +113,6 @@ var loadedStatsRowsByGroup = {}
 function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
     var $table
     var loadedStatsRows = []
-    loadedStatsRowsByGroup[group] = loadedStatsRows
     $.each(dataByTestAndTaskName, function(testName, dataByTaskName) {
         $.each(dataByTaskName, function(taskName, dataByCommit) {
             if (taskName.startsWith("detailed-stats-")) {
@@ -153,8 +152,6 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                 })
 
                 var statsRow = []
-//                    $tableRow = $('<div class="table-row"></div>').appendTo($table)
-//                    $tableRow.append('<div style="display: table-cell;">' + taskName + '</div>')
                 statsRow.taskName = dataByCommit[0].result.taskName
                 statsRow.query = dataByCommit[0].result.query
                 statsRow.metricType = dataByCommit[0].result.metricType
@@ -168,7 +165,7 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                         statsRow.previousValue = previousValue
                         statsRow.previousDelta = delta
                         statsRow.previousDeltaPercentage = delta * 100 / previousValue
-//                            $tableRow.append('<div style="display: table-cell;">' + getChangeText(previousValue, delta) + '</div>')
+
                         if (allValues.length >= 3) { //change from median of all runs
                             allValues.sort()
                             var median = allValues[Math.floor(allValues.length / 2)]
@@ -176,15 +173,8 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                             statsRow.median = median
                             statsRow.medianDelta = delta
                             statsRow.medianDeltaPercentage = delta * 100 / median
-//                                $tableRow.append('<div style="display: table-cell;">' + getChangeText(median, delta) + '</div>')
-                        } else {
-//                                $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
                         }
-                    } else {
-//                            $tableRow.append('<div style="display: table-cell;" title="Not enough samples">-</div>')
                     }
-                } else {
-//                        $tableRow.append('<div style="display: table-cell;">-</div>')
                 }
                 loadedStatsRows.push(statsRow)
             }
@@ -192,6 +182,7 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
    })
     if ($table) {
         loadedStatsRows = sortPreserveOrder(loadedStatsRows, "previousDeltaPercentage", false) // sort by previous delta first (if median delta not available or equal)
+        loadedStatsRowsByGroup[group] = loadedStatsRows
         updateStatsTable($table, "medianDeltaPercentage", "descending") //then sort by median delta
     }
 }
