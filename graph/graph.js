@@ -263,6 +263,13 @@ function sortPreserveOrder(array, property, ascending) {
 		var aVal = a.data[property]
     	var bVal = b.data[property]
 
+    	if (typeof aVal === "number" && isNaN(aVal)) { //consider NaN as Number.NEGATIVE_INFINITY
+    	    aVal = Number.NEGATIVE_INFINITY
+    	}
+    	if (typeof bVal === "number" && isNaN(bVal)) {
+    	    bVal = Number.NEGATIVE_INFINITY
+    	}
+
     	var result = (aVal < bVal) ? -1 : (aVal > bVal) ? 1 : 0;
     	if (result == 0) {
     		return a.idx - b.idx
@@ -299,9 +306,15 @@ function getDetailStatsKeyValue(data) {
 }
 
 function getChangeText(baseValue, delta) {
-   var percentageChange = (baseValue > 0) ? (delta * 100 / baseValue).toFixed(1) : 0
-   var percentageChangeText = percentageChange >= 0 ? ('+' + percentageChange + '%') : (percentageChange + '%')
-   return delta.toFixed(2) + '(' + percentageChangeText + ')'
+   if (baseValue > 0) {
+    var percentageChange = (delta * 100 / baseValue).toFixed(1)
+    var percentageChangeText = percentageChange >= 0 ? ('+' + percentageChange + '%') : (percentageChange + '%')
+    return delta.toFixed(2) + '(' + percentageChangeText + ')'
+   } else {
+    return delta.toFixed(2)
+   }
+
+
 }
 
 function calculateResultsByTaskName(testnames, group, dataByGroup) {
