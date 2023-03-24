@@ -24,10 +24,10 @@ body {
 .table-row {
     display: table-row;
 }
-.detailed-stats-table .table-row:nth-child(even) {
+.table .table-row:nth-child(even) {
     background-color: #f2f2f2;
 }
-.detailed-stats-table .table-row:nth-child(odd) {
+.table .table-row:nth-child(odd) {
     background-color: #ffffff;
 }
 div.section {

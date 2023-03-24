@@ -47,6 +47,8 @@ function drawAllCharts() {
     //generate a graph that compare all groups/branches
     if (groups.length > 1) {
         var $page = generatePage(groups.join(' vs '), true)
+        appendDetailsSummaryTable(allResultsByTaskName, $page, groups)
+
         $.each(allResultsByTaskName, function(testTaskName, resultsByTask) {
             drawChartInPage(groups, testTaskName, resultsByTask, $page)
         })
@@ -109,6 +111,7 @@ function generatePage(title, selected, dataByGroup) {
 }
 
 var loadedStatsRowsByGroup = {}
+var loadedSummaryRows = []
 
 function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
     var $table
@@ -131,7 +134,7 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
 
                     //actual data table, the header row is for controlling the widths
                     var $dataTableContainer = $('<div style="max-height:150px; overflow-y:auto; width: 100%;"></div>').appendTo($tableContainer)
-                    $table = $('<div class="detailed-stats-table" style="display: table; width: 100%;  table-layout: fixed;"></div>').appendTo($dataTableContainer)
+                    $table = $('<div class="detailed-stats-table table" style="display: table; width: 100%;  table-layout: fixed;"></div>').appendTo($dataTableContainer)
                     $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
@@ -187,6 +190,70 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
     }
 }
 
+function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
+    var $table
+    var loadedStatsRows = []
+    $.each(allResultsByTaskName, function(taskName, dataByCommit) {
+        if (taskName.startsWith("detailed-stats-")) {
+            if (! $table) {
+                var $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
+//                        $tableContainer.append('<h4 style="margin: 0 0 10px 0;">Stats</h4>')
+                 //a header table, this only contains the header so scrolling the actual table will keep the header
+                $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
+                $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
+                $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Task</div>')
+                $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Metric</div>')
+                $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Query</div>')
+                $.each(groups, function(index, group) {
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="' + group + '-median" data-sort-order="ascending" onclick="toggleSummaryTableSort($(this))">' + group + ' median</div>')
+                })
+
+                //actual data table, the header row is for controlling the widths
+                var $dataTableContainer = $('<div style="max-height:150px; overflow-y:auto; width: 100%;"></div>').appendTo($tableContainer)
+                $table = $('<div class="summary-table table" style="display: table; width: 100%;  table-layout: fixed;"></div>').appendTo($dataTableContainer)
+                $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
+                $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                $tableHeader.append('<div style="display: table-cell; width: 50%;"></div>')
+                $.each(groups, function(index, group) {
+                    $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                })
+                $table.data("groups", groups)
+            }
+            taskName = taskName.substring("detailed-stats-".length) //still yike...
+            var allValuesByGroup = {}
+            $.each(dataByCommit, function(runI, data) {
+                var keyValue = getDetailStatsKeyValue(data)
+                var group = data.commitMeta.group
+                if (keyValue != null) {
+                    var allValuesOfThisGroup = allValuesByGroup[group]
+                    if (! allValuesOfThisGroup) {
+                        allValuesOfThisGroup = []
+                        allValuesByGroup[group] = allValuesOfThisGroup
+                    }
+                    allValuesOfThisGroup.push(keyValue)
+                }
+            })
+
+            var summaryRow = {}
+            summaryRow.taskName = dataByCommit[0].result.taskName
+            summaryRow.query = dataByCommit[0].result.query
+            summaryRow.metricType = dataByCommit[0].result.metricType
+            $.each(allValuesByGroup, function(group, values) {
+                var medianOfThisGroup = values[values.length / 2]
+                summaryRow[group + '-median'] = medianOfThisGroup
+            })
+
+            loadedSummaryRows.push(summaryRow)
+        }
+   })
+    if ($table) {
+        //loadedStatsRows = sortPreserveOrder(loadedStatsRows, "previousDeltaPercentage", false) // sort by previous delta first (if median delta not available or equal)
+        //loadedStatsRowsByGroup[group] = loadedStatsRows
+        updateSummaryTable($table) //then sort by median delta
+    }
+}
+
 function toggleStatsTableSort(sortHeader) {
 	if (sortHeader.data("sort-order") == "ascending") {
 		sortHeader.data("sort-order", "descending")
@@ -198,6 +265,19 @@ function toggleStatsTableSort(sortHeader) {
 	sortHeader.addClass("selected")
 
 	updateStatsTable(sortHeader.closest('.page').find('.detailed-stats-table'), sortHeader.data("sort-property"), sortHeader.data("sort-order"))
+}
+
+function toggleSummaryTableSort(sortHeader) {
+	if (sortHeader.data("sort-order") == "ascending") {
+		sortHeader.data("sort-order", "descending")
+	} else {
+		sortHeader.data("sort-order", "ascending")
+	}
+
+	sortHeader.siblings().removeClass("selected")
+	sortHeader.addClass("selected")
+
+	updateSummaryTable(sortHeader.closest('.page').find('.summary-table'), sortHeader.data("sort-property"), sortHeader.data("sort-order"))
 }
 
 function updateStatsTable($table, sortProperty, sortOrder) {
@@ -245,6 +325,42 @@ function updateStatsTable($table, sortProperty, sortOrder) {
 	});
 }
 
+function updateSummaryTable($table, sortProperty, sortOrder) {
+	$table.children("div.table-row").remove()
+
+	//sort the list
+	if (sortProperty) {
+	    loadedSummaryRows = sortPreserveOrder(loadedSummaryRows, sortProperty, sortOrder == "ascending")
+    }
+
+	$.each(loadedSummaryRows, function(index, summaryRow) {
+        var $tableRow = $('<div class="table-row clickable"></div>').appendTo($table)
+        $tableRow.append('<div style="display: table-cell;">' + summaryRow.taskName + '</div>')
+        $tableRow.append('<div style="display: table-cell;">' + summaryRow.metricType + '</div>')
+        var $queryCell = $('<div style="display: table-cell;"><div class="query-text" style="max-height: 15px; overflow: hidden;">' + summaryRow.query + '</div></div>').appendTo($tableRow)
+        $queryCell.attr('title', summaryRow.query)
+        $tableRow.click(function() {
+            $contentDiv = $queryCell.find('.query-text')
+            if ($contentDiv.css('max-height') === "none") {
+                $contentDiv.css({'max-height' : '15px'})
+            } else {
+                $contentDiv.css({'max-height' : ''})
+            }
+        })
+
+        $.each($table.data('groups'), function(index, group) {
+            if (summaryRow[group + '-median']) {
+                $tableRow.append('<div style="display: table-cell; text-align:right;">' + summaryRow[group + '-median'].toFixed(2) + '</div>')
+            } else {
+                $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
+            }
+        })
+
+        $tableRow.expand
+		$table.append($tableRow)
+	});
+}
+
 function sortPreserveOrder(array, property, ascending) {
 	if (ascending == undefined) {
 		ascending = true
@@ -263,10 +379,10 @@ function sortPreserveOrder(array, property, ascending) {
 		var aVal = a.data[property]
     	var bVal = b.data[property]
 
-    	if (typeof aVal === "number" && isNaN(aVal)) { //consider NaN as Number.NEGATIVE_INFINITY
+    	if (aVal === undefined || (typeof aVal === "number" && isNaN(aVal))) { //consider undefined or NaN as Number.NEGATIVE_INFINITY
     	    aVal = Number.NEGATIVE_INFINITY
     	}
-    	if (typeof bVal === "number" && isNaN(bVal)) {
+    	if (bVal === undefined || (typeof bVal === "number" && isNaN(bVal))) {
     	    bVal = Number.NEGATIVE_INFINITY
     	}
 
