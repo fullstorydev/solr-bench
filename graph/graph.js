@@ -240,7 +240,7 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
             summaryRow.query = dataByCommit[0].result.query
             summaryRow.metricType = dataByCommit[0].result.metricType
             $.each(allValuesByGroup, function(group, values) {
-                var medianOfThisGroup = values[values.length / 2]
+                var medianOfThisGroup = values[Math.floor(values.length / 2)]
                 summaryRow[group + '-median'] = medianOfThisGroup
             })
 
