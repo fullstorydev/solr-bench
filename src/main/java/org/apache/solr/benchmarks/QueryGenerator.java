@@ -1,8 +1,13 @@
 package org.apache.solr.benchmarks;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.readers.TarGzFileReader;
 import org.apache.solr.client.solrj.ResponseParser;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.impl.InputStreamResponseParser;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
@@ -10,16 +15,10 @@ import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.common.params.SolrParams;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class QueryGenerator {
@@ -40,7 +39,7 @@ public class QueryGenerator {
                     q -> queries.add(q)
             );
         } else {
-            queries = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+            queries = FileUtils.readLines(file, "UTF-8");
         }
         if (Boolean.TRUE.equals(queryBenchmark.shuffle)) {
             random = new Random();

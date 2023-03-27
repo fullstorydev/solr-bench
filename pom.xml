@@ -21,7 +21,7 @@
       <dependency>
          <groupId>org.apache.solr</groupId>
          <artifactId>solr-solrj</artifactId>
-         <version>9.1.0</version>
+         <version>9.0.0</version>
          <exclusions>
             <exclusion>
                <groupId>org.mortbay</groupId>
@@ -32,22 +32,6 @@
                <artifactId>*</artifactId>
             </exclusion>
          </exclusions>
-      </dependency>
-
-      <dependency>
-         <groupId>org.apache.solr</groupId>
-         <artifactId>solr-solrj-zookeeper</artifactId>
-         <version>9.1.0</version>
-      </dependency>
-      <dependency>
-         <groupId>org.apache.zookeeper</groupId>
-         <artifactId>zookeeper</artifactId>
-         <version>3.8.0</version>
-      </dependency>
-      <dependency>
-         <groupId>org.eclipse.jetty</groupId>
-         <artifactId>jetty-client</artifactId>
-         <version>9.4.48.v20220622</version>
       </dependency>
 
       <dependency>
@@ -223,7 +207,6 @@
          </plugin>
          <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
-            <version>3.5.0</version>
             <executions>
                <execution>
                   <id>make-jar-with-dependencies</id>
