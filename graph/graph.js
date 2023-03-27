@@ -6,13 +6,16 @@ function drawAllCharts() {
        groups.push(group)
        testnames = Object.keys(dataByGroup);
     })
+
+
     $.each(graph_data, function(group, dataByGroup) {
         var $page = generatePage(group, dataByGroup.length == 1, dataByGroup)
+
+        var testnames = Object.keys(dataByGroup);
         var resultsByTaskName = calculateResultsByTaskName(testnames, group, dataByGroup)
-        //plot graph for this group of this task
+        // compute comparison data
         for (const testname of testnames) {
             $.each(resultsByTaskName[testname], function(taskName, resultsByTask) {
-                drawChartInPage([group], taskName + " (" + testname + ")", resultsByTask, $page)
                 var testTaskKey = taskName + " (" + testname + ")"
                 if (!allResultsByTaskName[testTaskKey]) {
                     allResultsByTaskName[testTaskKey] = [].concat(resultsByTask)
@@ -21,7 +24,21 @@ function drawAllCharts() {
                 }
             })
         }
+
+        if (!getValueFromParam("expand", false)) { //plot collapsed graph for this group
+            $.each(dataByGroup, function(testname, results) {
+                drawChartInPageCollapsed(group, testname, results, $page);
+            })
+        } else { //plot graph for this group of this task
+            for (const testname of testnames) {
+                $.each(resultsByTaskName[testname], function(taskName, resultsByTask) {
+                    drawChartInPage([group], taskName + " (" + testname + ")", resultsByTask, $page)
+                })
+            }
+        }
+
     })
+
     //generate a graph that compare all groups/branches
     if (groups.length > 1) {
         var $page = generatePage(groups.join(' vs '), true)
@@ -32,17 +49,31 @@ function drawAllCharts() {
         $page.siblings('.page').hide()
     }
 }
+
 const ChartTypes = {
-    Simple: Symbol("Simple"),
-    Percentile: Symbol("Percentile")
+	Simple: Symbol("Simple"),
+	Percentile: Symbol("Percentile")
 }
 
 function generatePage(title, selected, dataByGroup) {
     var $page = $('<div class="page"></div>').appendTo($('#mainContainer'))
-    // On a branch specific page, let a user collapse and expand the graphs    
+
+    // On a branch specific page, let a user collapse and expand the graphs
     if (title.indexOf(" vs ") == -1) {
-        var $collapseButton = $('<button type="button" class="btn btn-lg" id="btn">Collapse</button>').appendTo($page)
-        var $expandButton = $('<button  type="button" class="btn btn-lg" id="btn">Expand</button>').appendTo($page)
+        var $collapseButton = $('<button id="btn">Collapse</button>').appendTo($page)
+        var $expandButton = $('<button id="btn">Expand</button>').appendTo($page)
+
+        $collapseButton.click(function(data) {
+            $page = $(this).parent()
+            $page.find('div').remove()
+            var group = title;
+            var testnames = Object.keys(dataByGroup);
+            var resultsByTaskName = calculateResultsByTaskName(testnames, group, dataByGroup)
+            $.each(dataByGroup, function(testname, results) {
+                drawChartInPageCollapsed(group, testname, results, $page);
+            })
+        })
+
         $expandButton.click(function(data) {
             $page = $(this).parent()
             $page.find('div').remove()
@@ -55,28 +86,14 @@ function generatePage(title, selected, dataByGroup) {
                     drawChartInPage([group], taskName + " (" + testname + ")", resultsByTask, $page)
                 })
             }
-            const metricsBtn = document.getElementById("metrics");
-            metricsBtn.style.display = "none";
-        })
-        $collapseButton.click(function(data) {
-            $page = $(this).parent()
-            $page.find('div').remove()
-            var group = title;
-            $.each(dataByGroup, function(testname, results) {
-                drawChartInPageCollapsed(group, testname, results, $page);
-            })
-            const metricsBtn = document.getElementById("metrics");
-            metricsBtn.style.display = "inline-block";
         })
     }
 
     var $item = $('<div class="item clickable"><p>' + title + '</p></div>')
     if (selected) {
-        $item.addClass('selected');
+        $item.addClass('selected')
     }
     $item.click(function() {
-        var metricsBtn = document.getElementById("metrics");
-        metricsBtn.style.display = "none";
         $(this).siblings().removeClass('selected')
         $(this).addClass('selected')
         $page.siblings('.page').hide()
@@ -85,151 +102,7 @@ function generatePage(title, selected, dataByGroup) {
     $('#sideBar').append($item)
     return $page
 }
-//codes of modal box
-var results_cluster_test, metrics_cluster_test;
-function findMetrics(){
-    google.charts.load('current', {packages: ['corechart', 'line']});
-    google.charts.setOnLoadCallback(drawTrendlines);
-    var valueBtn = document.getElementById("metrics").value;
-    if(valueBtn){
-        var findFiFo = valueBtn.split(" ");
-        var group = findFiFo[0];
-        var clicked_graph = findFiFo[1];
-        var commit = findFiFo[2];
-        $.ajax({
-            type: 'GET',
-            url: "../suites/results/"+clicked_graph+"/results-"+commit+".json",
-            dataType: 'json',
-            async: false,
-            success: function (data) {
-               results_cluster_test = data;
-               addTaskUI(data, group, clicked_graph);
-            }
-        });        
-        $.ajax({
-            type: 'GET',
-            url: "../suites/results/"+clicked_graph+"/metrics-"+commit+".json",
-            dataType: 'json',
-            async: false,
-            success: function (data) {
-               metrics_cluster_test=data;
-               drawTrendlines(data);
-            }
-        });
-    } else {
-        document.getElementById("graphs").innerHTML = 'You have not selected any graph';
-    }        
-}
-function addTaskUI(results_cluster_test, group, clicked_graph){
-    document.getElementById("group").innerHTML = group+'('+clicked_graph+')';
-    document.getElementById("tasks").innerHTML = '<a href="#" class="list-group-item active" id="all">All TASKS</a>';
-    for (var key in results_cluster_test) {
-        var keyUpperCase = key.toUpperCase();
-        if(results_cluster_test[key].length!=0){
-            $("#tasks").append('<a href="#" class="list-group-item" id="'+key+'">'+keyUpperCase+'</a>');
-        }
-    }
-}
-function drawTrendlines(metrics_cluster_test, start, end) {
-    if (metrics_cluster_test == undefined) return;
-    var graphs = allGraph(metrics_cluster_test);
-    var totalGraph = graphs.length;
-    for(var x=0; x < totalGraph; x++){
-        var graphName = graphs[x];
-        if(start && end){
-            taskGraph(metrics_cluster_test, graphName, start, end);//for tasks
-        } else {
-            graph(metrics_cluster_test, graphName); 
-        }
-    }
-}
-function allGraph(data){
-    for (var key in data) {
-        var keysAll = Object.keys(data[key]);
-        return keysAll;
-    }
-}
-function taskGraph(metrics_cluster_test, graphName, start, end){
-    $('.modal-body .graphs').append('<div id="'+graphName+'"></div>');
-    var metrics_data = new google.visualization.DataTable();
-    metrics_data.addColumn('number', 'X');
-    metrics_data.addColumn('number', 'Y');
-    for (var key in metrics_cluster_test) {
-        if(metrics_cluster_test[key][graphName]!=undefined){                
-            for (var i = 0; i < metrics_cluster_test[key][graphName].length; i++) {
-                if (metrics_cluster_test[key][graphName][i] != -1) {
-                    if (end == -1 || i*2>=start && i*2<=end) {
-                        row = [i*2,metrics_cluster_test[key][graphName][i]];
-                        metrics_data.addRow(row);
-                    }
-                }
-            }
-        }
-    }
-    var options = {
-        title: graphName
-    };
-    var metrics_chart = new google.visualization.LineChart(document.getElementById(graphName));
-    metrics_chart.draw(metrics_data, options);
-}
-function graph(metrics_cluster_test, graphName){
-    $('.modal-body .graphs').append('<div id="'+graphName+'"></div>');
-    var metrics_data = new google.visualization.DataTable();           
-    metrics_data.addColumn('number', 'X');
-    metrics_data.addColumn('number', 'Y');
-    for (var key in metrics_cluster_test) {
-        if(metrics_cluster_test[key][graphName]!=undefined){
-            for (var i = 0; i < metrics_cluster_test[key][graphName].length; i++){
-                if (metrics_cluster_test[key][graphName][i] != -1) {
-                    row = [i*2,metrics_cluster_test[key][graphName][i]];
-                    metrics_data.addRow(row);
-                }
-            }
-        }                
-    }
-    var options = {
-        title: graphName
-    };
-    var metrics_chart = new google.visualization.LineChart(document.getElementById(graphName));
-    metrics_chart.draw(metrics_data, options);
-}
-Object.size = function(obj) {
-  var size = 0,
-    key;
-  for (key in obj) {
-    if (obj.hasOwnProperty(key)) size++;
-  }
-  return size;
-};
-$(document).on('click', '.list-group-item', function () {
-    $('.active').removeClass("active");
-    $(this).addClass("active");
-    var startEnd = findStartEnd(results_cluster_test, $(this).attr('id'));     
-    var start = startEnd[0];
-    var end = startEnd[1];
-    drawTrendlines(metrics_cluster_test, start, end);
-});
-function findStartEnd(data, taskNum){
-    var start, end, obj;
-    for(key in data){
-        if(taskNum==key){
-            var tasksSize = Object.size(data[key]);
-            for(var key in data[taskNum]){
-                if(key==0){
-                    obj = data[taskNum][key];
-                    start = obj["start-time"];
-                }
-                if(key==tasksSize-1){
-                    obj = data[taskNum][key];
-                    end = obj["end-time"];
-                    break;
-                }
-            }
-        }
-    }
-    return [start, end];
-}
-//end modal code
+
 function calculateResultsByTaskName(testnames, group, dataByGroup) {
     var resultsByTaskName = {}
     for (const testname of testnames) {
@@ -352,8 +225,11 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
         viewColumns.push(index)
         data.addColumn(column)
     })
+
+
     var rows = []
     $.each(graphDataByCommit, function(index, dataOfCommit) {
+        if (dataOfCommit['result'] == undefined) return;
         var row = []
         var commitDate = new Date(0)
         commitDate.setUTCSeconds(dataOfCommit.commitMeta.commitDate);
@@ -454,10 +330,12 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
 }
 
 function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
+    if (graphDataByCommit.length == 0) return;
+
     var elementId = 'graph_' + graphIndex++
     var $graphDiv = $('<div class="graph" id="' + elementId + '"></div>')
     $page.append($graphDiv)
-    var modalTitle, modalChart;
+
     //TODO xaxis, yaxis
     var title = testname
     var options = {
@@ -493,7 +371,7 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
         for (const i in graphDataByCommit[0].results[task]) {
             var taskData = graphDataByCommit[0].results[task][i]
             for (const subkey of Object.keys(taskData)) {
-                if (subkey.endsWith("-time") || subkey.endsWith("-timestamp")) continue;
+                if (subkey.endsWith("-time") || subkey.endsWith("-timestamp") || subkey=="heap-mb" || subkey=="status") continue;
                 if (subkey == "timings") {
                     timings = taskData[subkey]
                     for (const timingSubkeyIdx of Object.keys(timings)) {
@@ -552,7 +430,7 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
             for (const i in results[task]) {
                 var taskInstanceData = results[task][i]
                 for (const subkey of Object.keys(taskInstanceData)) {
-                    if (subkey.endsWith("-time") || subkey.endsWith("-timestamp")) continue;
+                    if (subkey.endsWith("-time") || subkey.endsWith("-timestamp") || subkey=="heap-mb" || subkey=="status") continue;
                     if (subkey == "timings") {
                         timings = taskInstanceData[subkey]
                         for (const timingSubkeyIdx of Object.keys(timings)) {
@@ -614,12 +492,6 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
         // if selection length is 0, we deselected an element
         if (sel.length > 0) {
             // if row is undefined, we clicked on the legend
-            tooltip = rows[sel[0].row][sel[0].column+1];
-            metricsFile = tooltip.substring(tooltip.indexOf(":")+1, tooltip.indexOf(":", tooltip.indexOf(":") + 1));
-            metricsFolder = testname;
-            metrics = group+' '+metricsFolder+' '+metricsFile.trim();
-            //$page.find('button[class="btn btn-lg metrics"]').attr('value', metrics);
-            document.getElementById("metrics").value = metrics;
             if (sel[0].row == null) {
                 var selectedColIndex = sel[0].column;
                 columns[selectedColIndex].visible = !columns[selectedColIndex].visible //flip the status
@@ -656,12 +528,17 @@ function drawChartInPageCollapsed(group, testname, graphDataByCommit, $page) {
         chart.setOption('series', series);
         chart.draw();
     }
-
 }
 
 function addColumn(columns, columnName, visible) {
     columns.push({type: 'number', label: columnName, visible: visible})
     columns.push({type: 'string', role:'tooltip'})
+}
+
+function getValueFromParam(paramKey, defaultVal) {
+    const urlSearchParams = new URLSearchParams(window.location.search)
+    const params = Object.fromEntries(urlSearchParams.entries())
+    return params[paramKey] === undefined ? defaultVal : params[paramKey]
 }
 
 google.load('visualization', '1', {packages: ['corechart'], callback: drawAllCharts});

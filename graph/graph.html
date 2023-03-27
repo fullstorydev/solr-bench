@@ -1,50 +1,42 @@
-<!DOCTYPE html>
-    <head lang="eng">
-        <!-------Bootstrap----------------------------->
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">        
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-        <!----------------------------------------------->
+<html>
+    <head>
+        <style>
+            div.graph { width: 100%; height: 400px; }
+            #sideBar {
+              box-shadow: inset -25px 0px 25px -25px rgba(0, 0, 0, 0.45);
+            }
+            #sideBar .item {
+                width: 100%;
+                text-align: center;
+                margin: auto;
+                min-height: 50px;
+                padding: 5px;
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0px;
+                font-family: arial,sans-serif;
+            }
+            .clickable:hover {
+	            cursor: pointer;
+
+            }
+            .clickable:hover, .selected {
+                color: rgba(95, 158, 160, 0.9);
+            }
+}
+        </style>
         <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-        <!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>-->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
         <script type="text/javascript" src="graph-data.js"></script>
         <script type="text/javascript" src="graph.js"></script>
-        <link rel="stylesheet" href="graph.css">
     </head>
-    <body class="container-fluid">
-        <button  type="button" class="btn btn-lg metrics" data-toggle="modal" data-target="#myModal" onclick="findMetrics()" id="metrics">Metrics</button>
-        <div id="myModal" class="modal fade" role="dialog">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
-                        <h4 class="modal-title" id="group"></h4>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div  class="col-md-3">
-                                <div class="sidebar tasks" id="tasks">
-                                
-                                </div>
-                            </div>
-                            <div class="col-md-9 graphs" id="graphs">
-                                
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
+    <body>
+        <div id="canvas" style="display: flex;">
+            <div id="sideBar" style="min-width: 200px;"></div>
+            <div id="mainContainer" style="flex: 1; height: 100%"/>
         </div>
-        <!--<div id="canvas" style="display: flex;">-->
-            <div class="sidebar" id="sideBar"></div>
-            <div class="content" id="mainContainer"/>
-                
-            </div>
-        <!--</div>-->
+
     </body>
 </html>
