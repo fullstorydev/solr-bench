@@ -46,6 +46,9 @@ import org.apache.solr.benchmarks.beans.SolrBenchQuery;
 import org.apache.solr.benchmarks.readers.JsonlFileType;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.benchmarks.validations.ClusterStateBasedValidations;
+import org.apache.solr.benchmarks.validations.FileBasedQueryValidations;
+import org.apache.solr.benchmarks.validations.Validations;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
@@ -93,138 +96,77 @@ public class BenchmarksMain {
     	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration");
     }
 
-	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
-            throws IOException, InterruptedException, ParseException {
-		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
-		    log.info("Starting querying benchmarks...");
+    public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
+    		throws Exception {
+    	if (queryBenchmarks != null && queryBenchmarks.size() > 0)
+    		log.info("Starting querying benchmarks...");
 
-		for (QueryBenchmark benchmark : queryBenchmarks) {
-      log.info("Query Benchmark name: " + benchmark.name);
-			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
-      List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
-      String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
-      log.info("Query base URL " + baseUrl);
+    	for (QueryBenchmark benchmark : queryBenchmarks) {
+    		log.info("Query Benchmark name: " + benchmark.name);
+    		results.get("query-benchmarks").put(benchmark.name, new ArrayList());
+    		List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
+    		String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
+    		log.info("Query base URL " + baseUrl);
 
-		    for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-		        String collection = collectionNameOverride==null? benchmark.collection: collectionNameOverride;
-		        ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
-		                benchmark.durationSecs,
-		                benchmark.rpm,
-		                benchmark.totalCount,
-		                benchmark.warmCount,
-		                getQuerySupplier(queryGenerator, client, collection));
-		        long start = System.currentTimeMillis();
-						List<SolrBenchQuery> generatedQueries;
-		        try {
-		            generatedQueries = controlledExecutor.run();
-		        } finally {
-		            client.close();
-		        }
+    		for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
+    			QueryGenerator queryGenerator = new QueryGenerator(benchmark);
+    			HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+    			String collection = collectionNameOverride==null? benchmark.collection: collectionNameOverride;
+    			ControlledExecutor controlledExecutor = new ControlledExecutor(threads,
+    					benchmark.durationSecs,
+    					benchmark.rpm,
+    					benchmark.totalCount,
+    					benchmark.warmCount,
+    					getQuerySupplier(queryGenerator, client, collection));
+    			long start = System.currentTimeMillis();
+    			List<SolrBenchQuery> generatedQueries;
+    			try {
+    				generatedQueries = controlledExecutor.run();
+    			} finally {
+    				client.close();
+    			}
 
-	        	int success = 0, failure = 0;
+    			Map<String, Number> validationResults = runQueryValidations(benchmark.validations, generatedQueries, benchmark, collection, baseUrl);
 
-		        if (StressMain.generateValidations) {
-		        	int totalDocsIndexed = getTotalDocsIndexed(baseUrl, collection);
-		        			
-		        	FileWriter outFile = new FileWriter("suites/validations-"+benchmark.queryFile+"-docs-"+totalDocsIndexed+"-queries-"+benchmark.totalCount+".tsv");
-			        for (SolrBenchQuery sbq: generatedQueries) {
-			        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
-			        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
-			        	outFile.write(sbq.queryString.replace('\n', ' ').replace('\r', ' ') +
-			        			"\t" + numFound + "\t" + new ObjectMapper().writeValueAsString(facets).replace('\n', ' ') + "\n");
-			        }
-			        outFile.close();
-		        } else if (StressMain.validate && benchmark.validationFile != null && new File("suites/" + benchmark.validationFile).exists()) {
-		        	Map<String, Pair<Integer, String>> validations = loadValidations(benchmark);
-		        	log.info("Loaded " + validations.size() + " validations from " + benchmark.validationFile);
-		        	
-			        for (SolrBenchQuery sbq: generatedQueries) {
-			        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
-			        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
-			        	String key = sbq.queryString.replace('\n', ' ').replace('\r', ' ');
-			        	int expectedNumFound = validations.get(key).first();
-			        	String facetsString = new ObjectMapper().writeValueAsString(facets).replace('\n', ' ');
-			        	String expectedFacetsString = validations.get(key).second();
-			        	if (numFound == expectedNumFound && facetsString.trim().equals(expectedFacetsString.trim())) {
-			        		success++;
-			        	} else {
-			        		log.error("Validation failed: numFound=" + numFound+", expected=" + expectedNumFound + ", facets=" + facetsString +", expected="+expectedFacetsString);
-			        		failure++;
-			        	}
-			        }
-			        
-			        log.info("Successes: "+success+", failures: "+failure);
+    			long time = System.currentTimeMillis() - start;
+    			System.out.println("Took time: " + time);
+    			if (time > 0) {
+    				Map<String, Number> taskResults = new LinkedHashMap<>();
+                    taskResults.put("threads", threads);
+                    taskResults.put("50th", controlledExecutor.stats.getPercentile(50));
+                    taskResults.put("90th", controlledExecutor.stats.getPercentile(90));
+                    taskResults.put("95th", controlledExecutor.stats.getPercentile(95));
+                    taskResults.put("mean", controlledExecutor.stats.getMean());
+                    taskResults.put("total-queries", controlledExecutor.stats.getN());
+                    taskResults.put("total-time", time);
 
-		        }
+    				if (StressMain.validate && validationResults != null) taskResults.putAll(validationResults);
 
-		        long time = System.currentTimeMillis() - start;
-		        System.out.println("Took time: " + time);
-		        if (time > 0) {
-		            Map<String, Number> taskResults = new LinkedHashMap<>();
-		            taskResults.put("threads", threads);
-		            taskResults.put("50th", controlledExecutor.stats.getPercentile(50));
-		            taskResults.put("90th", controlledExecutor.stats.getPercentile(90));
-		            taskResults.put("95th", controlledExecutor.stats.getPercentile(95));
-		            taskResults.put("mean", controlledExecutor.stats.getMean());
-		            taskResults.put("total-queries", controlledExecutor.stats.getN());
-		            taskResults.put("total-time", time);
-		            if (StressMain.validate) taskResults.put("validations-succeeded", success);
-		            if (StressMain.validate) taskResults.put("validations-failed", failure);
-
-		            System.out.println("Query task results: " + taskResults);
-		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(taskResults);
-		        }
-		    }
-		}
-	}
-
-	private static Map<String, Pair<Integer, String>> loadValidations(QueryBenchmark benchmark) throws IOException {
-		Map<String, Pair<Integer, String>> validations = new HashMap<>();
-		for (String line: FileUtils.readLines(new File("suites/" + benchmark.validationFile))) {
-			String parts[] = line.split("\t");
-			validations.put(parts[0], new Pair(Integer.valueOf(parts[1]), parts[2]));
-		}
-		return validations;
-	}
-
-	private static int getTotalDocsIndexed(String baseUrl, String collection)
-			throws IOException, JsonProcessingException, JsonMappingException {
-		int totalDocsIndexed = -1;
-		try(HttpSolrClient solrClient = new HttpSolrClient.Builder(baseUrl + "/" + collection).build()) {
-			SolrQuery query = new SolrQuery();
-			query.set("q", "*:*");
-			QueryResponse response = solrClient.query(query);
-			
-		    totalDocsIndexed = ((Long)response.getResults().getNumFound()).intValue();
-		} catch (SolrServerException e) {
-			e.printStackTrace();
-		}
-		return totalDocsIndexed;
-	}
-
-	private static Map<String, Object> getFacetsFromSolrQueryResponse(String response)
-			throws JsonProcessingException, JsonMappingException {
-		Map<String, Object> facets = null;
-		Map<String, Object> jsonResponse = new ObjectMapper().readValue(response, Map.class);
-		if (jsonResponse.containsKey("facets")) {
-			facets = (((Map<String, Object>) jsonResponse.get("facets")));
-		}
-		return facets;
-	}
-
-	private static int getNumFoundFromSolrQueryResponse(String response)
-			throws JsonProcessingException, JsonMappingException {
-		int numFound = -1;
-		Map<String, Object> jsonResponse = new ObjectMapper().readValue(response, Map.class);
-		if (jsonResponse.containsKey("response")) {
-			numFound = ((int) ((Map<String, Object>) jsonResponse.get("response")).get("numFound"));
+    				System.out.println("Query task results: " + taskResults);
+    				((List)results.get("query-benchmarks").get(benchmark.name)).add(taskResults);
+    			}
+    		}
+    	}
+    }
+	
+	private static Map<String, Number> runQueryValidations(Validations validation, List<SolrBenchQuery> generatedQueries,
+			QueryBenchmark benchmark, String collection, String baseUrl) throws Exception {
+		if (validation instanceof FileBasedQueryValidations) {
+			((FileBasedQueryValidations) validation).init(generatedQueries, benchmark, collection, baseUrl);
 		} else {
-			log.error("Didn't find a \"response\" key in the returned response: " + response);
+			throw new IllegalArgumentException("Validations type " + validation.type + " not supported for a query benchmarking task.");
 		}
-		return numFound;
+
+        if (StressMain.generateValidations) {
+        	validation.generateValidationsData();
+	        return null;
+        } else if (StressMain.validate) {
+        	validation.loadValidations();
+        	return validation.doValidate();
+        }
+        return null;
 	}
+
 
 	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results) throws Exception {
 		runIndexingBenchmarks(indexBenchmarks, null, true, solrCloud, results);

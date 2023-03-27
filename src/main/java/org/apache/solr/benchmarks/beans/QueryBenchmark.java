@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.solr.benchmarks.validations.Validations;
+
 public class QueryBenchmark extends BaseBenchmark {
   @JsonProperty("collection")
   public String collection;
@@ -52,7 +54,7 @@ public class QueryBenchmark extends BaseBenchmark {
   // This is a date in the format "YYYY-MM-DD" to be used as NOW for Solr queries
   public String endDate;
 
-  @JsonProperty("validation")
-  public String validationFile;
-
+  @JsonProperty("validations")
+  public Validations validations;
+  
 }

@@ -37,7 +37,10 @@
         "rpm": 3000,
         "total-count": 5000,
         "warm-count": 20,
-	"validation": "validations-facets2.json-docs-20000000-queries-5000.tsv"
+        "validations": {
+          "type": "org.apache.solr.benchmarks.validations.FileBasedQueryValidations",
+          "query-validations-file": "validations-facets2.json-docs-20000000-queries-5000.tsv"
+        }
       }
     },
     "restart-solr-node": {
