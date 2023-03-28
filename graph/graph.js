@@ -295,14 +295,8 @@ function updateStatsTable($table, sortProperty, sortOrder) {
         $tableRow.append('<div style="display: table-cell;">' + statsRow.metricType + '</div>')
         var $queryCell = $('<div style="display: table-cell;"><div class="query-text" style="max-height: 15px; overflow: hidden;">' + statsRow.query + '</div></div>').appendTo($tableRow)
         $queryCell.attr('title', statsRow.query)
-        $tableRow.click(function() {
-            $contentDiv = $queryCell.find('.query-text')
-            if ($contentDiv.css('max-height') === "none") {
-                $contentDiv.css({'max-height' : '15px'})
-            } else {
-                $contentDiv.css({'max-height' : ''})
-            }
-        })
+        addRowClickListener($tableRow, $queryCell)
+
         if (statsRow.latestValue !== undefined) {
             $tableRow.append('<div style="display: table-cell; text-align:right;">' + statsRow.latestValue.toFixed(2) + '</div>')
         } else {
@@ -320,8 +314,7 @@ function updateStatsTable($table, sortProperty, sortOrder) {
             $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
             $tableRow.attr('title', 'Need at least 3 runs')
         }
-        $tableRow.expand
-		$table.append($tableRow)
+        $table.append($tableRow)
 	});
 }
 
@@ -339,14 +332,8 @@ function updateSummaryTable($table, sortProperty, sortOrder) {
         $tableRow.append('<div style="display: table-cell;">' + summaryRow.metricType + '</div>')
         var $queryCell = $('<div style="display: table-cell;"><div class="query-text" style="max-height: 15px; overflow: hidden;">' + summaryRow.query + '</div></div>').appendTo($tableRow)
         $queryCell.attr('title', summaryRow.query)
-        $tableRow.click(function() {
-            $contentDiv = $queryCell.find('.query-text')
-            if ($contentDiv.css('max-height') === "none") {
-                $contentDiv.css({'max-height' : '15px'})
-            } else {
-                $contentDiv.css({'max-height' : ''})
-            }
-        })
+
+        addRowClickListener($tableRow, $queryCell)
 
         $.each($table.data('groups'), function(index, group) {
             if (summaryRow[group + '-median']) {
@@ -356,9 +343,34 @@ function updateSummaryTable($table, sortProperty, sortOrder) {
             }
         })
 
-        $tableRow.expand
 		$table.append($tableRow)
 	});
+}
+
+function addRowClickListener($tableRow, $queryCell) {
+    $tableRow.on('mousedown', function(event) {
+        // Record the mouse position on mousedown
+        $tableRow.data('mouseDownPos', {x: event.pageX, y: event.pageY})
+    })
+    $tableRow.on('mouseup', function(event) {
+        // Calculate the distance between the mouse positions
+        var mouseDownPos = $tableRow.data('mouseDownPos')
+        if (mouseDownPos) {
+            var xDiff = Math.abs(event.pageX - mouseDownPos.x)
+            var yDiff = Math.abs(event.pageY - mouseDownPos.y)
+            var distance = Math.sqrt(xDiff * xDiff + yDiff * yDiff)
+            // If the distance is greater than a certain threshold, assume the user was highlighting text
+            // and do not expand/collapse
+            if (distance < 5) {
+                $contentDiv = $queryCell.find('.query-text')
+                if ($contentDiv.css('max-height') === "none") {
+                    $contentDiv.css({'max-height' : '15px'})
+                } else {
+                    $contentDiv.css({'max-height' : ''})
+                }
+            }
+        }
+    })
 }
 
 function sortPreserveOrder(array, property, ascending) {
