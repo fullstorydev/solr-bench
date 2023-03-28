@@ -37,4 +37,12 @@ public class ExternalSolrNode extends GenericSolrNode {
   public int restart() throws Exception {
     return Util.execute(restartScript + " " + host + " " + (user != null ? user : ""), Util.getWorkingDir());
   }
+
+  @Override
+  public String toString() {
+    return "ExternalSolrNode{" +
+            "host='" + host + '\'' +
+            ", port=" + port +
+            '}';
+  }
 }
