@@ -210,7 +210,7 @@ public class SolrCloud {
             }
           }
         }
-        log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper);
+        log.info("Cluster initialized with data nodes: " + nodes + ", query nodes: " + queryNodes + ", zkHost: " + zookeeper);
     }
 
 
