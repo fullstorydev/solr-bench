@@ -19,6 +19,14 @@ public class TaskType {
 
 	@JsonProperty("cluster-state-benchmark")
 	ClusterStateBenchmark clusterStateBenchmark;
+
+	@JsonProperty("move-shard")
+	MoveShard moveShard;
+
+	static class MoveShard {
+		@JsonProperty("moves")
+		int moves;
+	}
 	
 	static class ClusterStateBenchmark {
 		@JsonProperty("filename")

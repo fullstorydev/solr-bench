@@ -32,12 +32,15 @@ import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.Http2SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
+import org.apache.solr.common.util.NamedList;
 import org.apache.zookeeper.KeeperException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -645,6 +648,54 @@ public class StressMain {
 					long taskEnd = System.currentTimeMillis();
 					log.info("Task took time: "+(taskEnd-taskStart)/1000.0+" seconds.");
 					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			} else if (type.moveShard != null) {
+				long taskStart = System.currentTimeMillis();
+
+				String collectionName = params.get("COLLECTION");
+				String replicaName = "", fromNodeName = "";
+				try (CloudSolrClient client = new CloudSolrClient.Builder(List.of(cloud.getZookeeperUrl()), Optional.ofNullable(cloud.getZookeeperChroot())).build();) {
+					ClusterState state = client.getClusterState();
+					DocCollection collection = state.getCollection(collectionName);
+					List<Replica> replicas = collection.getReplicas();
+					// choose first replica since it's easy and should exist
+					Replica r = replicas.get(0);
+					replicaName = r.getName();
+					fromNodeName = r.getNodeName();
+				} catch (Exception e) {
+					log.warn("Exception occurred getting replicaName and fromNodeName: " + e.getMessage());
+				}
+
+				String targetNodeName = "";
+				// pick random node to move to
+				List<SolrNode> copyOfSolrNodes = new ArrayList<>(cloud.nodes);
+				Collections.shuffle(copyOfSolrNodes);
+				for (SolrNode sn : copyOfSolrNodes) {
+					String toNodeName = sn.getNodeName() + "_solr";
+					if (toNodeName != fromNodeName) {
+						targetNodeName = toNodeName;
+						break;
+					}
+				}
+				log.info(String.format("moving replica %s from %s to %s", replicaName, fromNodeName, targetNodeName));
+
+				try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(0).getBaseUrl()).build();) {
+					SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
+					NamedList<Object> response = client.request(request);
+					log.info("MOVEREPLICA response: "+response.toString());
+				} catch (Exception e) {
+					log.warn("Exception occurred getting moving shard: " + e.getMessage());
+				}
+
+				long taskEnd = System.currentTimeMillis();
+				try {
+					String totalTime = String.valueOf((taskEnd-taskStart)/1000.0);
+
+					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+							"end-time", (taskEnd- executionStart)/1000.0,
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
 					ex.printStackTrace();
