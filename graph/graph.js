@@ -115,12 +115,13 @@ var loadedSummaryRows = []
 
 function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
     var $table
+    var $tableContainer
     var loadedStatsRows = []
     $.each(dataByTestAndTaskName, function(testName, dataByTaskName) {
         $.each(dataByTaskName, function(taskName, dataByCommit) {
             if (taskName.startsWith("detailed-stats-")) {
                 if (! $table) {
-                    var $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
+                    $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
 //                        $tableContainer.append('<h4 style="margin: 0 0 10px 0;">Stats</h4>')
                      //a header table, this only contains the header so scrolling the actual table will keep the header
                     $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
@@ -154,7 +155,7 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                     }
                 })
 
-                var statsRow = []
+                var statsRow = {}
                 statsRow.taskName = dataByCommit[0].result.taskName
                 statsRow.query = dataByCommit[0].result.query
                 statsRow.metricType = dataByCommit[0].result.metricType
@@ -187,16 +188,21 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
         loadedStatsRows = sortPreserveOrder(loadedStatsRows, "previousDeltaPercentage", false) // sort by previous delta first (if median delta not available or equal)
         loadedStatsRowsByGroup[group] = loadedStatsRows
         updateStatsTable($table, "medianDeltaPercentage", "descending") //then sort by median delta
+
+        var $download = $("<a href='#'>DOWNLOAD CSV</a>").appendTo($tableContainer)
+        $download.click(function() {
+            exportToCsv(loadedStatsRows)
+        })
     }
 }
 
 function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
-    var $table
+    var $table, $tableContainer
     var loadedStatsRows = []
     $.each(allResultsByTaskName, function(taskName, dataByCommit) {
         if (taskName.startsWith("detailed-stats-")) {
             if (! $table) {
-                var $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
+                $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
 //                        $tableContainer.append('<h4 style="margin: 0 0 10px 0;">Stats</h4>')
                  //a header table, this only contains the header so scrolling the actual table will keep the header
                 $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
@@ -207,6 +213,10 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
                 $.each(groups, function(index, group) {
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="' + group + '-median" data-sort-order="ascending" onclick="toggleSummaryTableSort($(this))">' + group + ' median</div>')
                 })
+                if (groups.length == 2) {
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="deltaPercentage" data-sort-order="ascending" onclick="toggleSummaryTableSort($(this))">Delta</div>')
+                }
+
 
                 //actual data table, the header row is for controlling the widths
                 var $dataTableContainer = $('<div style="max-height:150px; overflow-y:auto; width: 100%;"></div>').appendTo($tableContainer)
@@ -218,6 +228,9 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
                 $.each(groups, function(index, group) {
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                 })
+                if (groups.length == 2) {
+                  $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                }
                 $table.data("groups", groups)
             }
             taskName = taskName.substring("detailed-stats-".length) //still yike...
@@ -239,18 +252,26 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
             summaryRow.taskName = dataByCommit[0].result.taskName
             summaryRow.query = dataByCommit[0].result.query
             summaryRow.metricType = dataByCommit[0].result.metricType
+            var mediansByGroup = []
             $.each(allValuesByGroup, function(group, values) {
                 var medianOfThisGroup = values[Math.floor(values.length / 2)]
                 summaryRow[group + '-median'] = medianOfThisGroup
+                mediansByGroup.push(medianOfThisGroup)
             })
+            if (mediansByGroup.length == 2) {
+                summaryRow.delta = mediansByGroup[1] - mediansByGroup[0]
+                summaryRow.deltaPercentage = summaryRow.delta * 100 / mediansByGroup[0]
+            }
 
             loadedSummaryRows.push(summaryRow)
         }
    })
     if ($table) {
-        //loadedStatsRows = sortPreserveOrder(loadedStatsRows, "previousDeltaPercentage", false) // sort by previous delta first (if median delta not available or equal)
-        //loadedStatsRowsByGroup[group] = loadedStatsRows
         updateSummaryTable($table) //then sort by median delta
+        var $download = $("<a href='#'>Download CSV</a>").appendTo($tableContainer)
+        $download.click(function() {
+            exportToCsv(loadedSummaryRows)
+        })
     }
 }
 
@@ -318,6 +339,42 @@ function updateStatsTable($table, sortProperty, sortOrder) {
 	});
 }
 
+function exportToCsv(rows) {
+    var csvData = []
+    var keys = []
+    $.each(rows[0], function(key, value) {
+        key = key.replace(/"/g, '""');
+        if (key.indexOf(',') >= 0) {
+            key = `"${key}"`
+        }
+       keys.push(key)
+    })
+    csvData.push(keys.join(','))
+
+    $.each(rows, function(i, row) {
+        var values = []
+        $.each(row, function(key, value) {
+            if (typeof value === 'string') {
+             value = value.replace(/"/g, '""');
+             if (value.indexOf(',') >= 0) {
+                value = `"${value}"`
+             }
+            } else if (typeof value === 'number' && !Number.isInteger(value)) {
+                value = value.toFixed(2)
+            }
+            values.push(value)
+        })
+        var rowString = values.join(',')
+        csvData.push(rowString)
+    })
+
+  const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvData.join('\n'))
+  const linkElement = document.createElement('a')
+  linkElement.setAttribute('href', dataUri)
+  linkElement.setAttribute('download', "export.csv")
+  linkElement.click()
+}
+
 function updateSummaryTable($table, sortProperty, sortOrder) {
 	$table.children("div.table-row").remove()
 
@@ -335,13 +392,24 @@ function updateSummaryTable($table, sortProperty, sortOrder) {
 
         addRowClickListener($tableRow, $queryCell)
 
-        $.each($table.data('groups'), function(index, group) {
+        var groups = $table.data('groups')
+        $.each(groups, function(index, group) {
             if (summaryRow[group + '-median']) {
                 $tableRow.append('<div style="display: table-cell; text-align:right;">' + summaryRow[group + '-median'].toFixed(2) + '</div>')
             } else {
                 $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
             }
         })
+
+
+        if (groups.length == 2) {
+            if (summaryRow.delta === undefined) {
+                $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
+            } else {
+                $tableRow.append('<div style="display: table-cell; text-align:right;">' + getChangeText(summaryRow[groups[0] + '-median'], summaryRow.delta) + '</div>')
+            }
+
+        }
 
 		$table.append($tableRow)
 	});
