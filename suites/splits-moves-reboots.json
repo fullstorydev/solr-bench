@@ -11,9 +11,9 @@
       "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=collection${INDEX}&shard=${SHARD}",
       "defaults": {}
     },
-    "move-shard": {
-      "move-shard": {
-        "moves": 100
+    "move-replica": {
+      "move-replica": {
+        "collection": "${COLLECTION}"
       },
       "defaults": {
         "INDEX": 0

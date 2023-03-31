@@ -651,13 +651,13 @@ public class StressMain {
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
-			} else if (type.moveShard != null) {
+			} else if (type.moveReplica != null) {
 				long taskStart = System.currentTimeMillis();
 
 				String collectionName = params.get("COLLECTION");
 				String replicaName = "", fromNodeName = "";
 				try (CloudSolrClient client = new CloudSolrClient.Builder(List.of(cloud.getZookeeperUrl()), Optional.ofNullable(cloud.getZookeeperChroot())).build();) {
-					ClusterState state = client.getClusterState();
+					ClusterState state = client.getClusterStateProvider().getClusterState();
 					DocCollection collection = state.getCollection(collectionName);
 					List<Replica> replicas = collection.getReplicas();
 					// choose first replica since it's easy and should exist
