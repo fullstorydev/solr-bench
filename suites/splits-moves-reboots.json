@@ -1,0 +1,120 @@
+{
+  "task-types": {
+    "collection-creation": {
+      "command": "${SOLRURL}admin/collections?action=CREATE&name=collection${INDEX}&numShards=${SHARDS}",
+      "defaults": {
+        "INDEX": 0,
+        "SHARDS": 1
+      }
+    },
+    "shard-splitting": {
+      "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=collection${INDEX}&shard=${SHARD}",
+      "defaults": {}
+    },
+    "move-shard": {
+      "move-shard": {
+        "moves": 100
+      },
+      "defaults": {
+        "INDEX": 0
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "restart-counter": 0,
+    "split-counter": 0,
+    "move-counter": 0
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "create-test": {
+      "description": "Create 100 collections",
+      "type": "collection-creation",
+      "instances": 100,
+      "concurrency": 1,
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${collection-counter}",
+        "SHARDS": 1
+      },
+      "pre-task-evals": [
+        "inc(collection-counter,1)"
+      ]
+    },
+    "move-test": {
+      "type": "move-shard",
+      "description": "Move 100 shards, 1 at a time",
+      "instances": 100,
+      "concurrency": 1,
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${move-counter}",
+        "COLLECTION": "collection${move-counter}"
+      },
+      "pre-task-evals": [
+        "inc(move-counter,1)"
+      ],
+      "wait-for": "create-test"
+    },
+    "split-test": {
+      "description": "Split 100 the collections' shard1, 1 at a time",
+      "type": "shard-splitting",
+      "instances": 100,
+      "concurrency": 1,
+      "parameters": {
+        "INDEX": "${split-counter}",
+        "SHARD": "shard1"
+      },
+      "pre-task-evals": [
+        "inc(split-counter,1)"
+      ],
+      "wait-for": "move-test",
+      "mode": "sync"
+    },
+    "restart-test": {
+      "type": "restart-solr-node",
+      "description": "Restart all Solr nodes",
+      "instances": 8,
+      "concurrency": 1,
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ],
+      "wait-for": "split-test"
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 8,
+    "startup-params": "-m 4g -V",
+    "provisioning-method": "local"
+  },
+  "repositories": [
+    {
+      "commit-id": "dfde16a004206cc92e21cc5a6cad9030fbe13c20",
+      "description": "Solr 9x",
+      "name": "solr-repository",
+      "package-subdir": "/solr/packaging/",
+      "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
+      "submodules": false,
+      "url": "https://github.com/apache/solr",
+      "user": "ishan"
+    }
+  ],
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+  ],
+  "zk-metrics": [
+    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
+  ]
+}
