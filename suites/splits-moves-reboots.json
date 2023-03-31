@@ -110,11 +110,5 @@
       "url": "https://github.com/apache/solr",
       "user": "ishan"
     }
-  ],
-  "metrics": [
-    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
-  ],
-  "zk-metrics": [
-    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
   ]
 }
