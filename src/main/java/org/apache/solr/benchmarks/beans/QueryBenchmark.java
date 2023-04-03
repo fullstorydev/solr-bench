@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.solr.benchmarks.validations.Validations;
+
 public class QueryBenchmark extends BaseBenchmark {
   @JsonProperty("collection")
   public String collection;
@@ -58,4 +60,8 @@ public class QueryBenchmark extends BaseBenchmark {
    */
   @JsonProperty("detailed-stats")
   public boolean detailedStats = false;
+
+  @JsonProperty("validations")
+  public Validations validations;
+  
 }

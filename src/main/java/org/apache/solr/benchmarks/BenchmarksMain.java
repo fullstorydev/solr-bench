@@ -1,44 +1,86 @@
 package org.apache.solr.benchmarks;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.invoke.MethodHandles;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.UUID;
+import java.util.Vector;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+import java.util.zip.GZIPInputStream;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.solr.benchmarks.BenchmarksMain.QueryCallable;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
+import org.apache.solr.benchmarks.beans.SolrBenchQueryResponse;
 import org.apache.solr.benchmarks.indexing.DocReader;
 import org.apache.solr.benchmarks.indexing.FileDocReader;
 import org.apache.solr.benchmarks.indexing.IndexBatchSupplier;
+import org.apache.solr.benchmarks.readers.TarGzFileReader;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.benchmarks.validations.FileBasedQueryValidations;
+import org.apache.solr.benchmarks.validations.Validations;
+import org.apache.solr.client.solrj.ResponseParser;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpClusterStateProvider;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.InputStreamResponseParser;
 import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.MapSolrParams;
+import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.common.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.lang.invoke.MethodHandles;
-import java.text.ParseException;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
-import java.util.zip.GZIPInputStream;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BenchmarksMain {
 
@@ -62,6 +104,8 @@ public class BenchmarksMain {
     	}
     	throw new RuntimeException("Solr package not found. Either specify 'repository' or 'solr-package' section in configuration");
     }
+    
+    
 
 	public static void runQueryBenchmarks(List<QueryBenchmark> queryBenchmarks, String collectionNameOverride, SolrCloud solrCloud, Map<String, Map> results)
             throws IOException, InterruptedException, ParseException, ExecutionException {
@@ -75,10 +119,11 @@ public class BenchmarksMain {
       String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
       log.info("Query base URL " + baseUrl);
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-				ControlledExecutor.ExecutionListener<String, NamedList<Object>> listener = benchmark.detailedStats ? new DetailedQueryStatsListener() : new ErrorListener();
+				ControlledExecutor.ExecutionListener<String, SolrBenchQueryResponse> listener = benchmark.detailedStats ? new DetailedQueryStatsListener() : new ValidationListener();
 		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-		        ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
+    			String collection = collectionNameOverride==null? benchmark.collection: collectionNameOverride;
+    			ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
 						benchmark.name,
 						threads,
 		                benchmark.durationSecs,
@@ -94,14 +139,32 @@ public class BenchmarksMain {
 		            client.close();
 		        }
 
+		        Map<String, Number> validationResults = null;
+		        if (listener instanceof ValidationListener) {
+		        	try {
+		        		validationResults = runQueryValidations(benchmark.validations, ((ValidationListener) listener).queryResponses, benchmark, collection, baseUrl);
+		        	} catch (Exception e) {
+		        		log.error("Problem during validations", e);
+		        	}
+		        }
+
 		        long time = System.currentTimeMillis() - start;
 		        System.out.println("Took time: " + time);
 		        if (time > 0) {
-		            System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
-		                    ", 95th latency: " + controlledExecutor.stats.getPercentile(95));
-		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(
-		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
-		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
+    				Map<String, Number> taskResults = new LinkedHashMap<>();
+                    taskResults.put("threads", threads);
+                    taskResults.put("50th", controlledExecutor.stats.getPercentile(50));
+                    taskResults.put("90th", controlledExecutor.stats.getPercentile(90));
+                    taskResults.put("95th", controlledExecutor.stats.getPercentile(95));
+                    taskResults.put("mean", controlledExecutor.stats.getMean());
+                    taskResults.put("total-queries", controlledExecutor.stats.getN());
+                    taskResults.put("total-time", time);
+                    
+					if (StressMain.validate && validationResults != null) taskResults.putAll(validationResults);
+
+		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(taskResults);
+    				System.out.println("Query task results: " + taskResults);
+
 					if (listener instanceof DetailedQueryStatsListener) {
 						Map detailedStats = (Map) results.get("query-benchmarks").computeIfAbsent("detailed-stats", key -> new LinkedHashMap<>());
 						//add the detailed stats (per query in the input query file) collected by the listener
@@ -117,6 +180,25 @@ public class BenchmarksMain {
 		    }
 		}
 	}
+	
+	private static Map<String, Number> runQueryValidations(Validations validation, List<SolrBenchQueryResponse> actualQueryResponses,
+			QueryBenchmark benchmark, String collection, String baseUrl) throws Exception {
+		if (validation instanceof FileBasedQueryValidations) {
+			((FileBasedQueryValidations) validation).init(actualQueryResponses, benchmark, collection, baseUrl);
+		} else {
+			throw new IllegalArgumentException("Validations type " + validation.type + " not supported for a query benchmarking task.");
+		}
+
+        if (StressMain.generateValidations) {
+        	validation.generateValidationsData();
+	        return null;
+        } else if (StressMain.validate) {
+        	validation.loadValidations();
+        	return validation.doValidate();
+        }
+        return null;
+	}
+
 
 	public static void runIndexingBenchmarks(List<IndexBenchmark> indexBenchmarks, SolrCloud solrCloud, Map<String, Map> results) throws Exception {
 		runIndexingBenchmarks(indexBenchmarks, null, true, solrCloud, results);
@@ -178,47 +260,50 @@ public class BenchmarksMain {
 		}
 	}
 
-    private static Supplier<ControlledExecutor.CallableWithType<String, NamedList<Object>>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
-		class QueryCallable implements ControlledExecutor.CallableWithType<String, NamedList<Object>> {
-			private final QueryRequest queryRequest;
-
-			private QueryCallable(QueryRequest queryRequest) {
-				this.queryRequest = queryRequest;
-			}
-			@Override
-			public String getType() {
-				return queryRequest.toString();
-			}
-
-			@Override
-			public NamedList<Object> call() throws Exception {
-				NamedList<Object> rsp = client.request(queryRequest, collection);
-				//let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
-				//Probably better to let the caller handle the return values instead
-				//printErrOutput(queryRequest, rsp);
-				return rsp;
-			}
+	public static class QueryCallable implements ControlledExecutor.CallableWithType<String, SolrBenchQueryResponse> {
+		private final QueryRequest queryRequest;
+		private final String queryString;
+		private final HttpSolrClient client;
+		private final String collection;
+		
+		public QueryCallable(QueryRequest queryRequest, String queryString, HttpSolrClient client, String collection) {
+			this.queryRequest = queryRequest;
+			this.client = client;
+			this.collection = collection;
+			this.queryString = queryString;
 		}
-        return () -> {
-            QueryRequest qr = queryGenerator.nextRequest();
-            if (qr == null) return null;
-            return new QueryCallable(qr);
-        };
-    }
+		@Override
+		public String getType() {
+			return queryRequest.toString();
+		}
 
-    private static void printErrOutput(String qr, NamedList<Object> rsp) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        if (rsp.get("stream") == null) {
-        	return;
-        }
-        IOUtils.copy((InputStream) rsp.get("stream"), baos);
-        String errorout = new String(baos.toByteArray());
-        if (!errorout.trim().startsWith("{")) {
-            // it's not a JSON output, something must be wrong
-            System.out.println("########### A query failed ");
-            System.out.println("failed query " + qr.toString());
-            System.out.println("Error response " + errorout);
-        }
+		public QueryRequest getQueryRequest() {
+			return queryRequest;
+		}
+
+		public String getQueryString() {
+			return queryString;
+		}
+
+		@Override
+		public SolrBenchQueryResponse call() throws Exception {
+			NamedList<Object> rsp = client.request(queryRequest, collection);
+			//let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
+			//Probably better to let the caller handle the return values instead
+			//printErrOutput(queryRequest, rsp);
+			return new SolrBenchQueryResponse(queryString, rsp);
+		}
+	}
+	
+
+    public static Supplier<ControlledExecutor.CallableWithType<String, SolrBenchQueryResponse>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
+        return () -> {
+            Pair<String, QueryRequest> req = queryGenerator.nextRequest();
+        	QueryRequest qr = req.second();
+        	String queryString = req.first();
+            if (qr == null) return null;
+            return new QueryCallable(qr, queryString, client, collection);
+        };
     }
 
     static void index(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
@@ -309,30 +394,23 @@ public class BenchmarksMain {
 	 *     <li>Error count on the query (long)</li>
 	 * </ol>
 	 */
-	private static class DetailedQueryStatsListener implements ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
+	private static class DetailedQueryStatsListener implements ControlledExecutor.ExecutionListener<String, SolrBenchQueryResponse> {
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> durationStatsByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> docHitCountStatsByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, AtomicLong> errorCountStatsByType= new ConcurrentHashMap<>();
 		private final AtomicBoolean loggedQueryRspError = new AtomicBoolean(false);
 		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 		@Override
-		public void onExecutionComplete(String typeKey, NamedList<Object> queryRsp, long duration) {
+		public void onExecutionComplete(String typeKey, SolrBenchQueryResponse sbq, long duration) {
 			if (typeKey != null) {
 				SynchronizedDescriptiveStatistics durationStats = durationStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
 				durationStats.addValue(duration / 1_000_000.0);
-				if (queryRsp != null) {
+				if (sbq.responseString != null) {
 
-					InputStream responseStream = (InputStream) queryRsp.get("stream");
-					String responseStreamAsString = "";
-					try {
-						responseStreamAsString = getResponseStreamAsString(responseStream); //should only call this once, as this reads the stream!
-					} catch (IOException e) {
-						logger.warn("Failed to read the response stream for " + typeKey);
-					}
 
-					if (isSuccessfulRsp(queryRsp.get("closeableResponse"))) {
+					if (sbq.isSuccessfulResponse) {
 						SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
-						int hitCount = getHitCount(responseStreamAsString);
+						int hitCount = getHitCount(sbq.responseString);
 						if (hitCount != -1) {
 							hitCountStats.addValue(hitCount);
 						}
@@ -341,23 +419,10 @@ public class BenchmarksMain {
 						errorCount.incrementAndGet();
 						//this could be noisy
 						if (!loggedQueryRspError.getAndSet(true) || logger.isDebugEnabled()) {
-							logger.warn("Non successful response. The response stream is " + responseStreamAsString + " And the full rsp list " + queryRsp);
+							logger.warn("Non successful response. The response stream is " + sbq.responseString + " And the full rsp list " + sbq.rawResponse);
 						}
 					}
 				}
-			}
-		}
-
-		private boolean isSuccessfulRsp(Object responseObj) {
-			if (responseObj instanceof CloseableHttpResponse) {
-				int statusCode = ((CloseableHttpResponse) responseObj).getStatusLine().getStatusCode();
-				if (statusCode == 200) {
-					return true;
-				} else {
-					return false;
-				}
-			} else {
-				return false;
 			}
 		}
 
@@ -376,13 +441,6 @@ public class BenchmarksMain {
 				logger.warn("The json response stream does not have key `response`. The json response stream : " + jsonResponse);
 				return -1;
 			}
-		}
-
-		private String getResponseStreamAsString(InputStream responseStream) throws IOException {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			IOUtils.copy(responseStream, baos);
-
-			return new String(baos.toByteArray());
 		}
 
 		public List<DetailedStats> getStats() {
@@ -450,15 +508,28 @@ public class BenchmarksMain {
 		}
 	}
 
-	private static class ErrorListener implements ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
+	private static class ValidationListener implements ControlledExecutor.ExecutionListener<String, SolrBenchQueryResponse> {
 
+		public List<SolrBenchQueryResponse> queryResponses = new Vector<>();
+		
 		@Override
-		public void onExecutionComplete(String typeKey, NamedList<Object> result, long duration) {
+		public void onExecutionComplete(String typeKey, SolrBenchQueryResponse result, long duration) {
+			queryResponses.add(result);
 			try {
 				printErrOutput(typeKey, result);
 			} catch (IOException e) {
 				log.warn("Failed to invoke printErrOutput");
 			}
 		}
+		
+	    private static void printErrOutput(String qr, SolrBenchQueryResponse sbq) throws IOException {
+	        if (!sbq.isSuccessfulResponse || !sbq.responseString.trim().startsWith("{")) {
+	            // it's not a JSON output, something must be wrong
+	            System.out.println("########### A query failed ");
+	            System.out.println("failed query " + qr.toString());
+	            System.out.println("Error response " + sbq.responseString);
+	        }
+	    }
 	}
+	
 }

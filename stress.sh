@@ -28,7 +28,7 @@ CONFIGFILE=$i
 
 
 # parse other params
-while getopts "c:j:" option; do
+while getopts "c:j:gv" option; do
   case $option in
     "c")
       commitoverrides+=("$OPTARG")
@@ -36,6 +36,14 @@ while getopts "c:j:" option; do
     "j")
       echo "${OPTARG} found for benchmarking jar"
       SOLR_BENCH_JAR=${OPTARG}
+      ;;
+    "g")
+      echo "Validation files will be generated for all query benchmarks."
+      VALIDATIONS=" -g "
+      ;;
+    "v")
+      echo "Specified validation files will be used for post query benchmarks validation"
+      VALIDATIONS=" -v "
       ;;
     *)
       # any other arguments for future
@@ -274,10 +282,10 @@ echo_blue "Running Stress suite from working directory: $BASEDIR"
 if [ -z "$SOLR_BENCH_JAR" ] #then no explicit jar provided
 then
   java -Xmx12g -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
-   StressMain -f $CONFIGFILE -c $COMMIT
+   org.apache.solr.benchmarks.StressMain -f $CONFIGFILE -c $COMMIT $VALIDATIONS
   java_exit_code=$?
 else
-  java -Xmx12g -cp ${SOLR_BENCH_JAR}:. StressMain -f $CONFIGFILE -c $COMMIT
+  java -Xmx12g -cp ${SOLR_BENCH_JAR}:. org.apache.solr.benchmarks.StressMain -f $CONFIGFILE -c $COMMIT $VALIDATIONS
   java_exit_code=$?
 fi
 

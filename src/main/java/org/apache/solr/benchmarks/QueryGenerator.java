@@ -8,18 +8,21 @@ import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.readers.TarGzFileReader;
 import org.apache.solr.client.solrj.ResponseParser;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest.METHOD;
 import org.apache.solr.client.solrj.impl.InputStreamResponseParser;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.util.Pair;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
+
 
 public class QueryGenerator {
     final QueryBenchmark queryBenchmark;
@@ -54,7 +57,7 @@ public class QueryGenerator {
     }
 
 
-    public QueryRequest nextRequest() {
+    public Pair<String, QueryRequest> nextRequest() {
     	while (counter.get() < queryBenchmark.offset) {
             long idx = random == null ? counter.get() : random.nextInt(queries.size());
             String q = queries.get((int) (idx % queries.size()));
@@ -68,9 +71,11 @@ public class QueryGenerator {
         
         QueryRequest request;
         if (queryBenchmark.templateValues != null && !queryBenchmark.templateValues.isEmpty()) {
-            PropertiesUtil.substituteProperty(q, queryBenchmark.templateValues);
+        	q = PropertiesUtil.substituteProperty(q, queryBenchmark.templateValues);
         }
 
+        String qString = q;
+        
         //TODO apply templates if any
         if (Boolean.TRUE.equals(queryBenchmark.isJsonQuery)) {
             request = new QueryRequest() {
@@ -81,7 +86,7 @@ public class QueryGenerator {
 
                 @Override
                 public RequestWriter.ContentWriter getContentWriter(String expectedType) {
-                    return new RequestWriter.StringPayloadContentWriter(q, CommonParams.JSON_MIME);
+                    return new RequestWriter.StringPayloadContentWriter(qString, CommonParams.JSON_MIME);
                 }
 
                 @Override
@@ -96,7 +101,7 @@ public class QueryGenerator {
 
                 @Override
                 public String toString() {
-                    return q;
+                    return qString;
                 }
 
                 @Override
@@ -111,7 +116,7 @@ public class QueryGenerator {
             };
 
         } else {
-            request = new QueryRequest(Util.parseQueryString(q)) {
+            request = new QueryRequest(Util.parseQueryString(qString)) {
                 @Override
                 public String getCollection() {
                     return queryBenchmark.collection;
@@ -119,6 +124,6 @@ public class QueryGenerator {
             };
         }
 
-        return request;
+        return new Pair(qString, request);
     }
 }

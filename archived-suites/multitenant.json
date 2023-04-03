@@ -123,7 +123,7 @@
       "threadpool": "collection-api-threadpool",
       "wait-for": "task1",
       "mode": "async",
-      "validations": ["all-replicas-active"]
+      "validations": ["all-replicas-active"] // NOCOMMIT: reimplement
     },
     "task2c": {
       "description": "MODIFYCOLLECTION at random",
