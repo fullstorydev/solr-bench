@@ -23,12 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -190,7 +185,7 @@ public class SolrCloud {
         zookeeper = new GenericZookeeper(tokens[0], tokens.length > 1 ? Integer.parseInt(tokens[1]) : null, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
 
         try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).withZkChroot(cluster.externalSolrConfig.zkChroot).build()) {
-          Set<String> liveNodes = client.getZkStateReader().getClusterState().getLiveNodes();
+          Collection<String> liveNodes = getExternalDataNodes(client);
           for (String liveNode: liveNodes) {
             nodes.add(new ExternalSolrNode(
                     liveNode.split("_solr")[0].split(":")[0],
@@ -199,7 +194,7 @@ public class SolrCloud {
                     cluster.externalSolrConfig.restartScript));
           }
           try {
-            List<String> queryNodeList = client.getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
+            Collection<String> queryNodeList = getExternalQueryNodes(client);
             for (String queryNode : queryNodeList) {
               queryNodes.add(new ExternalSolrNode(
                       queryNode.split("_solr")[0].split(":")[0],
@@ -215,13 +210,43 @@ public class SolrCloud {
             }
           }
         }
-        log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper);
+        log.info("Cluster initialized with data nodes: " + nodes + ", query nodes: " + queryNodes + ", zkHost: " + zookeeper);
     }
 
 
   }
 
-  List<String> getSolrNodesFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
+    private Collection<String> getExternalDataNodes(CloudSolrClient client) {
+        try {
+            if (client.getZkStateReader().getZkClient().exists("/node_roles/data/on", true)) {
+                List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
+                liveNodes.retainAll(client.getZkStateReader().getZkClient().getChildren("/node_roles/data/on", null, true));
+                if (!liveNodes.isEmpty()) {
+                    return liveNodes;
+                }
+            }
+        } catch (Exception e) {
+            //ok. just use cluster state then
+        }
+        return client.getClusterStateProvider().getLiveNodes();
+    }
+    private Collection<String> getExternalQueryNodes(CloudSolrClient client) throws InterruptedException, KeeperException {
+        try {
+            if (client.getZkStateReader().getZkClient().exists("/node_roles/coordinator/on", true)) {
+                List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
+                liveNodes.retainAll(client.getZkStateReader().getZkClient().getChildren("/node_roles/coordinator/on", null, true));
+                if (!liveNodes.isEmpty()) {
+                    return liveNodes;
+                }
+            }
+        } catch (Exception e) {
+            //ok, just use the /live_query_nodes
+        }
+        return client.getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
+    }
+
+
+    List<String> getSolrNodesFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
 	  List<String> out = new ArrayList<String>();
 	  Map<String, Object> tfstate = new ObjectMapper().readValue(FileUtils.readFileToString(new File("terraform/terraform.tfstate"), "UTF-8"), Map.class);
 	  for (Map m: (List<Map>)((Map)((Map)tfstate.get("outputs")).get("solr_node_details")).get("value")) {
@@ -302,8 +327,8 @@ public class SolrCloud {
   public void deleteCollection(String collectionName) throws Exception {
 	  try (HttpSolrClient hsc = createClient()) {
 		  Delete delete = Delete.deleteCollection(collectionName); //Create.createCollection(collectionName, shards, replicas);
-		  CollectionAdminResponse resp = delete.process(hsc);
-		  log.info("Collection delete: "+resp.getCollectionStatus());
+          CollectionAdminResponse resp = delete.process(hsc);
+          log.info("Collection delete: "+resp);
 	  }
   }
 
@@ -451,5 +476,9 @@ public class SolrCloud {
     }
 
 
+  }
+
+  public String getProvisioningMethod() {
+      return cluster.provisioningMethod;
   }
 }

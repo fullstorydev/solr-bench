@@ -11,7 +11,7 @@ import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
-import org.apache.solr.benchmarks.beans.SolrBenchQuery;
+import org.apache.solr.benchmarks.beans.SolrBenchQueryResponse;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -32,11 +32,11 @@ public class FileBasedQueryValidations extends Validations {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	
-	public List<SolrBenchQuery> generatedQueries;
+	public List<SolrBenchQueryResponse> generatedQueries;
 	public QueryBenchmark benchmark;
 	public String baseUrl, collection;
 	
-	public void init(List<SolrBenchQuery> generatedQueries, QueryBenchmark benchmark, String collection, String baseUrl) {
+	public void init(List<SolrBenchQueryResponse> generatedQueries, QueryBenchmark benchmark, String collection, String baseUrl) {
 		this.generatedQueries = generatedQueries;
 		this.benchmark = benchmark;
 		this.baseUrl = baseUrl;
@@ -48,9 +48,9 @@ public class FileBasedQueryValidations extends Validations {
 		if (validations == null) throw new RuntimeException("Validations have not been loaded yet.");
 
 		int success = 0, failure = 0;
-		for (SolrBenchQuery sbq: generatedQueries) {
-			int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
-			Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
+		for (SolrBenchQueryResponse sbq: generatedQueries) {
+			int numFound = getNumFoundFromSolrQueryResponse(sbq.responseString);
+			Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.responseString);
 			String key = sbq.queryString.replace('\n', ' ').replace('\r', ' ');
 			int expectedNumFound = validations.get(key).first();
 			String facetsString = new ObjectMapper().writeValueAsString(facets).replace('\n', ' ');
@@ -127,9 +127,9 @@ public class FileBasedQueryValidations extends Validations {
     	int totalDocsIndexed = getTotalDocsIndexed(baseUrl, collection);
 		
     	FileWriter outFile = new FileWriter("suites/validations-"+benchmark.queryFile+"-docs-"+totalDocsIndexed+"-queries-"+benchmark.totalCount+".tsv");
-        for (SolrBenchQuery sbq: generatedQueries) {
-        	int numFound = getNumFoundFromSolrQueryResponse(sbq.response);
-        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.response);
+        for (SolrBenchQueryResponse sbq: generatedQueries) {
+        	int numFound = getNumFoundFromSolrQueryResponse(sbq.responseString);
+        	Map<String, Object> facets = getFacetsFromSolrQueryResponse(sbq.responseString);
         	outFile.write(sbq.queryString.replace('\n', ' ').replace('\r', ' ') +
         			"\t" + numFound + "\t" + new ObjectMapper().writeValueAsString(facets).replace('\n', ' ') + "\n");
         }

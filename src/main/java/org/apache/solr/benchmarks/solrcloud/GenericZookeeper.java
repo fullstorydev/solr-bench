@@ -70,4 +70,14 @@ public class GenericZookeeper implements Zookeeper {
 	public String getChroot() {
 		return chroot;
 	}
+
+	@Override
+	public String toString() {
+		return "GenericZookeeper{" +
+				"host='" + host + '\'' +
+				", zkPort='" + zkPort + '\'' +
+				", adminPort='" + adminPort + '\'' +
+				", chroot='" + chroot + '\'' +
+				'}';
+	}
 }

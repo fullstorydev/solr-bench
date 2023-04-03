@@ -54,6 +54,13 @@ public class QueryBenchmark extends BaseBenchmark {
   // This is a date in the format "YYYY-MM-DD" to be used as NOW for Solr queries
   public String endDate;
 
+  /**
+   * Keeps track of detailed stats. On top of the stats for all queries, this would keep track and report duration
+   * percentiles and doc hit for each query listed in the query file.
+   */
+  @JsonProperty("detailed-stats")
+  public boolean detailedStats = false;
+
   @JsonProperty("validations")
   public Validations validations;
   
