@@ -50,7 +50,7 @@
       ]
     },
     "move-test": {
-      "type": "move-shard",
+      "type": "move-replica",
       "description": "Move 100 shards, 1 at a time",
       "instances": 100,
       "concurrency": 1,
