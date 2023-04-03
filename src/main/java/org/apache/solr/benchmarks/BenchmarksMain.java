@@ -407,6 +407,11 @@ public class BenchmarksMain {
 				durationStats.addValue(duration / 1_000_000.0);
 				if (sbq.responseString != null) {
 
+			return results;
+		}
+		private enum StatsMetricType {
+			DURATION("timings"), DOC_HIT_COUNT("percentile"), ERROR_COUNT("error_count");
+			private final String dataCategory;
 
 					if (sbq.isSuccessfulResponse) {
 						SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());

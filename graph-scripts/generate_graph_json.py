@@ -79,10 +79,10 @@ def parse_benchmark_results(meta_props):
         try:
             test_run_dir = meta_prop["test_run_dir"]
             # commit_date = time.gmtime(int(props["committed_date"]))
-            commit_hash = meta_prop["commit"]
-            commit_date = int(meta_prop["commit_date"])
-            commit_msg = meta_prop["message"]
-            test_date = meta_prop["test_date"]
+            commit_hash = meta_prop.get("commit", '')
+            commit_date = int(meta_prop.get("commit_date", '0'))
+            commit_msg = meta_prop.get("message", '')
+            test_date = meta_prop.get("test_date", '')
 
             result_path = os.path.join(test_run_dir, "results.json")
             json_results = json.load(open(result_path))
