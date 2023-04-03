@@ -91,6 +91,10 @@ public class StressMain {
 			WorkflowResult workflowResult = executeWorkflow(workflow, solrCloud);
 			String testName = Files.getNameWithoutExtension(configFile);
 			ExporterFactory.getFileExporter(Paths.get(SUITE_BASE_DIR, testName)).export(workflowResult);
+		} catch (Exception e) {
+			log.warn("Got exception running StressMain: "+e.getMessage());
+			// re-throw exception so we exit with error code
+			throw e;
 		} finally {
 			log.info("Shutting down...");
 			solrCloud.shutdown(true);
