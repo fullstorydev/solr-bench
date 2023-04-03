@@ -1,13 +1,34 @@
 package org.apache.solr.benchmarks;
 
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
+import org.apache.solr.benchmarks.BenchmarksMain.QueryCallable;
+import org.apache.solr.benchmarks.beans.QueryBenchmark;
+import org.apache.solr.benchmarks.beans.SolrBenchQueryResponse;
+import org.apache.solr.benchmarks.readers.TarGzFileReader;
+import org.apache.solr.client.solrj.ResponseParser;
+import org.apache.solr.client.solrj.SolrRequest.METHOD;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.InputStreamResponseParser;
+import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.client.solrj.request.RequestWriter;
+import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.MapSolrParams;
+import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.util.NamedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.*;
@@ -89,6 +110,8 @@ public class ControlledExecutor<T, R> {
 
         backPressureLimiter = new BackPressureLimiter(threads * 10); //at most 10 * # of thread pending tasks
     }
+
+
 
     public void run() throws InterruptedException, ExecutionException {
         startTime = System.currentTimeMillis();
