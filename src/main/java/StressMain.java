@@ -659,7 +659,7 @@ public class StressMain {
 				long taskStart = System.currentTimeMillis();
 
 				String collectionName = resolveString(type.moveReplica.collection, params);
-				String replicaName = "", fromNodeName = "", overseerLeader = "";
+				String replicaName = "", fromNodeName = "", shardName = "", overseerLeader = "";
 				try (CloudSolrClient client = buildSolrClient(cloud)) {
 					ClusterState state = client.getClusterStateProvider().getClusterState();
 					DocCollection collection = state.getCollection(collectionName);
@@ -668,6 +668,7 @@ public class StressMain {
 					Replica r = replicas.get(0);
 					replicaName = r.getName();
 					fromNodeName = r.getNodeName();
+					shardName = collection.getShardId(r.getNodeName(), r.getCoreName());
 					NamedList<Object> overseerStatus = client.request(new CollectionAdminRequest.OverseerStatus());
 					overseerLeader = (String) overseerStatus.get("leader");
 				}
@@ -686,9 +687,17 @@ public class StressMain {
 				log.info(String.format("moving replica %s from %s to %s", replicaName, fromNodeName, targetNodeName));
 
 				try (HttpSolrClient client = buildHttpSolrClient(cloud, overseerLeader)) {
-					SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
-					NamedList<Object> response = client.request(request);
-					log.info("MOVEREPLICA response: "+response.toString());
+					if (type.moveReplica.useAddDelete) {
+						SolrRequest request = CollectionAdminRequest.deleteReplica(collectionName, shardName, replicaName);
+						NamedList<Object> deleteResponse = client.request(request);
+						log.info("DELETEREPLICA response: "+deleteResponse);
+						CollectionAdminRequest.AddReplica addResponse = CollectionAdminRequest.addReplicaToShard(collectionName, shardName);
+						log.info("ADDREPLICA response: "+addResponse);
+					} else {
+						SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
+						NamedList<Object> response = client.request(request);
+						log.info("MOVEREPLICA response: "+response.toString());
+					}
 				}
 
 				long taskEnd = System.currentTimeMillis();

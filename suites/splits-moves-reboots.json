@@ -13,7 +13,8 @@
     },
     "move-replica": {
       "move-replica": {
-        "collection": "${COLLECTION}"
+        "collection": "${COLLECTION}",
+        "use-add-delete": true
       },
       "defaults": {
         "INDEX": 0
