@@ -659,7 +659,7 @@ public class StressMain {
 				long taskStart = System.currentTimeMillis();
 
 				String collectionName = resolveString(type.moveReplica.collection, params);
-				String replicaName = "", fromNodeName = "";
+				String replicaName = "", fromNodeName = "", overseerLeader = "";
 				try (CloudSolrClient client = buildSolrClient(cloud)) {
 					ClusterState state = client.getClusterStateProvider().getClusterState();
 					DocCollection collection = state.getCollection(collectionName);
@@ -668,6 +668,8 @@ public class StressMain {
 					Replica r = replicas.get(0);
 					replicaName = r.getName();
 					fromNodeName = r.getNodeName();
+					NamedList<Object> overseerStatus = client.request(new CollectionAdminRequest.OverseerStatus());
+					overseerLeader = (String) overseerStatus.get("leader");
 				} catch (Exception e) {
 					log.warn("Exception occurred getting replicaName and fromNodeName: " + e.getMessage());
 				}
@@ -685,7 +687,7 @@ public class StressMain {
 				}
 				log.info(String.format("moving replica %s from %s to %s", replicaName, fromNodeName, targetNodeName));
 
-				try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(0).getBaseUrl()).build();) {
+				try (HttpSolrClient client = buildHttpSolrClient(cloud, overseerLeader)) {
 					SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
 					NamedList<Object> response = client.request(request);
 					log.info("MOVEREPLICA response: "+response.toString());
@@ -742,6 +744,19 @@ public class StressMain {
 
 	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
 		return new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).withZkChroot(cloud.getZookeeperChroot()).build();
+	}
+
+	/**
+	 * buildHttpSolrClient tries to build the client pointing to the overseer node, otherwise
+	 * it returns a client pointing to the first node in cloud.nodes
+	 */
+	private static HttpSolrClient buildHttpSolrClient(SolrCloud cloud, String overseerLeader) {
+		for (SolrNode node : cloud.nodes) {
+			if (node.getNodeName().equals(overseerLeader)) {
+				return new HttpSolrClient.Builder(node.getBaseUrl()).build();
+			}
+		}
+		return new HttpSolrClient.Builder(cloud.nodes.get(0).getBaseUrl()).build();
 	}
 
 	private static int getNumInactiveReplicas(SolrNode node, CloudSolrClient client)
