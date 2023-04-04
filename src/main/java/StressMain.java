@@ -660,7 +660,7 @@ public class StressMain {
 
 				String collectionName = resolveString(type.moveReplica.collection, params);
 				String replicaName = "", fromNodeName = "";
-				try (CloudSolrClient client = new CloudSolrClient.Builder(List.of(cloud.getZookeeperUrl()), Optional.ofNullable(cloud.getZookeeperChroot())).build();) {
+				try (CloudSolrClient client = buildSolrClient(cloud)) {
 					ClusterState state = client.getClusterStateProvider().getClusterState();
 					DocCollection collection = state.getCollection(collectionName);
 					List<Replica> replicas = collection.getReplicas();
