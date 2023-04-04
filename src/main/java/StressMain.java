@@ -670,8 +670,6 @@ public class StressMain {
 					fromNodeName = r.getNodeName();
 					NamedList<Object> overseerStatus = client.request(new CollectionAdminRequest.OverseerStatus());
 					overseerLeader = (String) overseerStatus.get("leader");
-				} catch (Exception e) {
-					log.warn("Exception occurred getting replicaName and fromNodeName: " + e.getMessage());
 				}
 
 				String targetNodeName = "";
@@ -691,20 +689,16 @@ public class StressMain {
 					SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
 					NamedList<Object> response = client.request(request);
 					log.info("MOVEREPLICA response: "+response.toString());
-				} catch (Exception e) {
-					log.warn("Exception occurred getting moving shard: " + e.getMessage());
 				}
 
 				long taskEnd = System.currentTimeMillis();
-				try {
-					String totalTime = String.valueOf((taskEnd-taskStart)/1000.0);
 
-					finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
-							"end-time", (taskEnd- executionStart)/1000.0,
-							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
+				String totalTime = String.valueOf((taskEnd-taskStart)/1000.0);
+
+				finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+						"end-time", (taskEnd- executionStart)/1000.0,
+						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
 			} else if (type.command != null) {
 				Map<String, String> solrurlMap = new HashMap<>();
 				solrurlMap.put("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
