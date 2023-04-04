@@ -28,6 +28,7 @@ import org.apache.solr.common.util.NamedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.transform.ErrorListener;
 import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.text.ParseException;
@@ -437,8 +438,8 @@ public class BenchmarksMain {
 			Map resultMap;
 			if (statsObj instanceof SynchronizedDescriptiveStatistics) {
 				SynchronizedDescriptiveStatistics stats = (SynchronizedDescriptiveStatistics) statsObj;
-				resultMap = Util.map("50th", stats.getPercentile(50), "90th", stats.getPercentile(90),
-						"95th", stats.getPercentile(95), "mean", stats.getMean(), "total-queries", stats.getN());
+				resultMap = Util.map("5th", stats.getPercentile(5), "10th", stats.getPercentile(10), "50th", stats.getPercentile(50), "90th", stats.getPercentile(90),
+						"95th", stats.getPercentile(95), "99th", stats.getPercentile(99), "mean", stats.getMean(), "total-queries", stats.getN());
 			} else if (statsObj instanceof Number) {
 				resultMap = Util.map("count", ((Number)statsObj).doubleValue());
 			} else {
