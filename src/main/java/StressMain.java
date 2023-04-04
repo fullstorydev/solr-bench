@@ -678,7 +678,7 @@ public class StressMain {
 				Collections.shuffle(copyOfSolrNodes);
 				for (SolrNode sn : copyOfSolrNodes) {
 					String toNodeName = sn.getNodeName() + "_solr";
-					if (toNodeName != fromNodeName) {
+					if (!toNodeName.equals(fromNodeName)) {
 						targetNodeName = toNodeName;
 						break;
 					}
