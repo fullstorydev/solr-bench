@@ -26,9 +26,6 @@ public class TaskType {
 	static class MoveReplica {
 		@JsonProperty("collection")
 		String collection;
-
-		@JsonProperty("use-add-delete")
-		Boolean useAddDelete = false; // Use ADDREPLICA and DELETEREPLICA instead of MOVEREPLICA
 	}
 	
 	static class ClusterStateBenchmark {

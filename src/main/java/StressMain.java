@@ -687,17 +687,9 @@ public class StressMain {
 				log.info(String.format("moving replica %s from %s to %s", replicaName, fromNodeName, targetNodeName));
 
 				try (HttpSolrClient client = buildHttpSolrClient(cloud, overseerLeader)) {
-					if (type.moveReplica.useAddDelete) {
-						SolrRequest request = CollectionAdminRequest.deleteReplica(collectionName, shardName, replicaName);
-						NamedList<Object> deleteResponse = client.request(request);
-						log.info("DELETEREPLICA response: "+deleteResponse);
-						CollectionAdminRequest.AddReplica addResponse = CollectionAdminRequest.addReplicaToShard(collectionName, shardName);
-						log.info("ADDREPLICA response: "+addResponse);
-					} else {
-						SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
-						NamedList<Object> response = client.request(request);
-						log.info("MOVEREPLICA response: "+response.toString());
-					}
+					SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
+					NamedList<Object> response = client.request(request);
+					log.info("MOVEREPLICA response: "+response.toString());
 				}
 
 				long taskEnd = System.currentTimeMillis();
