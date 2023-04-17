@@ -11,11 +11,14 @@
       "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=collection${INDEX}&shard=${SHARD}",
       "defaults": {}
     },
-    "move-replica": {
-      "move-replica": {
-        "collection": "${COLLECTION}",
-        "use-add-delete": true
-      },
+    "add-replica": {
+      "command": "${SOLRURL}admin/collections?action=ADDREPLICA&collection=collection${INDEX}&shard=shard1",
+      "defaults": {
+        "INDEX": 0
+      }
+    },
+    "delete-replica":{
+      "command": "${SOLRURL}admin/collections?action=DELETEREPLICA&collection=collection${INDEX}&shard=shard1&count=1",
       "defaults": {
         "INDEX": 0
       }
@@ -29,7 +32,8 @@
     "collection-counter": 0,
     "restart-counter": 0,
     "split-counter": 0,
-    "move-counter": 0
+    "add-counter": 0,
+    "delete-counter": 0
   },
   "global-constants": {
     "HOST": "localhost",
@@ -39,7 +43,7 @@
     "create-test": {
       "description": "Create 100 collections",
       "type": "collection-creation",
-      "instances": 100,
+      "instances": 2,
       "concurrency": 1,
       "mode": "sync",
       "parameters": {
@@ -50,20 +54,35 @@
         "inc(collection-counter,1)"
       ]
     },
-    "move-test": {
-      "type": "move-replica",
-      "description": "Move 100 shards, 1 at a time",
+    "add-test": {
+      "type": "add-replica",
+      "description": "Add 1 shard to each collection (move step 1)",
       "instances": 100,
       "concurrency": 1,
       "mode": "sync",
       "parameters": {
-        "INDEX": "${move-counter}",
-        "COLLECTION": "collection${move-counter}"
+        "INDEX": "${add-counter}",
+        "COLLECTION": "collection${add-counter}"
       },
       "pre-task-evals": [
-        "inc(move-counter,1)"
+        "inc(add-counter,1)"
       ],
       "wait-for": "create-test"
+    },
+    "delete-test": {
+      "type": "delete-replica",
+      "description": "Delete 1 shard from each collection (move step 2)",
+      "instances": 100,
+      "concurrency": 1,
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${delete-counter}",
+        "COLLECTION": "collection${delete-counter}"
+      },
+      "pre-task-evals": [
+        "inc(delete-counter,1)"
+      ],
+      "wait-for": "add-test"
     },
     "split-test": {
       "description": "Split 100 the collections' shard1, 1 at a time",
@@ -77,7 +96,7 @@
       "pre-task-evals": [
         "inc(split-counter,1)"
       ],
-      "wait-for": "move-test",
+      "wait-for": "delete-test",
       "mode": "sync"
     },
     "restart-test": {
