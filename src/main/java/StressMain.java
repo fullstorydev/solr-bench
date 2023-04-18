@@ -32,12 +32,14 @@ import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.response.RequestStatusState;
 import org.apache.solr.common.cloud.*;
+import org.apache.solr.common.util.NamedList;
 import org.apache.zookeeper.KeeperException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -89,6 +91,10 @@ public class StressMain {
 			WorkflowResult workflowResult = executeWorkflow(workflow, solrCloud);
 			String testName = Files.getNameWithoutExtension(configFile);
 			ExporterFactory.getFileExporter(Paths.get(SUITE_BASE_DIR, testName)).export(workflowResult);
+		} catch (Exception e) {
+			log.warn("Got exception running StressMain: "+e.getMessage());
+			// re-throw exception so we exit with error code
+			throw e;
 		} finally {
 			log.info("Shutting down...");
 			solrCloud.shutdown(true);
@@ -649,6 +655,51 @@ public class StressMain {
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
+			} else if (type.moveReplica != null) {
+				long taskStart = System.currentTimeMillis();
+
+				String collectionName = resolveString(type.moveReplica.collection, params);
+				String replicaName = "", fromNodeName = "", shardName = "", overseerLeader = "";
+				try (CloudSolrClient client = buildSolrClient(cloud)) {
+					ClusterState state = client.getClusterStateProvider().getClusterState();
+					DocCollection collection = state.getCollection(collectionName);
+					List<Replica> replicas = collection.getReplicas();
+					// choose first replica since it's easy and should exist
+					Replica r = replicas.get(0);
+					replicaName = r.getName();
+					fromNodeName = r.getNodeName();
+					shardName = collection.getShardId(r.getNodeName(), r.getCoreName());
+					NamedList<Object> overseerStatus = client.request(new CollectionAdminRequest.OverseerStatus());
+					overseerLeader = (String) overseerStatus.get("leader");
+				}
+
+				String targetNodeName = "";
+				// pick random node to move to
+				List<SolrNode> copyOfSolrNodes = new ArrayList<>(cloud.nodes);
+				Collections.shuffle(copyOfSolrNodes);
+				for (SolrNode sn : copyOfSolrNodes) {
+					String toNodeName = sn.getNodeName() + "_solr";
+					if (!toNodeName.equals(fromNodeName)) {
+						targetNodeName = toNodeName;
+						break;
+					}
+				}
+				log.info(String.format("moving replica %s from %s to %s", replicaName, fromNodeName, targetNodeName));
+
+				try (HttpSolrClient client = buildHttpSolrClient(cloud, overseerLeader)) {
+					SolrRequest request = new CollectionAdminRequest.MoveReplica(collectionName, replicaName, targetNodeName);
+					NamedList<Object> response = client.request(request);
+					log.info("MOVEREPLICA response: "+response.toString());
+				}
+
+				long taskEnd = System.currentTimeMillis();
+
+				String totalTime = String.valueOf((taskEnd-taskStart)/1000.0);
+
+				finalResults.get(taskName).add(Map.of("total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0,
+						"end-time", (taskEnd- executionStart)/1000.0,
+						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
 			} else if (type.command != null) {
 				Map<String, String> solrurlMap = new HashMap<>();
 				solrurlMap.put("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
@@ -688,6 +739,19 @@ public class StressMain {
 
 	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
 		return new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).withZkChroot(cloud.getZookeeperChroot()).build();
+	}
+
+	/**
+	 * buildHttpSolrClient tries to build the client pointing to the overseer node, otherwise
+	 * it returns a client pointing to the first node in cloud.nodes
+	 */
+	private static HttpSolrClient buildHttpSolrClient(SolrCloud cloud, String overseerLeader) {
+		for (SolrNode node : cloud.nodes) {
+			if (node.getNodeName().equals(overseerLeader)) {
+				return new HttpSolrClient.Builder(node.getBaseUrl()).build();
+			}
+		}
+		return new HttpSolrClient.Builder(cloud.nodes.get(0).getBaseUrl()).build();
 	}
 
 	private static int getNumInactiveReplicas(SolrNode node, CloudSolrClient client)
