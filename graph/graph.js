@@ -653,16 +653,6 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page, xAxisBy) {
             columns.push({type: 'number', label: "mean" + suffix, visible: false})
             columns.push({type: 'string', role:'tooltip'})
 
-//            if (taskName.startsWith("detailed-stats-")) {
-//                columns.push({type: 'number', label: "p99" + suffix, visible: false})
-//                columns.push({type: 'string', role:'tooltip'})
-//                columns.push({type: 'number', label: "p05" + suffix, visible: false})
-//                columns.push({type: 'string', role:'tooltip'})
-//                columns.push({type: 'number', label: "p10" + suffix, visible: false})
-//                columns.push({type: 'string', role:'tooltip'})
-//            }
-
-
             if (fieldKey === 'timings') {
                 options['vAxis']['title'] = 'Time (milliseconds)'
             } else {
@@ -723,14 +713,6 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page, xAxisBy) {
                     row.push(percentileResult['95th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
                     row.push(percentileResult['mean'])
                     row.push(percentileResult['mean'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
-//                    if (taskName.startsWith("detailed-stats-")) {
-//                        row.push(percentileResult['99th'])
-//                        row.push(percentileResult['99th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
-//                        row.push(percentileResult['5th'])
-//                        row.push(percentileResult['5th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
-//                        row.push(percentileResult['10th'])
-//                        row.push(percentileResult['10th'].toFixed(2) + ' (' + group + ') ' + dataOfCommit.commitMeta.commitMsg)
-//                    }
                 }
             } else {
                 columnPerBranchCount = chartType === ChartTypes.Simple ? 2 : 8
