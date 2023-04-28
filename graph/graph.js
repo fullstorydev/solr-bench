@@ -348,7 +348,7 @@ function updateStatsTable($table, sortProperty, sortOrder) {
             event.stopPropagation()
             $('#graphModal').show()
             $('#graphModal .graphCanvas').empty()
-            drawChartInPage([group], statsRow.taskName, statsRow.results, $('#graphModal .graphCanvas'))
+            drawChartInPage([group], statsRow.query, statsRow.results, $('#graphModal .graphCanvas'))
         }).bind('mouseup', function(event) {
             event.stopPropagation()
         })
@@ -362,6 +362,9 @@ function exportToCsv(rows) {
     var csvData = []
     var keys = []
     $.each(rows[0], function(key, value) {
+        if (key == 'results') {
+            return true
+        }
         key = key.replace(/"/g, '""');
         if (key.indexOf(',') >= 0) {
             key = `"${key}"`
@@ -373,6 +376,9 @@ function exportToCsv(rows) {
     $.each(rows, function(i, row) {
         var values = []
         $.each(row, function(key, value) {
+            if (key == 'results') {
+                return true
+            }
             if (typeof value === 'string') {
              value = value.replace(/"/g, '""');
              if (value.indexOf(',') >= 0) {
@@ -433,7 +439,7 @@ function updateSummaryTable($table, sortProperty, sortOrder) {
             event.stopPropagation()
             $('#graphModal').show()
             $('#graphModal .graphCanvas').empty()
-            drawChartInPage(groups, summaryRow.taskName, summaryRow.results, $('#graphModal .graphCanvas'))
+            drawChartInPage(groups, summaryRow.query, summaryRow.results, $('#graphModal .graphCanvas'))
         }).bind('mouseup', function(event) {
             event.stopPropagation()
         })
