@@ -30,11 +30,47 @@ body {
 .table .table-row:nth-child(odd) {
     background-color: #ffffff;
 }
-div.section {
-   background-image: var(--section-background-image);
+div.section, .modal-content {
+   background-image: linear-gradient(to bottom, #FFFFFF, #FFFFFF 90%, #e8e8d8);
    box-shadow: inset 0 0 2px white, 0 0 3px rgba(0, 0, 0, 0.5);
    border-radius: 0.5em 0.5em 0.5em 0.5em;
    margin: 10px;
    padding: 10px 10px 20px 10px;
    box-sizing: border-box;
+}
+
+
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 11; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0, 0.5); /* Fallback color */
+    /*backdrop-filter: blur(2px);*/
+}
+
+.modal-content {
+    z-index: 11;
+    margin: 5% auto; /* 5% from the top and centered */
+    width: 50%; /* Could be more or less, depending on screen size */
+    max-width: 95%;
+}
+
+/* The Close Button */
+.modal .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.modal .close:hover,
+.modal .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
 }
