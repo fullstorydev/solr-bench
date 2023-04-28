@@ -124,7 +124,7 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                     $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
 //                        $tableContainer.append('<h4 style="margin: 0 0 10px 0;">Stats</h4>')
                      //a header table, this only contains the header so scrolling the actual table will keep the header
-                    $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
+                    $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%; table-layout: fixed;"></div>').appendTo($tableContainer)
                     $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Task</div>')
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Metric</div>')
@@ -208,7 +208,7 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
                 $tableContainer = $('<div class="section" style="width: 90%; margin: 10px auto; font-size:12px;"></div>').appendTo($page)
 //                        $tableContainer.append('<h4 style="margin: 0 0 10px 0;">Stats</h4>')
                  //a header table, this only contains the header so scrolling the actual table will keep the header
-                $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%;"></div>').appendTo($tableContainer)
+                $headerTable = $('<div class="detailed-stats-table-header-only" style="display: table; width: 100%; table-layout: fixed;"></div>').appendTo($tableContainer)
                 $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
                 $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Task</div>')
                 $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Metric</div>')
@@ -344,10 +344,13 @@ function updateStatsTable($table, sortProperty, sortOrder) {
             $tableRow.attr('title', 'Need at least 3 runs')
         }
         var $viewCell = $('<div style="display: table-cell; text-align:right;"><a href="#">View</a></div>')
-        $viewCell.click(function() {
+        $viewCell.click(function(event) {
+            event.stopPropagation()
             $('#graphModal').show()
             $('#graphModal .graphCanvas').empty()
             drawChartInPage([group], statsRow.taskName, statsRow.results, $('#graphModal .graphCanvas'))
+        }).bind('mouseup', function(event) {
+            event.stopPropagation()
         })
 
         $tableRow.append($viewCell)
@@ -426,10 +429,13 @@ function updateSummaryTable($table, sortProperty, sortOrder) {
             }
         }
         var $viewCell = $('<div style="display: table-cell; text-align:right;"><a href="#">View</a></div>')
-        $viewCell.click(function() {
+        $viewCell.click(function(event) {
+            event.stopPropagation()
             $('#graphModal').show()
             $('#graphModal .graphCanvas').empty()
             drawChartInPage(groups, summaryRow.taskName, summaryRow.results, $('#graphModal .graphCanvas'))
+        }).bind('mouseup', function(event) {
+            event.stopPropagation()
         })
 
         $tableRow.append($viewCell)
