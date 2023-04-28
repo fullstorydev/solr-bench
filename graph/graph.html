@@ -12,6 +12,15 @@
             <div id="sideBar" style="min-width: 200px;"></div>
             <div id="mainContainer" style="flex: 1; height: 100%"/>
         </div>
+        <div id="graphModal" class="modal">
+            <div class="modal-content" style="width: 90%;">
+                <span class="close" onclick="$('#graphModal').fadeOut(200)">&times;</span>
+                <span style="float: left; margin-left: 20px"><a class="xByDate" href="#">By Date</a>&nbsp;|&nbsp;<a class="xByRun" href="#">By Run</a></span>
+                <div style="clear: both;"></div>
+                <div class="graphCanvas" style="margin-bottom: 10px; width: 100%">
 
+                </div>
+            </div>
+        </div>
     </body>
 </html>

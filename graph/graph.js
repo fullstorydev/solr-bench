@@ -128,10 +128,11 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                     $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Task</div>')
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Metric</div>')
-                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Query</div>')
+                    $tableHeader.append('<div class="clickable" style="display: table-cell; width: 45%;" data-sort-property="query" data-sort-order="descending" onclick="toggleStatsTableSort($(this))">Query</div>')
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="latestValue" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Value</div>')
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="previousDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to previous run</div>')
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="medianDeltaPercentage" data-sort-order="ascending" onclick="toggleStatsTableSort($(this))">Delta to all runs median</div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 5%;"></div>')
 
                     //actual data table, the header row is for controlling the widths
                     var $dataTableContainer = $('<div style="max-height:150px; overflow-y:auto; width: 100%;"></div>').appendTo($tableContainer)
@@ -139,10 +140,11 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                     $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
-                    $tableHeader.append('<div style="display: table-cell; width: 50%;"></div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 45%;"></div>')
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
+                    $tableHeader.append('<div style="display: table-cell; width: 5%;"></div>')
 
                     $table.data('group', group)
                 }
@@ -180,6 +182,7 @@ function appendDetailsStatsTable(dataByTestAndTaskName, $page, group) {
                         }
                     }
                 }
+                statsRow.results = dataByCommit
                 loadedStatsRows.push(statsRow)
             }
        })
@@ -209,13 +212,14 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
                 $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($headerTable)
                 $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="task" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Task</div>')
                 $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="metricType" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Metric</div>')
-                $tableHeader.append('<div class="clickable" style="display: table-cell; width: 50%;" data-sort-property="query" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Query</div>')
+                $tableHeader.append('<div class="clickable" style="display: table-cell; width: 45%;" data-sort-property="query" data-sort-order="descending" onclick="toggleSummaryTableSort($(this))">Query</div>')
                 $.each(groups, function(index, group) {
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="' + group + '-median" data-sort-order="ascending" onclick="toggleSummaryTableSort($(this))">' + group + ' median</div>')
                 })
                 if (groups.length == 2) {
                     $tableHeader.append('<div class="clickable" style="display: table-cell; width: 10%;" data-sort-property="deltaPercentage" data-sort-order="ascending" onclick="toggleSummaryTableSort($(this))">Delta</div>')
                 }
+                $tableHeader.append('<div style="display: table-cell; width: 5%;"></div>')
 
 
                 //actual data table, the header row is for controlling the widths
@@ -224,13 +228,14 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
                 $tableHeader = $('<div style="display: table-header-group;"></div>').appendTo($table)
                 $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                 $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
-                $tableHeader.append('<div style="display: table-cell; width: 50%;"></div>')
+                $tableHeader.append('<div style="display: table-cell; width: 45%;"></div>')
                 $.each(groups, function(index, group) {
                     $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                 })
                 if (groups.length == 2) {
                   $tableHeader.append('<div style="display: table-cell; width: 10%;"></div>')
                 }
+                $tableHeader.append('<div style="display: table-cell; width: 5%;"></div>')
                 $table.data("groups", groups)
             }
             taskName = taskName.substring("detailed-stats-".length) //still yike...
@@ -262,6 +267,8 @@ function appendDetailsSummaryTable(allResultsByTaskName, $page, groups) {
                 summaryRow.delta = mediansByGroup[1] - mediansByGroup[0]
                 summaryRow.deltaPercentage = summaryRow.delta * 100 / mediansByGroup[0]
             }
+
+            summaryRow.results = dataByCommit
 
             loadedSummaryRows.push(summaryRow)
         }
@@ -306,9 +313,10 @@ function updateStatsTable($table, sortProperty, sortOrder) {
 
 	//sort the list
 	//loadedLinks.sort(sortByProperty(sortProperty, sortOrder == "ascending"))
-	var loadedStatsRows = loadedStatsRowsByGroup[$table.data('group')]
+	var group = $table.data('group')
+	var loadedStatsRows = loadedStatsRowsByGroup[group]
 	loadedStatsRows = sortPreserveOrder(loadedStatsRows, sortProperty, sortOrder == "ascending")
-	loadedStatsRowsByGroup[$table.data('group')] = loadedStatsRows //has to update the map as the returned array is new
+	loadedStatsRowsByGroup[group] = loadedStatsRows //has to update the map as the returned array is new
 
 	$.each(loadedStatsRows, function(index, statsRow) {
         var $tableRow = $('<div class="table-row clickable"></div>').appendTo($table)
@@ -335,6 +343,14 @@ function updateStatsTable($table, sortProperty, sortOrder) {
             $tableRow.append('<div style="display: table-cell; text-align:right;">-</div>')
             $tableRow.attr('title', 'Need at least 3 runs')
         }
+        var $viewCell = $('<div style="display: table-cell; text-align:right;"><a href="#">View</a></div>')
+        $viewCell.click(function() {
+            $('#graphModal').show()
+            $('#graphModal .graphCanvas').empty()
+            drawChartInPage([group], statsRow.taskName, statsRow.results, $('#graphModal .graphCanvas'))
+        })
+
+        $tableRow.append($viewCell)
         $table.append($tableRow)
 	});
 }
@@ -408,8 +424,15 @@ function updateSummaryTable($table, sortProperty, sortOrder) {
             } else {
                 $tableRow.append('<div style="display: table-cell; text-align:right;">' + getChangeText(summaryRow[groups[0] + '-median'], summaryRow.delta) + '</div>')
             }
-
         }
+        var $viewCell = $('<div style="display: table-cell; text-align:right;"><a href="#">View</a></div>')
+        $viewCell.click(function() {
+            $('#graphModal').show()
+            $('#graphModal .graphCanvas').empty()
+            drawChartInPage(groups, summaryRow.taskName, summaryRow.results, $('#graphModal .graphCanvas'))
+        })
+
+        $tableRow.append($viewCell)
 
 		$table.append($tableRow)
 	});
@@ -558,7 +581,7 @@ function detectFieldKey(graphData) {
 }
 
 var graphIndex = 0
-function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
+function drawChartInPage(groups, taskName, graphDataByCommit, $page, xAxisBy) {
     if (taskName.startsWith("detailed-stats-") && !chartDetailedStats) { //not great! we should have better structure
         return
     }
@@ -566,13 +589,17 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
     var $graphDiv = $('<div class="graph" id="' + elementId + '"></div>')
     $page.append($graphDiv)
 
+    if (xAxisBy === undefined) {
+        xAxisBy = getValueFromParam('x-by', "date")
+    }
+
     //TODO xaxis, yaxis
     var title = taskName + ' (' + groups.join(' vs ') + ')'
     var options = {
                     title: title,
                     pointSize: 5,
                     hAxis: {
-                        title: 'Commit date',
+                        title: xAxisBy === 'run' ? 'Run #' : 'Commit date',
                         titleTextStyle: {
                         color: '#333'
                         },
@@ -596,7 +623,11 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
     var fieldKey = detectFieldKey(graphDataByCommit[0])
     var columns = []
 
-    columns.push({type: 'date', id:'Commit date'})
+    if (xAxisBy === 'run') {
+        columns.push({type: 'number', id:'Run #'})
+    } else {
+        columns.push({type: 'date', id:'Commit date'})
+    }
     $.each(groups, function(index, group) {
         var suffix = ''
         if (groups.length > 1) {
@@ -641,12 +672,23 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
 
 
     var rows = []
+    var runCounter = 0
+    var currentGroup
     $.each(graphDataByCommit, function(index, dataOfCommit) {
         if (dataOfCommit['result'] == undefined) return;
         var row = []
-        var commitDate = new Date(0)
-        commitDate.setUTCSeconds(dataOfCommit.commitMeta.commitDate);
-        row.push(commitDate)
+
+        if (xAxisBy === 'run') {
+            if (dataOfCommit.commitMeta.group !== currentGroup) {
+                runCounter = 0
+            }
+            currentGroup = dataOfCommit.commitMeta.group
+            row.push(++ runCounter)
+        } else { //otherwise by default x-axis refers to commit/run date
+            var commitDate = new Date(0)
+            commitDate.setUTCSeconds(dataOfCommit.commitMeta.commitDate);
+            row.push(commitDate)
+        }
         //iterate through groups and pad if necessary, even if the same task were performed for each group, in order
         //to have different lines for each group, we have to treat tasks from each group as all unique
         $.each(groups, function(walkerBranchIndex, group) {
@@ -717,7 +759,7 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
         //regen line visibility (in dataView and colors in series)
         var series = []
         $.each(columns, function(index, column) {
-            if (column.type == 'number') {
+            if (index != 0 && column.type == 'number') { //first column is the not data
                 if (column.visible) {
                     series.push({}) //use default color
                     viewColumns[index] = index //this shows the line
@@ -739,6 +781,17 @@ function drawChartInPage(groups, taskName, graphDataByCommit, $page) {
         chart.setView(dataView)
         chart.setOption('series', series);
         chart.draw();
+    }
+
+    if ($page.is('#graphModal .graphCanvas')) {
+        $('#graphModal .xByDate').unbind('click').click( function() {
+           $page.empty()
+           drawChartInPage(groups, taskName, graphDataByCommit, $page, 'date')
+        })
+        $('#graphModal .xByRun').unbind('click').click( function() {
+           $page.empty()
+           drawChartInPage(groups, taskName, graphDataByCommit, $page, 'run')
+        })
     }
 }
 
