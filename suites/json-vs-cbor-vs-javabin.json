@@ -1,5 +1,5 @@
 {
-  "pre-download": ["https://mostly.cool/ecommerce-events-sanitized.json.gz"],
+  "pre-download": ["http://mostly.cool/ecommerce-events-sanitized.json.gz"],
   "task-types": {
     "indexing": {
       "index-benchmark": {
@@ -9,8 +9,8 @@
         "dataset-file": "ecommerce-events-sanitized.json.gz",
         "file-format": "json",
         "prepare-binary-format": "javabin",
-        "max-docs": 20000000,
-        "batch-size": 50000,
+        "max-docs": 2000000,
+        "batch-size": 5000,
         "id-field": "id",
         "min-threads": 4,
         "max-threads": 4,
