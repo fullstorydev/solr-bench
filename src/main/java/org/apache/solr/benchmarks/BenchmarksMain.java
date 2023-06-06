@@ -272,7 +272,7 @@ public class BenchmarksMain {
     }
 
     static boolean isInitPhaseNeeded(IndexBenchmark benchmark) {
-    	if (benchmark.indexingFormat != null /*&& benchmark.indexingFormat.equals(benchmark.fileFormat) == false*/) {
+    	if (benchmark.prepareBinaryFormat != null) {
     		// We need an init phase to prepare the raw binary batch files to index in the final stage
     		return true;
     	} else return false;

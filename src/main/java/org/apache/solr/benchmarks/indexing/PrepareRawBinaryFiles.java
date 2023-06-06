@@ -14,8 +14,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
-import org.apache.solr.client.solrj.request.GenericSolrRequest;
-import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.common.util.JavaBinCodec;
 import org.apache.solr.common.util.Utils;
 import org.slf4j.Logger;
@@ -45,7 +43,7 @@ class PrepareRawBinaryFiles implements Callable {
 		this.leaderUrl = leaderUrl;
 		this.benchmark = benchmark;
 		this.batchFilename = batchFilename;
-		log.info("Batch file: "+batchFilename);
+		log.debug("Batch file: "+batchFilename);
 	}
 
 	@Override
@@ -58,7 +56,7 @@ class PrepareRawBinaryFiles implements Callable {
 		byte javabinDocs[] = createJavabinReq(jsonDocs);
 		
 		byte binary[];
-		switch(benchmark.indexingFormat) {
+		switch(benchmark.prepareBinaryFormat) {
 			case "javabin": binary = javabinDocs; break;
 			case "cbor"   : binary = cborDocs; break;
 			case "json"   : binary = jsonDocs; break;

@@ -119,7 +119,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
 		batchCounter.incrementAndGet();
 		batchCounters.put(shard, batchCounter);
 
-		batchFilename = docCollection.getName() + "_" + shard.replace(':', '_').replace('/', '_') + "_batch" + batchCounter.get() + "." + benchmark.indexingFormat;
+		batchFilename = docCollection.getName() + "_" + shard.replace(':', '_').replace('/', '_') + "_batch" + batchCounter.get() + "." + benchmark.prepareBinaryFormat;
 		return tmpDir + "/" + batchFilename;
 	}
 

@@ -1,16 +1,16 @@
 {
-  "pre-download": ["https://home.apache.org/~ishan/ecommerce-events.json.gz"],
+  "pre-download": ["https://mostly.cool/ecommerce-events-sanitized.json.gz"],
   "task-types": {
     "indexing": {
       "index-benchmark": {
         "name": "ECOMMERCE_EVENTS",
         "description": "E-Commerce Events dataset",
         "replication-type": "cloud",
-        "dataset-file": "ecom10M.json.gz",
+        "dataset-file": "ecommerce-events-sanitized.json.gz",
         "file-format": "json",
         "indexing-format": "javabin",
-        "max-docs": 200000,
-        "batch-size": 5000,
+        "max-docs": 20000000,
+        "batch-size": 50000,
         "id-field": "id",
         "min-threads": 4,
         "max-threads": 4,
