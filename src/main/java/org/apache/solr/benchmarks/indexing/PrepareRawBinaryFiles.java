@@ -8,10 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
+import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.common.util.JavaBinCodec;
@@ -83,14 +81,14 @@ class PrepareRawBinaryFiles implements Callable {
 		// Read JSON file as a JsonNode
 		JsonNode jsonNode = jsonMapper.readTree(is);
 		// Create a CBOR ObjectMapper
-		CBORFactory jf = new CBORFactory();
-		ObjectMapper cborMapper = new ObjectMapper(jf);
+		ObjectMapper cborMapper = new ObjectMapper(CBORFactory.builder()
+				.enable(CBORGenerator.Feature.STRINGREF)
+				.build());
 		baos = new ByteArrayOutputStream();
 		JsonGenerator jsonGenerator = cborMapper.createGenerator(baos);
 
 		jsonGenerator.writeTree(jsonNode);
 		jsonGenerator.close();
-		byte[] bytes = baos.toByteArray();
-		return bytes;
+		return baos.toByteArray();
 	}
 }
