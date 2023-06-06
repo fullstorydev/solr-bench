@@ -8,7 +8,7 @@
         "replication-type": "cloud",
         "dataset-file": "ecommerce-events-sanitized.json.gz",
         "file-format": "json",
-        "indexing-format": "javabin",
+        "prepare-binary-format": "javabin",
         "max-docs": 20000000,
         "batch-size": 50000,
         "id-field": "id",
