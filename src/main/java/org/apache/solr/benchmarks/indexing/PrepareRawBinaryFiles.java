@@ -50,7 +50,7 @@ class PrepareRawBinaryFiles implements Callable {
 
 	@Override
 	public Object call() throws IOException {
-		log.info("INIT PHASE of INDEXING! Shard: "+leaderUrl + ", batch: "+batchFilename);		
+		log.debug("INIT PHASE of INDEXING! Shard: "+leaderUrl + ", batch: "+batchFilename);		
 		List<Map> parsedDocs = new ArrayList<>();
 		for (String doc: docs) parsedDocs.add(new ObjectMapper().readValue(doc, Map.class));
 		byte jsonDocs[] = new ObjectMapper().writeValueAsBytes(parsedDocs);
@@ -66,7 +66,7 @@ class PrepareRawBinaryFiles implements Callable {
 		}
 		FileUtils.writeByteArrayToFile(new File(batchFilename), binary);
 		log.info("Json size: " + jsonDocs.length + ", cbor size: " + cborDocs.length + ", javabin size: " + javabinDocs.length);
-		log.info("Writing filename: " + batchFilename);
+		log.debug("Writing filename: " + batchFilename);
 		return null;
 	}
 

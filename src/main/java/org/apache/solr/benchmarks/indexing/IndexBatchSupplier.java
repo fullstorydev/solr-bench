@@ -6,9 +6,11 @@ import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.util.JsonRecordReader;
+import org.eclipse.jgit.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
@@ -69,7 +71,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
                         shardDocs.add(inputDoc);
                         if (shardDocs.size() >= benchmark.batchSize) {
                             shardVsDocs.remove(targetSlice.getName());
-                            String batchFilename = computeBatchFilename(batchCounters, targetSlice.getName());
+                            String batchFilename = computeBatchFilename(benchmark, batchCounters, targetSlice.getName());
                             //a shard has accumulated enough docs to be executed
                             Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, shardDocs, shardVsLeader.get(targetSlice.getName())):
                             	new UploadDocs(benchmark, batchFilename, shardDocs, httpClient, shardVsLeader.get(targetSlice.getName()), batchesIndexed);
@@ -81,7 +83,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
                 }
                 shardVsDocs.forEach((shard, docs) -> { //flush the remaining ones
                     try {
-                        String batchFilename = computeBatchFilename(batchCounters, shard);
+                        String batchFilename = computeBatchFilename(benchmark, batchCounters, shard);
                         Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, docs, shardVsLeader.get(shard)):
                         	new UploadDocs(benchmark, batchFilename, docs, httpClient, shardVsLeader.get(shard), batchesIndexed);
                         while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
@@ -103,17 +105,22 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
         return workerFuture;
     }
 
-	private String computeBatchFilename(Map<String, AtomicInteger> batchCounters, String shard) {
+	private String computeBatchFilename(IndexBenchmark benchmark, Map<String, AtomicInteger> batchCounters, String shard) {
 		String batchFilename = null;
-		//if (init) {
-			AtomicInteger batchCounter = batchCounters.get(shard);
-			if (batchCounter == null) batchCounter = new AtomicInteger(0);
-			batchCounter.incrementAndGet();
-			batchCounters.put(shard, batchCounter);
+		String tmpDir = "tmp/"+benchmark.name;
+		try {
+			FileUtils.mkdirs(new File(tmpDir), true);
+		} catch (IOException e) {
+			log.error("Unable to create directory: " + tmpDir);
+			throw new RuntimeException("Unable to create directory "+tmpDir, e);
+		}
+		AtomicInteger batchCounter = batchCounters.get(shard);
+		if (batchCounter == null) batchCounter = new AtomicInteger(0);
+		batchCounter.incrementAndGet();
+		batchCounters.put(shard, batchCounter);
 
-			batchFilename = docCollection.getName() + "_" + shard.replace(':', '_').replace('/', '_') + "_batch" + batchCounter.get() + "." + benchmark.indexingFormat;
-		//}
-		return batchFilename;
+		batchFilename = docCollection.getName() + "_" + shard.replace(':', '_').replace('/', '_') + "_batch" + batchCounter.get() + "." + benchmark.indexingFormat;
+		return tmpDir + "/" + batchFilename;
 	}
 
     @Override

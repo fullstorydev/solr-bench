@@ -7,7 +7,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
-import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +18,7 @@ import java.io.OutputStreamWriter;
 import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -33,7 +29,6 @@ class UploadDocs implements Callable {
     final List<String> docs;
     final HttpClient client;
     private AtomicLong totalUploadedDocs;
-    private static final AtomicLong debugCounter = new AtomicLong();
 	final String batchFilename;
 	
 	final String updateEndpoint;
@@ -46,9 +41,8 @@ class UploadDocs implements Callable {
         this.totalUploadedDocs = totalUploadedDocs;
         this.batchFilename = batchFilename;
         
-		log.info("Batch file: "+batchFilename);
+		log.debug("Batch file: "+batchFilename);
 
-        // todo: compute based on benchmark
         if (batchFilename == null) { // plain JSON docs
 	        this.updateEndpoint = leaderUrl + "/update/json/docs";
 	        this.contentType = "application/json; charset=UTF-8";
@@ -66,7 +60,7 @@ class UploadDocs implements Callable {
     	        this.updateEndpoint = leaderUrl + "/update";
     	        this.contentType = "application/javabin";        		        		
         	} else if (batchFilename.endsWith(".cbor")) {
-    	        this.updateEndpoint = leaderUrl + "/update/cbor/docs";
+    	        this.updateEndpoint = leaderUrl + "/update/cbor";
     	        this.contentType = "application/cbor";        		
         	} else {
         		throw new RuntimeException ("Cannot determine update endpoint or content type for pre-initialized batch file: " + batchFilename);
@@ -76,7 +70,7 @@ class UploadDocs implements Callable {
 
     @Override
     public Object call() throws IOException {
-    	log.info("Posting to " + updateEndpoint+", type: "+contentType+", size: "+(payload==null?0:payload.length));
+    	log.debug("Posting to " + updateEndpoint+", type: "+contentType+", size: "+(payload==null?0:payload.length));
     	HttpPost httpPost = new HttpPost(updateEndpoint);
         httpPost.setHeader(new BasicHeader("Content-Type", contentType));
         httpPost.getParams().setParameter("overwrite", "false");
@@ -91,7 +85,6 @@ class UploadDocs implements Callable {
             public void writeTo(OutputStream outstream) throws IOException {
             	if (payload == null) {
             		OutputStreamWriter writer = new OutputStreamWriter(outstream);
-            		//log.info("ACTUAL INDEXING: Docs: "+docs.size()+", firstDoc: "+docs.get(0)+", lastDoc: "+docs.get(docs.size()-1));
             		for (String doc : docs) {
             			writer.append(doc).append('\n');
             		}
