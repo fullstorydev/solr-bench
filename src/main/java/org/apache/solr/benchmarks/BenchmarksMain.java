@@ -163,6 +163,8 @@ public class BenchmarksMain {
                         }
 		            	solrCloud.createCollection(setup, collectionName, configsetName);
 		            }
+
+		            indexInit(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
 		            long start = System.nanoTime();
 		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
 		            long end = System.nanoTime();
@@ -222,9 +224,15 @@ public class BenchmarksMain {
         }
     }
 
-    static void index(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
+    public static void indexInit(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
+    	index(true, baseUrl, collection, threads, setup, benchmark);
+    }
+    public static void index(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
+    	index(false, baseUrl, collection, threads, setup, benchmark);
+    }
+    private static void index(boolean init, String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
     	if (benchmark.fileFormat.equalsIgnoreCase("json")) {
-    		indexJsonComplex(baseUrl, collection, threads, setup, benchmark);
+    		indexJsonComplex(init, baseUrl, collection, threads, setup, benchmark);
     	} else if (benchmark.fileFormat.equalsIgnoreCase("tsv")) {
     		indexTSV(baseUrl, collection, threads, setup, benchmark);
     	}
@@ -263,7 +271,14 @@ public class BenchmarksMain {
         client.close();        
     }
 
-    static void indexJsonComplex(String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
+    static boolean isInitPhaseNeeded(IndexBenchmark benchmark) {
+    	if (benchmark.indexingFormat != null /*&& benchmark.indexingFormat.equals(benchmark.fileFormat) == false*/) {
+    		// We need an init phase to prepare the raw binary batch files to index in the final stage
+    		return true;
+    	} else return false;
+    }
+    static void indexJsonComplex(boolean init, String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
+    	if (init && !isInitPhaseNeeded(benchmark)) return; // no-op
 
         long start = System.currentTimeMillis();
         CloseableHttpClient httpClient = HttpClientUtil.createClient(null);
@@ -276,11 +291,11 @@ public class BenchmarksMain {
 
             for (Slice slice : coll.getSlices()) {
                 Replica leader = slice.getLeader();
-                shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getCoreName() + "/update/json/docs");
+                shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getCoreName());
             }
             File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
             try (DocReader docReader = new FileDocReader(datasetFile, benchmark.maxDocs != null ? benchmark.maxDocs.longValue() : null, benchmark.offset)) {
-              try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(docReader, benchmark, coll, httpClient, shardVsLeader)) {
+              try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
                 ControlledExecutor controlledExecutor = new ControlledExecutor(
 						benchmark.name,
 						threads,
@@ -294,7 +309,7 @@ public class BenchmarksMain {
                 client.commit(collection);
                 client.close();
 
-                log.info("Indexed " + indexBatchSupplier.getDocsIndexed() + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
+                log.info("Indexed " + indexBatchSupplier.getBatchesIndexed() + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
               }
             }
         } finally {
