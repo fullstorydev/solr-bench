@@ -106,6 +106,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
     }
 
 	private String computeBatchFilename(IndexBenchmark benchmark, Map<String, AtomicInteger> batchCounters, String shard) {
+		if (benchmark.prepareBinaryFormat == null) return null;
 		String batchFilename = null;
 		String tmpDir = "tmp/"+benchmark.name;
 		try {
