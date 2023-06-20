@@ -1,0 +1,130 @@
+{
+  "pre-download": ["http://mostly.cool/ecommerce-events-sanitized.json.gz"],
+  "task-types": {
+    "indexing": {
+      "index-benchmark": {
+        "name": "ECOMMERCE_EVENTS",
+        "description": "E-Commerce Events dataset",
+        "replication-type": "cloud",
+        "dataset-file": "ecommerce-events-sanitized.json.gz",
+        "file-format": "json",
+        "prepare-binary-format": "javabin",
+        "max-docs": 2000000,
+        "batch-size": 5000,
+        "id-field": "id",
+        "min-threads": 4,
+        "max-threads": 4,
+        "setups": [
+          {
+            "setup-name": "cloud_3x1",
+            "collection": "ecommerce-events",
+            "configset": "conf_ecommerce_events",
+            "replication-factor": 1,
+            "shards": 3,
+            "thread-step": 1
+          }
+        ]
+      }
+    },
+    "querying": {
+      "query-benchmark": {
+        "name": "Facet queries",
+        "collection": "ecommerce-events",
+        "query-file": "facets2.json",
+        "min-threads": 1,
+        "max-threads": 1,
+        "json-query": true,
+        "shuffle": false,
+        "rpm": 3000,
+        "total-count": 200,
+        "warm-count": 20
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "restart-counter": 0
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "task1": {
+      "type": "indexing",
+      "description": "Indexing events",
+      "instances": 1,
+      "concurrency": 1,
+      "mode": "sync"
+    },
+    "task2": {
+      "description": "Restart Solr node",
+      "instances": 3,
+      "concurrency": 1,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "task1",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
+    },
+    "task3": {
+      "description": "Querying with facet queries",
+      "type": "querying",
+      "instances": 1,
+      "concurrency": 1,
+      "wait-for": "task2",
+      "mode": "sync"
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 3,
+    "startup-params": "-m 2g -V",
+    "provisioning-method": "local"
+  },
+  "repositories": [
+    {
+      "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
+      "description": "Solr 8.4",
+      "name": "git-repository",
+      "package-subdir": "/solr/package/",
+      "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
+      "submodules": false,
+      "url": "https://github.com/apache/lucene-solr",
+      "user": "ishan"
+    },
+    { 
+      "commit-id": "dfde16a004206cc92e21cc5a6cad9030fbe13c20",
+      "description": "Solr 10x",
+      "name": "solr-repository",
+      "package-subdir": "/solr/packaging/",
+      "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
+      "submodules": false,
+      "url": "https://github.com/apache/solr",
+      "user": "ishan"
+    },
+    { 
+      "commit-id": "3a1429974a356a46613b2f23a27e6051bb95cae9",
+      "description": "Solr 9x",
+      "name": "cowpaths-solr-repository",
+      "package-subdir": "/solr/packaging/",
+      "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
+      "submodules": false,
+      "url": "https://github.com/cowpaths/fullstory-solr",
+      "user": "ishan"
+    }
+  ],
+  "metrics": [
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+  ],
+  "zk-metrics": [
+    "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
+  ]
+}

@@ -1,15 +1,17 @@
 package org.apache.solr.benchmarks.indexing;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
-import org.apache.solr.benchmarks.BenchmarksMain;
+import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -26,21 +28,51 @@ class UploadDocs implements Callable {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     final List<String> docs;
     final HttpClient client;
-    final String leaderUrl;
     private AtomicLong totalUploadedDocs;
-    private static final AtomicLong debugCounter = new AtomicLong();
+	final String batchFilename;
+	
+	final String updateEndpoint;
+	final String contentType;
+	final byte[] payload;
 
-    UploadDocs(List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
+    UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
         this.docs = docs;
         this.client = client;
-        this.leaderUrl = leaderUrl;
         this.totalUploadedDocs = totalUploadedDocs;
+        this.batchFilename = batchFilename;
+        
+		log.debug("Batch file: "+batchFilename);
+
+        if (batchFilename == null) { // plain JSON docs
+	        this.updateEndpoint = leaderUrl + "/update/json/docs";
+	        this.contentType = "application/json; charset=UTF-8";
+	        payload = null; // docs will be indexed one by one
+        } else {
+	        try {
+				payload = FileUtils.readFileToByteArray(new File(batchFilename));
+			} catch (IOException e) {
+				throw new RuntimeException("Cannot open pre-initialized batch file: " + batchFilename, e);
+			}
+        	if (batchFilename.endsWith(".json")) {
+    	        this.updateEndpoint = leaderUrl + "/update/json/docs";
+    	        this.contentType = "application/json; charset=UTF-8";
+        	} else if (batchFilename.endsWith(".javabin")) {
+    	        this.updateEndpoint = leaderUrl + "/update";
+    	        this.contentType = "application/javabin";        		        		
+        	} else if (batchFilename.endsWith(".cbor")) {
+    	        this.updateEndpoint = leaderUrl + "/update/cbor";
+    	        this.contentType = "application/cbor";        		
+        	} else {
+        		throw new RuntimeException ("Cannot determine update endpoint or content type for pre-initialized batch file: " + batchFilename);
+        	}
+        }
     }
 
     @Override
     public Object call() throws IOException {
-        HttpPost httpPost = new HttpPost(leaderUrl);
-        httpPost.setHeader(new BasicHeader("Content-Type", "application/json; charset=UTF-8"));
+    	log.debug("Posting to " + updateEndpoint+", type: "+contentType+", size: "+(payload==null?0:payload.length));
+    	HttpPost httpPost = new HttpPost(updateEndpoint);
+        httpPost.setHeader(new BasicHeader("Content-Type", contentType));
         httpPost.getParams().setParameter("overwrite", "false");
 
         httpPost.setEntity(new BasicHttpEntity() {
@@ -51,11 +83,16 @@ class UploadDocs implements Callable {
 
             @Override
             public void writeTo(OutputStream outstream) throws IOException {
-                OutputStreamWriter writer = new OutputStreamWriter(outstream);
-                for (String doc : docs) {
-                    writer.append(doc).append('\n');
-                }
-                writer.flush();
+            	if (payload == null) {
+            		OutputStreamWriter writer = new OutputStreamWriter(outstream);
+            		for (String doc : docs) {
+            			writer.append(doc).append('\n');
+            		}
+            		writer.flush();
+            	} else {
+            		outstream.write(payload);
+            		outstream.flush();
+            	}
             }
         });
 

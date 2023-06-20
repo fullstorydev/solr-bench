@@ -6,14 +6,17 @@ import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.util.JsonRecordReader;
+import org.eclipse.jgit.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
@@ -25,14 +28,14 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
     private DocCollection docCollection;
     private HttpClient httpClient;
     private Map<String, String> shardVsLeader;
-    private BlockingQueue<UploadDocs> pendingBatches = new LinkedBlockingQueue<>(10); //at most 10 pending batches
+    private BlockingQueue<Callable> pendingBatches = new LinkedBlockingQueue<>(10); //at most 10 pending batches
+    private final boolean init;
+    private AtomicLong batchesIndexed = new AtomicLong();
 
-    private AtomicLong docsIndexed = new AtomicLong();
-
-    public IndexBatchSupplier(DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, Map<String, String> shardVsLeader) {
+    public IndexBatchSupplier(boolean init, DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, Map<String, String> shardVsLeader) {
         this.benchmark = benchmark;
         this.docCollection = docCollection;
-
+        this.init = init;
         this.httpClient = httpClient;
         this.shardVsLeader = shardVsLeader;
 
@@ -58,6 +61,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
             JsonRecordReader rdr = JsonRecordReader.getInst("/", Collections.singletonList(benchmark.idField + ":/" + benchmark.idField));
             IdParser idParser = new IdParser();
             Map<String, List<String>> shardVsDocs = new HashMap<>();
+        	Map<String, AtomicInteger> batchCounters = new ConcurrentHashMap<>();
             try {
                 while (!exit && (inputDocs = docReader.readDocs(benchmark.batchSize)) != null) { //can read more than batch size, just use batch size as a sensible value
                     for (String inputDoc : inputDocs) {
@@ -67,10 +71,11 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
                         shardDocs.add(inputDoc);
                         if (shardDocs.size() >= benchmark.batchSize) {
                             shardVsDocs.remove(targetSlice.getName());
-
+                            String batchFilename = computeBatchFilename(benchmark, batchCounters, targetSlice.getName());
                             //a shard has accumulated enough docs to be executed
-                            UploadDocs uploadDocs = new UploadDocs(shardDocs, httpClient, shardVsLeader.get(targetSlice.getName()), docsIndexed);
-                            while (!exit && !pendingBatches.offer(uploadDocs, 1, TimeUnit.SECONDS)) {
+                            Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, shardDocs, shardVsLeader.get(targetSlice.getName())):
+                            	new UploadDocs(benchmark, batchFilename, shardDocs, httpClient, shardVsLeader.get(targetSlice.getName()), batchesIndexed);
+                            while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
                                 //try again
                             }
                         }
@@ -78,8 +83,10 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
                 }
                 shardVsDocs.forEach((shard, docs) -> { //flush the remaining ones
                     try {
-                        UploadDocs uploadDocs = new UploadDocs(docs, httpClient, shardVsLeader.get(shard), docsIndexed);
-                        while (!exit && !pendingBatches.offer(uploadDocs, 1, TimeUnit.SECONDS)) {
+                        String batchFilename = computeBatchFilename(benchmark, batchCounters, shard);
+                        Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, docs, shardVsLeader.get(shard)):
+                        	new UploadDocs(benchmark, batchFilename, docs, httpClient, shardVsLeader.get(shard), batchesIndexed);
+                        while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
                             //try again
                         }
                     } catch (InterruptedException e) {
@@ -98,10 +105,28 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
         return workerFuture;
     }
 
+	private String computeBatchFilename(IndexBenchmark benchmark, Map<String, AtomicInteger> batchCounters, String shard) {
+		String batchFilename = null;
+		String tmpDir = "tmp/"+benchmark.name;
+		try {
+			FileUtils.mkdirs(new File(tmpDir), true);
+		} catch (IOException e) {
+			log.error("Unable to create directory: " + tmpDir);
+			throw new RuntimeException("Unable to create directory "+tmpDir, e);
+		}
+		AtomicInteger batchCounter = batchCounters.get(shard);
+		if (batchCounter == null) batchCounter = new AtomicInteger(0);
+		batchCounter.incrementAndGet();
+		batchCounters.put(shard, batchCounter);
+
+		batchFilename = docCollection.getName() + "_" + shard.replace(':', '_').replace('/', '_') + "_batch" + batchCounter.get() + "." + benchmark.prepareBinaryFormat;
+		return tmpDir + "/" + batchFilename;
+	}
+
     @Override
     public Callable get() {
         try {
-            UploadDocs batch = null;
+            Callable batch = null;
             while ((batch = pendingBatches.poll(1, TimeUnit.SECONDS)) == null && !exit) {
             }
             if (batch == null) { //rare race condition can fill the queue even if above loop exits, just try it once last time...
@@ -121,7 +146,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
         workerFuture.get(); //this could throw exception if there are any unhandled exceptions in UploadDocs execution
     }
 
-    public long getDocsIndexed() {
-        return docsIndexed.get();
+    public long getBatchesIndexed() {
+        return batchesIndexed.get();
     }
 }

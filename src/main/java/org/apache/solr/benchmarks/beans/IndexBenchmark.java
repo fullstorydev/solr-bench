@@ -15,6 +15,9 @@ public class IndexBenchmark extends BaseBenchmark {
   @JsonProperty("file-format")
   public String fileFormat;
 
+  @JsonProperty("prepare-binary-format")
+  public String prepareBinaryFormat = null;
+
   @JsonProperty("setups")
   public List<Setup> setups;
 
