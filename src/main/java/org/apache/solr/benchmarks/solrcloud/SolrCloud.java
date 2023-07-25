@@ -28,6 +28,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -64,9 +65,14 @@ public class SolrCloud {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   Zookeeper zookeeper;
-  public List<SolrNode> nodes = Collections.synchronizedList(new ArrayList());
+  public List<SolrNode> nodes = Collections.synchronizedList(new ArrayList()); //all nodes
 
-  public List<SolrNode> queryNodes = Collections.synchronizedList(new ArrayList());
+  public enum NodeRole {
+    DATA, COORDINATOR, OVERSEER
+  }
+
+  //Node list by role, though unlikely, a node can appear in multiple lists, ie a node with multiple roles
+  public Map<NodeRole, List<? extends SolrNode>> nodesByRole = new HashMap<>();
 
   private Set<String> configsets = new HashSet<>();
 
@@ -185,32 +191,39 @@ public class SolrCloud {
         zookeeper = new GenericZookeeper(tokens[0], tokens.length > 1 ? Integer.parseInt(tokens[1]) : null, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
 
         try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).withZkChroot(cluster.externalSolrConfig.zkChroot).build()) {
-          Collection<String> liveNodes = getExternalDataNodes(client);
-          for (String liveNode: liveNodes) {
+          for (String liveNode : client.getClusterStateProvider().getLiveNodes()) {
             nodes.add(new ExternalSolrNode(
                     liveNode.split("_solr")[0].split(":")[0],
                     Integer.valueOf(liveNode.split("_solr")[0].split(":")[1]),
                     cluster.externalSolrConfig.sshUserName,
                     cluster.externalSolrConfig.restartScript));
           }
-          try {
-            Collection<String> queryNodeList = getExternalQueryNodes(client);
-            for (String queryNode : queryNodeList) {
-              queryNodes.add(new ExternalSolrNode(
-                      queryNode.split("_solr")[0].split(":")[0],
-                      Integer.valueOf(queryNode.split("_solr")[0].split(":")[1]),
-                      cluster.externalSolrConfig.sshUserName,
-                      cluster.externalSolrConfig.restartScript));
-            }
-          } catch (KeeperException e) {
-            if (e.code() == KeeperException.Code.NONODE) {
-              log.info("No /live_query_nodes. Skipping query nodes.");
-            } else {
-              throw e;
-            }
+          List<SolrNode> dataNodes = getExternalDataNodes(client).stream().map(dataNode -> new ExternalSolrNode(
+                  dataNode.split("_solr")[0].split(":")[0],
+                  Integer.valueOf(dataNode.split("_solr")[0].split(":")[1]),
+                  cluster.externalSolrConfig.sshUserName,
+                  cluster.externalSolrConfig.restartScript)).collect(Collectors.toList());
+          if (!dataNodes.isEmpty()) {
+            nodesByRole.put(NodeRole.DATA, dataNodes);
+          }
+          List<SolrNode> queryNodes = getExternalQueryNodes(client).stream().map(queryNode -> new ExternalSolrNode(
+                  queryNode.split("_solr")[0].split(":")[0],
+                  Integer.valueOf(queryNode.split("_solr")[0].split(":")[1]),
+                  cluster.externalSolrConfig.sshUserName,
+                  cluster.externalSolrConfig.restartScript)).collect(Collectors.toList());
+          if (!queryNodes.isEmpty()) {
+            nodesByRole.put(NodeRole.COORDINATOR, queryNodes);
+          }
+          List<SolrNode> overseerNodes = getExternalPreferredOverseerNodes(client).stream().map(overseerNode -> new ExternalSolrNode(
+                  overseerNode.split("_solr")[0].split(":")[0],
+                  Integer.valueOf(overseerNode.split("_solr")[0].split(":")[1]),
+                  cluster.externalSolrConfig.sshUserName,
+                  cluster.externalSolrConfig.restartScript)).collect(Collectors.toList());
+          if (!queryNodes.isEmpty()) {
+            nodesByRole.put(NodeRole.OVERSEER, overseerNodes);
           }
         }
-        log.info("Cluster initialized with data nodes: " + nodes + ", query nodes: " + queryNodes + ", zkHost: " + zookeeper);
+        log.info("Cluster initialized with data nodes: " + nodes + ", zkHost: " + zookeeper + ", nodes by role: " + nodesByRole);
     }
 
 
@@ -230,7 +243,7 @@ public class SolrCloud {
         }
         return client.getClusterStateProvider().getLiveNodes();
     }
-    private Collection<String> getExternalQueryNodes(CloudSolrClient client) throws InterruptedException, KeeperException {
+    private Collection<String> getExternalQueryNodes(CloudSolrClient client) {
         try {
             if (client.getZkStateReader().getZkClient().exists("/node_roles/coordinator/on", true)) {
                 List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
@@ -242,8 +255,28 @@ public class SolrCloud {
         } catch (Exception e) {
             //ok, just use the /live_query_nodes
         }
+      try {
         return client.getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
+      } catch (Exception e) {
+        log.warn("Failed to look up query nodes. Skipping");
+        return Collections.emptyList();
+      }
     }
+
+  private Collection<String> getExternalPreferredOverseerNodes(CloudSolrClient client)  {
+    try {
+      if (client.getZkStateReader().getZkClient().exists("/node_roles/overseer/preferred", true)) {
+        List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
+        liveNodes.retainAll(client.getZkStateReader().getZkClient().getChildren("/node_roles/overseer/preferred", null, true));
+        if (!liveNodes.isEmpty()) {
+          return liveNodes;
+        }
+      }
+    } catch (Exception e) {
+      log.warn("Failed to look up overseer nodes. Skipping");
+    }
+    return Collections.emptyList();
+  }
 
 
     List<String> getSolrNodesFromTFState() throws JsonMappingException, JsonProcessingException, IOException {
@@ -476,6 +509,10 @@ public class SolrCloud {
     }
 
 
+  }
+
+  public List<? extends SolrNode> getNodesByRole(NodeRole role) {
+    return nodesByRole.containsKey(role) ? nodesByRole.get(role) : nodes;
   }
 
   public String getProvisioningMethod() {
