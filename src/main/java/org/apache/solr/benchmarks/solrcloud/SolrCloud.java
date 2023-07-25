@@ -511,6 +511,13 @@ public class SolrCloud {
 
   }
 
+  /**
+   * Gets the list of nodes by its NodeRole. If NodeRole is not supported, then return all nodes.
+   *
+   * Take note that currently only ExternalSolrNode has support for NodeRole.
+   * @param role
+   * @return
+   */
   public List<? extends SolrNode> getNodesByRole(NodeRole role) {
     return nodesByRole.containsKey(role) ? nodesByRole.get(role) : nodes;
   }
