@@ -223,7 +223,7 @@ public class SolrCloud {
             nodesByRole.put(NodeRole.OVERSEER, overseerNodes);
           }
         }
-        log.info("Cluster initialized with data nodes: " + nodes + ", zkHost: " + zookeeper + ", nodes by role: " + nodesByRole);
+        log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper + ", nodes by role: " + nodesByRole);
     }
 
 
