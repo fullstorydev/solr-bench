@@ -72,7 +72,7 @@ public class BenchmarksMain {
 		for (QueryBenchmark benchmark : queryBenchmarks) {
       log.info("Query Benchmark name: " + benchmark.name);
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
-      List<SolrNode> queryNodes = solrCloud.queryNodes.isEmpty() ? solrCloud.nodes : solrCloud.queryNodes;
+      List<? extends SolrNode> queryNodes = solrCloud.getNodesByRole(SolrCloud.NodeRole.COORDINATOR);
       String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
       log.info("Query base URL " + baseUrl);
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
