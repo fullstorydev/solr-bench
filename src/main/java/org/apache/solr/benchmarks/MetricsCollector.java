@@ -149,7 +149,7 @@ public class MetricsCollector implements Runnable {
 										String jointTokens = String.join(" ", Arrays.copyOf(tokens, tokens.length-1));
 										metricMap.put(jointTokens, lastToken);
 									} catch (NumberFormatException e) {
-										System.out.println("The last token is not a valid double: " + tokens[tokens.length - 1]);
+										log.debug("The last token is not a valid double: " + tokens[tokens.length - 1]);
 									}
 								}
 							}
