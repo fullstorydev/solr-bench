@@ -32,8 +32,8 @@ public class LocalZookeeper implements Zookeeper {
 
   //public static String zooCleanCommand;
 
-  public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.6.4-bin.tar.gz";
-  public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.6.4-bin";
+  public static final String ZK_TARBALL = Util.WORK_DIRECTORY + "apache-zookeeper-3.8.2-bin.tar.gz";
+  public static final String ZK_DIR = Util.RUN_DIR + "apache-zookeeper-3.8.2-bin";
   public static final String ZK_COMMAND = "bin/zkServer.sh";
 
   /**

@@ -159,7 +159,6 @@ public class MetricsCollector implements Runnable {
 			// split out the port from the url
 			URL url = new URL(node.getHostUrl()+":"+this.prometheusMetricsPort+"/metrics");
 			resp = IOUtils.toString(url, Charset.forName("UTF-8"));
-			System.out.println(resp);
 		} catch (IOException e1) {
 			log.debug("Couldn't get prometheus metrics from"+node.getNodeName(), e1);
 		}
