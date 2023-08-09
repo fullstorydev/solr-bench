@@ -1,14 +1,40 @@
 {
   "task-types": {
-    "cluster-state-benchmark": {
-      "cluster-state-benchmark": {
-        "filename": "clusterstatus-small-1000.json.gz",
-        "collection-creation-params": {
-          "perReplicaState": "false"
-        },
-        "collections-limit": 1000,
-        "simulation-concurrency-fraction": 0.5
+    "indexing": {
+      "index-benchmark": {
+        "name": "CLOUD_INDEXING",
+        "description": "Wikipedia dataset on SolrCloud",
+        "replication-type": "cloud",
+        "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
+        "file-format": "tsv",
+        "id-field": "id",
+        "min-threads": 2,
+        "max-threads": 2,
+        "setups": [
+          {
+            "setup-name": "cloud_2x2",
+            "collection": "small-wikipedia-${INDEX}",
+            "replication-factor": 1,
+            "shards": 1,
+            "thread-step": 1
+          }
+        ]
       }
+    },
+    "collection-creation": {
+      "command": "${SOLRURL}admin/collections?action=CREATE&name=collection${INDEX}&numShards=${SHARDS}",
+      "defaults": {
+        "INDEX": 0,
+        "SHARDS": 1
+      }
+    },
+    "shard-splitting": {
+      "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=${COLLECTION}&shard=${SHARD}",
+      "defaults": {}
+    },
+    "num-docs": {
+      "command": "${SOLRURL}small-wikipedia/select?q=*:*&rows=0&distrib=false",
+      "defaults": {}
     },
     "restart-solr-node": {
       "restart-solr-node": "${NODE_INDEX}",
@@ -25,16 +51,22 @@
   },
   "execution-plan": {
     "task1": {
-      "description": "Create 1000 collections of various numShards, rf=1",
-      "type": "cluster-state-benchmark",
-      "instances": 1,
+      "type": "indexing",
+      "instances": 5,
       "concurrency": 1,
-      "mode": "sync"
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${collection-counter}",
+        "SHARDS": 1
+      },
+      "pre-task-evals": [
+        "inc(collection-counter,1)"
+      ]
     },
     "task2": {
-      "description": "Restart 7/8 Solr nodes",
-      "instances": 7,
-      "concurrency": 2,
+      "description": "Restart Solr node",
+      "instances": 1,
+      "concurrency": 1,
       "type": "restart-solr-node",
       "parameters": {
         "NODE_INDEX": "${restart-counter}"
@@ -46,9 +78,14 @@
       ]
     }
   },
+  "cluster": {
+    "num-solr-nodes": 2,
+    "startup-params": "-m 1g -V",
+    "provisioning-method": "local"
+  },
   "repositories": [
     {
-      "commit-id": "4fca9ecb500bd1fdcfa55f180f075686dab829ce",
+      "commit-id": "243f0c0839741c91ebcafd4546bcc1d1f4f75ac7",
       "description": "Solr main",
       "name": "solr-repository",
       "package-subdir": "/solr/packaging/",
@@ -57,13 +94,7 @@
       "url": "https://github.com/apache/solr",
       "user": "nginthfs"
     }
-
   ],
-  "cluster": {
-    "num-solr-nodes": 8,
-    "startup-params": "-m 4096m",
-    "provisioning-method": "local"
-  },
   "metrics": ["jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"],
   "prometheus-metrics":["node_memory_active_bytes", "node_time_seconds", "node_load1"],
   "prometheus-metrics-port": "9100"
