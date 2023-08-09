@@ -3,7 +3,6 @@ package org.apache.solr.benchmarks;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
-import org.apache.solr.benchmarks.WorkflowResult;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -79,6 +78,7 @@ public class MetricsCollector implements Runnable {
 		}
 	}
 
+	// Update the metrics map with new metrics scraped from the Zookeeper metrics endpoint
 	private void fetchZKMetrics() {
 		try {
 			URL url = new URL(cloud.getZookeeperAdminUrl() + "/commands/monitor");
@@ -98,6 +98,7 @@ public class MetricsCollector implements Runnable {
 		}
 	}
 
+	// Update the metrics map with new metrics scraped from the Solr metrics endpoint
 	private void fetchSolrMetrics() {
 		for (SolrNode node: cloud.nodes) {
 			Map<String, JSONObject> resp = new HashMap<>();
@@ -135,13 +136,14 @@ public class MetricsCollector implements Runnable {
 		}
 	}
 
+	// Update the metrics map with new metrics scraped from the Prometheus endpoint
 	private void fetchPrometheusMetrics() {
 		for (SolrNode node: cloud.nodes) {
-			Map<String, Double> metricMap = getPrometheusMetrics(node);
+			Map<String, Double> newMetrics = scrapePrometheus(node);
 
 			for (String metricName : this.prometheusMetrics) {
-				if (metricMap.containsKey(metricName)) {
-					metrics.get(node.getNodeName()).get(metricName).add(metricMap.get(metricName));
+				if (newMetrics.containsKey(metricName)) {
+					metrics.get(node.getNodeName()).get(metricName).add(newMetrics.get(metricName));
 				} else {
 					// metric not found
 					metrics.get(node.getNodeName()).get(metricName).add(-1.0);
@@ -150,7 +152,8 @@ public class MetricsCollector implements Runnable {
 		}
 	}
 
-	private Map<String, Double> getPrometheusMetrics(SolrNode node) {
+	// Scrape the Prometheus endpoint and return a Map from metric key -> value
+	private Map<String, Double> scrapePrometheus(SolrNode node) {
 		String resp = "";
 		try {
 			// split out the port from the url
@@ -161,7 +164,7 @@ public class MetricsCollector implements Runnable {
 			log.debug("Couldn't get prometheus metrics from"+node.getNodeName(), e1);
 		}
 
-		Map<String, Double> metricMap = new HashMap<>();
+		Map<String, Double> newMetrics = new HashMap<>();
 		try {
 			BufferedReader reader = new BufferedReader(new StringReader(resp));
 			String line = reader.readLine();
@@ -174,7 +177,7 @@ public class MetricsCollector implements Runnable {
 						try {
 							Double lastToken = Double.parseDouble(tokens[tokens.length - 1]);
 							String jointTokens = String.join(" ", Arrays.copyOf(tokens, tokens.length-1));
-							metricMap.put(jointTokens, lastToken);
+							newMetrics.put(jointTokens, lastToken);
 						} catch (NumberFormatException e) {
 							log.debug("The last token is not a valid double: " + tokens[tokens.length - 1]);
 						}
@@ -185,7 +188,7 @@ public class MetricsCollector implements Runnable {
 		} catch (Exception e) {
 			log.debug("An error occurred while parsing prometheus metrics for node " + node.getBaseUrl(), e);
 		}
-		return metricMap;
+		return newMetrics;
 	}
 
 	AtomicBoolean running = new AtomicBoolean(true);
