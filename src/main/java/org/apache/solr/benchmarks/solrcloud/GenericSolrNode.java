@@ -74,6 +74,11 @@ public class GenericSolrNode implements SolrNode {
   }
 
   @Override
+  public String getHostUrl() {
+    return "http://"+host;
+  }
+
+  @Override
   public void cleanup() throws Exception {
     // no-op
   }

@@ -137,6 +137,11 @@ public class LocalSolrNode implements SolrNode {
     return "http://localhost:" + port + "/solr/";
   }
 
+    @Override
+    public String getHostUrl() {
+        return "http://localhost";
+    }
+
   /**
    * A method used for cleaning up the files for the solr node. 
    * @throws Exception 

@@ -44,6 +44,12 @@ public class Workflow {
 	@JsonProperty("metrics")
 	public List<String> metrics;
 
+	@JsonProperty("prometheus-metrics")
+	public List<String> prometheusMetrics;
+	// port of the prometheus exporter endpoint to scrape, ex: 9100
+	@JsonProperty("prometheus-metrics-port")
+	public String prometheusMetricsPort;
+
 	@JsonProperty("zk-metrics")
 	public List<String> zkMetrics = Collections.emptyList();
 
