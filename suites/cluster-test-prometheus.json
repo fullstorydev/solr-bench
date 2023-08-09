@@ -1,0 +1,57 @@
+{
+  "task-types": {
+    "cluster-state-benchmark": {
+      "cluster-state-benchmark": {
+        "filename": "clusterstatus-small-1000.json.gz",
+        "collection-creation-params": {
+          "perReplicaState": "false"
+        },
+        "collections-limit": 1000,
+        "simulation-concurrency-fraction": 0.5
+      }
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "restart-counter": 1
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "task1": {
+      "description": "Create 1000 collections of various numShards, rf=1",
+      "type": "cluster-state-benchmark",
+      "instances": 1,
+      "concurrency": 1,
+      "mode": "sync"
+    },
+    "task2": {
+      "description": "Restart 7/8 Solr nodes",
+      "instances": 7,
+      "concurrency": 2,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "task1",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 8,
+    "startup-params": "-m 4096m",
+    "provisioning-method": "external"
+  },
+  "metrics": ["jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"],
+  "prometheus-metrics":["node_memory_active_bytes", "node_time_seconds", "node_load1"],
+  "prometheus-metrics-port": "9100"
+}
