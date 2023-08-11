@@ -156,8 +156,8 @@ terraform-gcp-provisioner() {
      cd $BASEDIR
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
-     export ZK_TARBALL_NAME="apache-zookeeper-3.6.4-bin.tar.gz"
-     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.6.4-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.8.2-bin.tar.gz"
+     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.8.2-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
      export BENCH_USER=`jq -r '."cluster"."terraform-gcp-config"."user"' $CONFIGFILE`
      export BENCH_KEY="terraform/id_rsa"
@@ -253,7 +253,7 @@ for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; dow
 
 if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
 then
-  wget -c https://downloads.apache.org/zookeeper/zookeeper-3.6.4/apache-zookeeper-3.6.4-bin.tar.gz
+  curl  https://dlcdn.apache.org/zookeeper/zookeeper-3.8.2/apache-zookeeper-3.8.2-bin.tar.gz --output apache-zookeeper-3.8.2-bin.tar.gz
   # Clone/checkout the git repository and build Solr
   if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
   then

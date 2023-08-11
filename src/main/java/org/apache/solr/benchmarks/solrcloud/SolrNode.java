@@ -15,6 +15,8 @@ public interface SolrNode {
   int pause(int seconds) throws Exception;
 
   String getBaseUrl();
+
+  String getHostUrl();
   
   String getNodeName();
   
