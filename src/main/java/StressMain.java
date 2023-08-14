@@ -133,7 +133,7 @@ public class StressMain {
 		Map<String, List<Map>> finalResults = Collections.synchronizedMap(new LinkedHashMap());
 
 		if (workflow.metrics != null || workflow.prometheusMetrics != null) {
-			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, workflow.prometheusMetrics, workflow.prometheusMetricsPort, 2);
+			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, workflow.prometheusMetrics, workflow.prometheusMetricsPort, workflow.metricsCollectionInterval);
 			metricsThread = new Thread(metricsCollector);
 			metricsThread.start();
 			//results.put("solr-metrics", metricsCollector.metrics);
