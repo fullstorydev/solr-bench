@@ -44,6 +44,10 @@ public class Workflow {
 	@JsonProperty("metrics")
 	public List<String> metrics;
 
+	// seconds between metrics collection
+	@JsonProperty("metrics-collection-interval")
+	public int metricsCollectionInterval = 2;
+
 	@JsonProperty("prometheus-metrics")
 	public List<String> prometheusMetrics;
 	// port of the prometheus exporter endpoint to scrape, ex: 9100

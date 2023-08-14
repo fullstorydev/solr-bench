@@ -97,5 +97,6 @@
   ],
   "metrics": ["jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"],
   "prometheus-metrics":["node_memory_active_bytes", "node_time_seconds", "node_load1"],
-  "prometheus-metrics-port": "9100"
+  "prometheus-metrics-port": "9100",
+  "metrics-collection-interval": 30
 }
