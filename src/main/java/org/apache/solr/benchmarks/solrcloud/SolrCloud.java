@@ -47,11 +47,11 @@ import org.apache.solr.client.solrj.request.HealthCheckRequest;
 import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
 import org.apache.solr.client.solrj.response.HealthCheckResponse;
+import org.apache.solr.cloud.ZkConfigSetService;
 import org.apache.solr.common.cloud.SolrZkClient;
-import org.apache.solr.common.cloud.ZkConfigManager;
+import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.ConfigSetParams;
 import org.apache.solr.common.params.SolrParams;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,7 +165,7 @@ public class SolrCloud {
       this.nodes = healthyNodes;
       log.info("Healthy nodes: "+healthyNodes.size());
       
-      try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(getZookeeperUrl()).build();) {
+      try (CloudSolrClient client = new CloudSolrClient.Builder(Arrays.asList(getZookeeperUrl())).build();) {
 	      log.info("Cluster state: " + client.getClusterStateProvider().getClusterState());
 	      log.info("Overseer: " + client.request(new OverseerStatus()));
       }
@@ -190,7 +190,7 @@ public class SolrCloud {
         String[] tokens = cluster.externalSolrConfig.zkHost.split(":");
         zookeeper = new GenericZookeeper(tokens[0], tokens.length > 1 ? Integer.parseInt(tokens[1]) : null, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
 
-        try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).withZkChroot(cluster.externalSolrConfig.zkChroot).build()) {
+        try (CloudSolrClient client = new CloudSolrClient.Builder(Arrays.asList(cluster.externalSolrConfig.zkHost), Optional.ofNullable(cluster.externalSolrConfig.zkChroot)).build()) {
           for (String liveNode : client.getClusterStateProvider().getLiveNodes()) {
             nodes.add(new ExternalSolrNode(
                     liveNode.split("_solr")[0].split(":")[0],
@@ -229,11 +229,16 @@ public class SolrCloud {
 
   }
 
+  private ZkStateReader getZkStateReader() {
+      SolrZkClient zkClient = new SolrZkClient.Builder().withUrl(getZookeeperUrl()).build();
+      return new ZkStateReader(zkClient);
+  }
+
     private Collection<String> getExternalDataNodes(CloudSolrClient client) {
         try {
-            if (client.getZkStateReader().getZkClient().exists("/node_roles/data/on", true)) {
+            if (getZkStateReader().getZkClient().exists("/node_roles/data/on", true)) {
                 List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-                liveNodes.retainAll(client.getZkStateReader().getZkClient().getChildren("/node_roles/data/on", null, true));
+                liveNodes.retainAll(getZkStateReader().getZkClient().getChildren("/node_roles/data/on", null, true));
                 if (!liveNodes.isEmpty()) {
                     return liveNodes;
                 }
@@ -245,9 +250,9 @@ public class SolrCloud {
     }
     private Collection<String> getExternalQueryNodes(CloudSolrClient client) {
         try {
-            if (client.getZkStateReader().getZkClient().exists("/node_roles/coordinator/on", true)) {
+            if (getZkStateReader().getZkClient().exists("/node_roles/coordinator/on", true)) {
                 List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-                liveNodes.retainAll(client.getZkStateReader().getZkClient().getChildren("/node_roles/coordinator/on", null, true));
+                liveNodes.retainAll(getZkStateReader().getZkClient().getChildren("/node_roles/coordinator/on", null, true));
                 if (!liveNodes.isEmpty()) {
                     return liveNodes;
                 }
@@ -256,7 +261,7 @@ public class SolrCloud {
             //ok, just use the /live_query_nodes
         }
       try {
-        return client.getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
+        return getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
       } catch (Exception e) {
         log.warn("Failed to look up query nodes. Skipping");
         return Collections.emptyList();
@@ -265,9 +270,9 @@ public class SolrCloud {
 
   private Collection<String> getExternalPreferredOverseerNodes(CloudSolrClient client)  {
     try {
-      if (client.getZkStateReader().getZkClient().exists("/node_roles/overseer/preferred", true)) {
+      if (getZkStateReader().getZkClient().exists("/node_roles/overseer/preferred", true)) {
         List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-        liveNodes.retainAll(client.getZkStateReader().getZkClient().getChildren("/node_roles/overseer/preferred", null, true));
+        liveNodes.retainAll(getZkStateReader().getZkClient().getChildren("/node_roles/overseer/preferred", null, true));
         if (!liveNodes.isEmpty()) {
           return liveNodes;
         }
@@ -317,9 +322,6 @@ public class SolrCloud {
    * A method used for creating a collection.
    * 
    * @param collectionName
-   * @param configName
-   * @param shards
-   * @param replicas
    * @throws Exception 
    */
   public void createCollection(IndexBenchmark.Setup setup, String collectionName, String configsetName) throws Exception {
@@ -327,14 +329,9 @@ public class SolrCloud {
 		  Create create;
 		  if (setup.replicationFactor != null) {
 			  create = Create.createCollection(collectionName, configsetName, setup.shards, setup.replicationFactor);
-			  create.setMaxShardsPerNode(setup.shards*(setup.replicationFactor));
 		  } else {
 			  create = Create.createCollection(collectionName, configsetName, setup.shards,
 					  setup.nrtReplicas, setup.tlogReplicas, setup.pullReplicas);
-			  create.setMaxShardsPerNode(setup.shards
-					  * ((setup.pullReplicas==null? 0: setup.pullReplicas)
-					   + (setup.nrtReplicas==null? 0: setup.nrtReplicas)
-					   + (setup.tlogReplicas==null? 0: setup.tlogReplicas)));
 		  }
 		  CollectionAdminResponse resp;
 		  if (setup.collectionCreationParams != null && setup.collectionCreationParams.isEmpty()==false) {
@@ -500,11 +497,10 @@ public class SolrCloud {
       configsets.add(configsetZkName);
 
       // This is a hack. We want all configsets to be trusted. Hence, unsetting the data on the znode that has trusted=false.
-      try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
-        zkClient.setData(ZkConfigManager.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
+      try (SolrZkClient zkClient = new SolrZkClient.Builder().withUrl(getZookeeperUrl()).withTimeout( 100, TimeUnit.SECONDS).build()) {
+        zkClient.setData(ZkConfigSetService.CONFIGS_ZKNODE + "/" + configsetZkName, (byte[]) null, true);
       }
       log.info("Configset: " + configsetZkName + " created successfully ");
-
 
     }
 
