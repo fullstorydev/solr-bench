@@ -165,7 +165,7 @@ public class SolrCloud {
       this.nodes = healthyNodes;
       log.info("Healthy nodes: "+healthyNodes.size());
       
-      try (CloudSolrClient client = new CloudSolrClient.Builder(Arrays.asList(getZookeeperUrl())).build();) {
+      try (CloudSolrClient client = new CloudSolrClient.Builder(Arrays.asList(getZookeeperUrl()), Optional.ofNullable(getZookeeperChroot())).build();) {
 	      log.info("Cluster state: " + client.getClusterStateProvider().getClusterState());
 	      log.info("Overseer: " + client.request(new OverseerStatus()));
       }
