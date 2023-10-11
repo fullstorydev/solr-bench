@@ -103,6 +103,7 @@ class UploadDocs implements Callable {
             log.error("Failed a request: " +
                     rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
         } else {
+        	rsp.getEntity().getContent().close();
             totalUploadedDocs.addAndGet(docs.size());
         }
 
