@@ -127,17 +127,17 @@ public class BenchmarksMain {
 		for (IndexBenchmark benchmark : indexBenchmarks) {
 			results.get("indexing-benchmarks").put(benchmark.name, new LinkedHashMap());
 			
-		    for (IndexBenchmark.Setup setup : benchmark.setups) {
-		    	List setupMetrics = new ArrayList();
-		    	((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
+			for (IndexBenchmark.Setup setup : benchmark.setups) {
+				List setupMetrics = new ArrayList();
+				((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
 
-		        for (int i = benchmark.minThreads; i <= benchmark.maxThreads; i += setup.threadStep) {
-		            String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
-		            String configsetName = setup.configset==null? null: collectionName+".SOLRBENCH";
-		            if (setup.shareConfigset) configsetName = setup.configset;
+				for (int i = benchmark.minThreads; i <= benchmark.maxThreads; i += setup.threadStep) {
+					String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
+					String configsetName = setup.configset==null? null: collectionName+".SOLRBENCH";
+					if (setup.shareConfigset) configsetName = setup.configset;
 
-		            if (setup.createCollection) {
-		            	log.info("Creating collection: " + collectionName);
+					if (setup.createCollection) {
+						log.info("Creating collection: " + collectionName);
 						boolean deleteCollectionOnStart;
 						if (setup.deleteCollectionOnStart == null) {
 							//to play safe for external mode, only delete the collection if it has been explicitly stated to do so
@@ -158,26 +158,26 @@ public class BenchmarksMain {
 								}
 							}
 						}
-                        if (solrCloud.shouldUploadConfigSet()) {
-                            solrCloud.uploadConfigSet(setup.configset, setup.shareConfigset, configsetName);
-                        }
-		            	solrCloud.createCollection(setup, collectionName, configsetName);
-		            }
+						if (solrCloud.shouldUploadConfigSet()) {
+								solrCloud.uploadConfigSet(setup.configset, setup.shareConfigset, configsetName);
+						}
+						solrCloud.createCollection(setup, collectionName, configsetName);
+					}
 
-		            indexInit(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
-		            long start = System.nanoTime();
-		            index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
-		            long end = System.nanoTime();
+					indexInit(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
+					long start = System.nanoTime();
+					index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
+					long end = System.nanoTime();
 
-		            if (i != benchmark.maxThreads && setup.createCollection) {
-		            	if (deleteAfter) {
-		            		solrCloud.deleteCollection(collectionName);
-		            	}
-		            }
-		            
-		            setupMetrics.add(Util.map("threads", i, "total-time", String.valueOf((end - start) / 1_000_000_000.0)));
-		        }
-		    }
+					if (i != benchmark.maxThreads && setup.createCollection) {
+						if (deleteAfter) {
+							solrCloud.deleteCollection(collectionName);
+						}
+					}
+
+					setupMetrics.add(Util.map("threads", i, "total-time", String.valueOf((end - start) / 1_000_000_000.0)));
+				}
+			}
 		}
 	}
 
