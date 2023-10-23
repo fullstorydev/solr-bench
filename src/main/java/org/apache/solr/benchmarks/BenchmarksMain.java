@@ -80,14 +80,14 @@ public class BenchmarksMain {
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 				ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
-				benchmark.name,
-				threads,
-								benchmark.durationSecs,
-								benchmark.rpm,
-								benchmark.totalCount,
-								benchmark.warmCount,
-								getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
-				listener);
+					benchmark.name,
+					threads,
+					benchmark.durationSecs,
+					benchmark.rpm,
+					benchmark.totalCount,
+					benchmark.warmCount,
+					getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
+					listener);
 				long start = System.currentTimeMillis();
 				try {
 						controlledExecutor.run();
