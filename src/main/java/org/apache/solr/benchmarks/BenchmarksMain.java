@@ -77,32 +77,32 @@ public class BenchmarksMain {
       log.info("Query base URL " + baseUrl);
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
 				ControlledExecutor.ExecutionListener<String, NamedList<Object>> listener = benchmark.detailedStats ? new DetailedQueryStatsListener() : new ErrorListener();
-		        QueryGenerator queryGenerator = new QueryGenerator(benchmark);
-		        HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-		        ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
-						benchmark.name,
-						threads,
-		                benchmark.durationSecs,
-		                benchmark.rpm,
-		                benchmark.totalCount,
-		                benchmark.warmCount,
-		                getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
-						listener);
-		        long start = System.currentTimeMillis();
-		        try {
-		            controlledExecutor.run();
-		        } finally {
-		            client.close();
-		        }
+				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
+				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+				ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
+				benchmark.name,
+				threads,
+								benchmark.durationSecs,
+								benchmark.rpm,
+								benchmark.totalCount,
+								benchmark.warmCount,
+								getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
+				listener);
+				long start = System.currentTimeMillis();
+				try {
+						controlledExecutor.run();
+				} finally {
+						client.close();
+				}
 
-		        long time = System.currentTimeMillis() - start;
-		        System.out.println("Took time: " + time);
-		        if (time > 0) {
-		            System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
-		                    ", 95th latency: " + controlledExecutor.stats.getPercentile(95));
-		            ((List)results.get("query-benchmarks").get(benchmark.name)).add(
-		            		Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90), 
-		            				"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
+				long time = System.currentTimeMillis() - start;
+				System.out.println("Took time: " + time);
+				if (time > 0) {
+						System.out.println("Thread: " + threads + ", Median latency: " + controlledExecutor.stats.getPercentile(50) +
+										", 95th latency: " + controlledExecutor.stats.getPercentile(95));
+						((List)results.get("query-benchmarks").get(benchmark.name)).add(
+								Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90),
+										"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
 					if (listener instanceof DetailedQueryStatsListener) {
 						Map detailedStats = (Map) results.get("query-benchmarks").computeIfAbsent("detailed-stats", key -> new LinkedHashMap<>());
 						//add the detailed stats (per query in the input query file) collected by the listener
@@ -114,8 +114,8 @@ public class BenchmarksMain {
 							outputStats.add(Util.map(stats.metricType.dataCategory, stats)); //forced by the design that this has to be a map, otherwise we shouldn't need to do this one entry map
 						}
 					}
-		        }
-		    }
+				}
+			}
 		}
 	}
 
