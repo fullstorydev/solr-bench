@@ -132,8 +132,8 @@ public class StressMain {
 
 		Map<String, List<Map>> finalResults = Collections.synchronizedMap(new LinkedHashMap());
 
-		if (workflow.metrics != null) {
-			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, 2);
+		if (workflow.metrics != null || workflow.prometheusMetrics != null) {
+			metricsCollector = new MetricsCollector(cloud, workflow.zkMetrics, workflow.metrics, workflow.prometheusMetrics, workflow.prometheusMetricsPort, workflow.metricsCollectionInterval);
 			metricsThread = new Thread(metricsCollector);
 			metricsThread.start();
 			//results.put("solr-metrics", metricsCollector.metrics);
@@ -207,7 +207,7 @@ public class StressMain {
 			commonThreadpools.get(tp).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 
 		// Stop metrics collection
-		if (workflow.metrics != null) {
+		if (workflow.metrics != null || workflow.prometheusMetrics != null) {
 			metricsCollector.stop();
 			metricsThread.stop();
 		}
@@ -275,12 +275,12 @@ public class StressMain {
 				}
 
 				if (type.awaitRecoveries) {
-					try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).build();) {
+					try (CloudSolrClient client = new CloudSolrClient.Builder(Arrays.asList(cloud.getZookeeperUrl()), Optional.ofNullable(cloud.getZookeeperChroot())).build();) {
 
 						int numInactive = 0;
 						long lastTimestamp = System.nanoTime(), lastNumInactive = 0; 
 						do {
-							numInactive = getNumInactiveReplicas(node, client);
+							numInactive = getNumInactiveReplicas(node, client, cloud);
 							
 							if (numInactive != lastNumInactive) {
 								lastTimestamp = System.nanoTime();
@@ -296,7 +296,7 @@ public class StressMain {
 							System.out.println("\tInactive replicas on paused node ("+node.port+"): "+numInactive);
 							if (numInactive != 0) {
 								Thread.sleep(2000);
-								client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+								refreshZkClusterState(cloud);
 							}
 						} while (numInactive > 0);
 					}
@@ -358,7 +358,7 @@ public class StressMain {
 									long lastTimestamp = System.nanoTime(), lastNumInactive = 0; 
 									int numInactive = 0;
 									do {
-										numInactive = getNumInactiveReplicas(restartNode, client);
+										numInactive = getNumInactiveReplicas(restartNode, client, cloud);
 										
 										if (numInactive != lastNumInactive) {
 											lastTimestamp = System.nanoTime();
@@ -560,7 +560,7 @@ public class StressMain {
 					}
 					log.info("Node mapping: "+nodeMap);
 
-					try (CloudSolrClient client = new CloudSolrClient.Builder().withSolrUrl(cloud.nodes.get(0).getBaseUrl()).build();) {
+					try (CloudSolrClient client = new CloudSolrClient.Builder(Arrays.asList(cloud.nodes.get(0).getBaseUrl())).build();) {
 						ClusterState state = client.getClusterStateProvider().getClusterState();
 						log.info("Live nodes: "+state.getLiveNodes());
 					}
@@ -609,7 +609,6 @@ public class StressMain {
 
 							try (HttpSolrClient client = new HttpSolrClient.Builder(cloud.nodes.get(nodes.iterator().next()).getBaseUrl()).build();) {
 								Create create = Create.createCollection(name, configSet[0], coll.getShards().size(), 1).
-										setMaxShardsPerNode(coll.getShards().size()).
 										setCreateNodeSet(nodeSet);
 								create.setAsyncId(name);
 
@@ -736,8 +735,16 @@ public class StressMain {
 		return c;
 	}
 
+	private static void refreshZkClusterState(SolrCloud cloud) {
+		try (SolrZkClient zkClient = new SolrZkClient.Builder().withUrl(cloud.getZookeeperUrl()).withTimeout(100, TimeUnit.SECONDS).build()) {
+			new ZkStateReader(zkClient).forciblyRefreshAllClusterStateSlow();
+		} catch (Exception e) {
+			log.warn("failed to refresh cluster state "+ e.getMessage());
+		}
+	}
+
 	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
-		return new CloudSolrClient.Builder().withZkHost(cloud.getZookeeperUrl()).withZkChroot(cloud.getZookeeperChroot()).build();
+		return new CloudSolrClient.Builder(Arrays.asList(cloud.getZookeeperUrl()), Optional.ofNullable(cloud.getZookeeperChroot())).build();
 	}
 
 	/**
@@ -753,12 +760,12 @@ public class StressMain {
 		return new HttpSolrClient.Builder(cloud.nodes.get(0).getBaseUrl()).build();
 	}
 
-	private static int getNumInactiveReplicas(SolrNode node, CloudSolrClient client)
+	private static int getNumInactiveReplicas(SolrNode node, CloudSolrClient client, SolrCloud cloud)
 			throws KeeperException, InterruptedException, IOException {
 		int numInactive;
 		numInactive = 0;
 		Map<String, String> inactive = new HashMap<>();
-		client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+		refreshZkClusterState(cloud);
 		ClusterState state = client.getClusterStateProvider().getClusterState();
 		for (String coll: state.getCollectionsMap().keySet()) {
 			for (Slice shard: state.getCollection(coll).getActiveSlices()) {
@@ -778,7 +785,7 @@ public class StressMain {
 			System.out.println("\tInactive replicas on restarted node ("+node.getBaseUrl()+"): " + numInactive );
 			if (numInactive != 0) {
 				Thread.sleep(1000);
-				client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
+				refreshZkClusterState(cloud);
 			}
 		}
 		return numInactive;
@@ -791,7 +798,7 @@ public class StressMain {
 			if (validationDefinition.numInactiveReplicas != null) {
 				// get num inactive replicas
 				try (CloudSolrClient client = buildSolrClient(cloud);) {
-					int numInactive = getNumInactiveReplicas(null, client);
+					int numInactive = getNumInactiveReplicas(null, client, cloud);
 					log.info("Validation: inactive replicas are " + numInactive);
 					if (numInactive > validationDefinition.numInactiveReplicas) {
 						log.error("Failed validation: " + new ObjectMapper().writeValueAsString(validationDefinition));
@@ -821,14 +828,14 @@ public class StressMain {
 				log.info("Trying to get list of collections: ");
 				Thread.sleep(500);
 				//List<Slice> slices = getActiveSlicedShuffled(client, collection);
-				List<String> colls = new ArrayList(client.getZkStateReader().getClusterState().getCollectionsMap().keySet());
+				List<String> colls = new ArrayList(client.getClusterStateProvider().getClusterState().getCollectionsMap().keySet());
 				Collections.shuffle(colls);
 				log.info("Active collections: "+colls.size());
 				collection = colls.get(0);
 				solrurlMap.put("RANDOM_COLLECTION", colls.get(0));
 				
 				// If a collection is randomly chosen, populate the RANDOM_BOOLEAN in a way that's opposite of the PRS state.
-				solrurlMap.put("RANDOM_BOOLEAN", String.valueOf(!client.getZkStateReader().getClusterState().getCollection(colls.get(0)).isPerReplicaState()));
+				solrurlMap.put("RANDOM_BOOLEAN", String.valueOf(!client.getClusterStateProvider().getClusterState().getCollection(colls.get(0)).isPerReplicaState()));
 			}
 		}
 
@@ -841,18 +848,18 @@ public class StressMain {
 				}
 				log.info("Trying to get shards for collection: "+collection);
 				Thread.sleep(500);
-				List<Slice> slices = getActiveSlicedShuffled(client, collection);
+				List<Slice> slices = getActiveSlicedShuffled(client, collection, cloud);
 				log.info("Active slices: "+slices.size());
 				solrurlMap.put("RANDOM_SHARD", slices.get(0).getName());
 			}
 		}
 	}
 
-	private static List<Slice> getActiveSlicedShuffled(CloudSolrClient client, String collection)
+	private static List<Slice> getActiveSlicedShuffled(CloudSolrClient client, String collection, SolrCloud cloud)
 			throws KeeperException, InterruptedException {
 		List<Slice> slices = new ArrayList();
-		client.getZkStateReader().forciblyRefreshAllClusterStateSlow();
-		for (Slice s: client.getZkStateReader().getClusterState().getCollection(collection).getSlices()) {
+		refreshZkClusterState(cloud);
+		for (Slice s: client.getClusterStateProvider().getClusterState().getCollection(collection).getSlices()) {
 			if (s.getState().equals(Slice.State.ACTIVE)) {
 				slices.add(s);
 			}

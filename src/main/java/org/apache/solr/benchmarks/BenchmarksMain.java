@@ -263,6 +263,7 @@ public class BenchmarksMain {
         		doc.addField(headers.get(i), fields[i]);
         	}
         	if (!doc.containsKey(benchmark.idField)) doc.addField(benchmark.idField, UUID.randomUUID().toString());
+
         	client.add(collection, doc);
         }
         br.close();

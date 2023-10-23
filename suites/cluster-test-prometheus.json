@@ -1,0 +1,102 @@
+{
+  "task-types": {
+    "indexing": {
+      "index-benchmark": {
+        "name": "CLOUD_INDEXING",
+        "description": "Wikipedia dataset on SolrCloud",
+        "replication-type": "cloud",
+        "dataset-file": "small-data/tiny-dev-wikipedia.tsv.gz",
+        "file-format": "tsv",
+        "id-field": "id",
+        "min-threads": 2,
+        "max-threads": 2,
+        "setups": [
+          {
+            "setup-name": "cloud_2x2",
+            "collection": "small-wikipedia-${INDEX}",
+            "replication-factor": 1,
+            "shards": 1,
+            "thread-step": 1
+          }
+        ]
+      }
+    },
+    "collection-creation": {
+      "command": "${SOLRURL}admin/collections?action=CREATE&name=collection${INDEX}&numShards=${SHARDS}",
+      "defaults": {
+        "INDEX": 0,
+        "SHARDS": 1
+      }
+    },
+    "shard-splitting": {
+      "command": "${SOLRURL}admin/collections?action=SPLITSHARD&collection=${COLLECTION}&shard=${SHARD}",
+      "defaults": {}
+    },
+    "num-docs": {
+      "command": "${SOLRURL}small-wikipedia/select?q=*:*&rows=0&distrib=false",
+      "defaults": {}
+    },
+    "restart-solr-node": {
+      "restart-solr-node": "${NODE_INDEX}",
+      "await-recoveries": true
+    }
+  },
+  "global-variables": {
+    "collection-counter": 0,
+    "restart-counter": 1
+  },
+  "global-constants": {
+    "HOST": "localhost",
+    "PORT": "8983"
+  },
+  "execution-plan": {
+    "task1": {
+      "type": "indexing",
+      "instances": 5,
+      "concurrency": 1,
+      "mode": "sync",
+      "parameters": {
+        "INDEX": "${collection-counter}",
+        "SHARDS": 1
+      },
+      "pre-task-evals": [
+        "inc(collection-counter,1)"
+      ]
+    },
+    "task2": {
+      "description": "Restart Solr node",
+      "instances": 1,
+      "concurrency": 1,
+      "type": "restart-solr-node",
+      "parameters": {
+        "NODE_INDEX": "${restart-counter}"
+      },
+      "wait-for": "task1",
+      "mode": "sync",
+      "pre-task-evals": [
+        "inc(restart-counter,1)"
+      ]
+    }
+  },
+  "cluster": {
+    "num-solr-nodes": 2,
+    "startup-params": "-m 1g -V",
+    "provisioning-method": "local"
+  },
+  "repositories": [
+    {
+      "commit-id": "243f0c0839741c91ebcafd4546bcc1d1f4f75ac7",
+      "description": "Solr main",
+      "name": "solr-repository",
+      "package-subdir": "/solr/packaging/",
+      "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
+      "submodules": false,
+      "url": "https://github.com/apache/solr",
+      "user": "nginthfs"
+    }
+  ],
+  "metrics": ["jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"],
+  "prometheus-metrics":["node_memory_active_bytes", "node_time_seconds", "node_load1"],
+  "prometheus-metrics-port": "9100",
+  "metrics-collection-interval": 30
+}
