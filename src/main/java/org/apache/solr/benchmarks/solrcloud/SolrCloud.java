@@ -230,15 +230,15 @@ public class SolrCloud {
   }
 
   private ZkStateReader getZkStateReader() {
-      SolrZkClient zkClient = new SolrZkClient.Builder().withUrl(getZookeeperUrl()).build();
-      return new ZkStateReader(zkClient);
+      //uses timeout otherwise the client thread dangles even on close
+      return new ZkStateReader(getZookeeperUrl(), 30_000, 30_000);
   }
 
     private Collection<String> getExternalDataNodes(CloudSolrClient client) {
-        try {
-            if (getZkStateReader().getZkClient().exists("/node_roles/data/on", true)) {
+        try (ZkStateReader reader = getZkStateReader()){
+            if (reader.getZkClient().exists("/node_roles/data/on", true)) {
                 List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-                liveNodes.retainAll(getZkStateReader().getZkClient().getChildren("/node_roles/data/on", null, true));
+                liveNodes.retainAll(reader.getZkClient().getChildren("/node_roles/data/on", null, true));
                 if (!liveNodes.isEmpty()) {
                     return liveNodes;
                 }
@@ -249,19 +249,19 @@ public class SolrCloud {
         return client.getClusterStateProvider().getLiveNodes();
     }
     private Collection<String> getExternalQueryNodes(CloudSolrClient client) {
-        try {
-            if (getZkStateReader().getZkClient().exists("/node_roles/coordinator/on", true)) {
-                List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-                liveNodes.retainAll(getZkStateReader().getZkClient().getChildren("/node_roles/coordinator/on", null, true));
-                if (!liveNodes.isEmpty()) {
-                    return liveNodes;
-                }
-            }
-        } catch (Exception e) {
-            //ok, just use the /live_query_nodes
+      try (ZkStateReader reader = getZkStateReader()) {
+        if (reader.getZkClient().exists("/node_roles/coordinator/on", true)) {
+          List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
+          liveNodes.retainAll(reader.getZkClient().getChildren("/node_roles/coordinator/on", null, true));
+          if (!liveNodes.isEmpty()) {
+            return liveNodes;
+          }
         }
-      try {
-        return getZkStateReader().getZkClient().getChildren("/live_query_nodes", null, true);
+      } catch (Exception e) {
+          //ok, just use the /live_query_nodes
+      }
+      try (ZkStateReader reader = getZkStateReader()) {
+        return reader.getZkClient().getChildren("/live_query_nodes", null, true);
       } catch (Exception e) {
         log.warn("Failed to look up query nodes. Skipping");
         return Collections.emptyList();
@@ -269,10 +269,10 @@ public class SolrCloud {
     }
 
   private Collection<String> getExternalPreferredOverseerNodes(CloudSolrClient client)  {
-    try {
-      if (getZkStateReader().getZkClient().exists("/node_roles/overseer/preferred", true)) {
+    try (ZkStateReader reader = getZkStateReader()) {
+      if (reader.getZkClient().exists("/node_roles/overseer/preferred", true)) {
         List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-        liveNodes.retainAll(getZkStateReader().getZkClient().getChildren("/node_roles/overseer/preferred", null, true));
+        liveNodes.retainAll(reader.getZkClient().getChildren("/node_roles/overseer/preferred", null, true));
         if (!liveNodes.isEmpty()) {
           return liveNodes;
         }
