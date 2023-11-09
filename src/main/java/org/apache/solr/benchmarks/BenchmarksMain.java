@@ -8,7 +8,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
-import org.apache.solr.benchmarks.exporter.GrafanaExportManager;
+import org.apache.solr.benchmarks.grafana.GrafanaExportManager;
 import org.apache.solr.benchmarks.indexing.DocReader;
 import org.apache.solr.benchmarks.indexing.FileDocReader;
 import org.apache.solr.benchmarks.indexing.IndexBatchSupplier;
@@ -29,7 +29,6 @@ import org.apache.solr.common.util.NamedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.transform.ErrorListener;
 import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.text.ParseException;
@@ -85,7 +84,7 @@ public class BenchmarksMain {
 					detailedQueryStatsListener = new DetailedQueryStatsListener();
 					listeners.add(detailedQueryStatsListener);
 				}
-				if (GrafanaExportManager.isIsEnabled()) {
+				if (GrafanaExportManager.isEnabled()) {
 					listeners.add(new GrafanaListener());
 				}
 

@@ -30,7 +30,7 @@ import org.apache.solr.benchmarks.beans.TaskInstance;
 import org.apache.solr.benchmarks.beans.TaskType;
 import org.apache.solr.benchmarks.beans.Workflow;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
-import org.apache.solr.benchmarks.exporter.GrafanaExportManager;
+import org.apache.solr.benchmarks.grafana.GrafanaExportManager;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
 import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
