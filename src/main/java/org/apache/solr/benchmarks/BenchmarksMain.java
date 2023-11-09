@@ -8,6 +8,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
+import org.apache.solr.benchmarks.exporter.GrafanaExportManager;
 import org.apache.solr.benchmarks.indexing.DocReader;
 import org.apache.solr.benchmarks.indexing.FileDocReader;
 import org.apache.solr.benchmarks.indexing.IndexBatchSupplier;
@@ -76,7 +77,18 @@ public class BenchmarksMain {
       String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
       log.info("Query base URL " + baseUrl);
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-				ControlledExecutor.ExecutionListener<String, NamedList<Object>> listener = benchmark.detailedStats ? new DetailedQueryStatsListener() : new ErrorListener();
+				List<ControlledExecutor.ExecutionListener<String, NamedList<Object>>> listeners = new ArrayList<>();
+				DetailedQueryStatsListener detailedQueryStatsListener = null;
+
+				listeners.add(new ErrorListener());
+				if (benchmark.detailedStats) {
+					detailedQueryStatsListener = new DetailedQueryStatsListener();
+					listeners.add(detailedQueryStatsListener);
+				}
+				if (GrafanaExportManager.isIsEnabled()) {
+					listeners.add(new GrafanaListener());
+				}
+
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 				ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
@@ -87,7 +99,7 @@ public class BenchmarksMain {
 					benchmark.totalCount,
 					benchmark.warmCount,
 					getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
-					listener);
+					listeners.toArray(new ControlledExecutor.ExecutionListener[listeners.size()]));
 				long start = System.currentTimeMillis();
 				try {
 						controlledExecutor.run();
@@ -103,10 +115,10 @@ public class BenchmarksMain {
 						((List)results.get("query-benchmarks").get(benchmark.name)).add(
 								Util.map("threads", threads, "50th", controlledExecutor.stats.getPercentile(50), "90th", controlledExecutor.stats.getPercentile(90),
 										"95th", controlledExecutor.stats.getPercentile(95), "mean", controlledExecutor.stats.getMean(), "total-queries", controlledExecutor.stats.getN(), "total-time", time));
-					if (listener instanceof DetailedQueryStatsListener) {
+					if (detailedQueryStatsListener != null) {
 						Map detailedStats = (Map) results.get("query-benchmarks").computeIfAbsent("detailed-stats", key -> new LinkedHashMap<>());
 						//add the detailed stats (per query in the input query file) collected by the listener
-						for (DetailedStats stats : ((DetailedQueryStatsListener) listener).getStats()) {
+						for (DetailedStats stats : detailedQueryStatsListener.getStats()) {
 							String statsName = stats.getStatsName();
 							List<Map> outputStats = (List<Map>)(detailedStats.computeIfAbsent(statsName, key -> new ArrayList<>()));
 							stats.setExtraProperty("threads", threads);
@@ -476,6 +488,16 @@ public class BenchmarksMain {
 			} catch (IOException e) {
 				log.warn("Failed to invoke printErrOutput");
 			}
+		}
+	}
+
+	private static class GrafanaListener implements  ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
+		GrafanaListener() {
+
+		}
+		@Override
+		public void onExecutionComplete(String typeKey, NamedList<Object> result, long duration) {
+			GrafanaExportManager.markQueryDuration(typeKey, duration);
 		}
 	}
 }

@@ -1,9 +1,9 @@
+package org.apache.solr.benchmarks.beans;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.solr.benchmarks.beans.Cluster;
-import org.apache.solr.benchmarks.beans.Repository;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -23,23 +23,23 @@ public class Workflow {
 	
 	// Workflow definition
 	@JsonProperty("task-types")
-	Map<String, TaskType> taskTypes;
+	public Map<String, TaskType> taskTypes;
 
 	@JsonProperty("global-variables")
-	Map<String, Integer> globalVariables;
+	public Map<String, Integer> globalVariables;
 
 	@JsonProperty("global-constants")
-	Map<String, String> globalConstants;
+	public Map<String, String> globalConstants;
 
 	@JsonProperty("threadpools")
-	List<ThreadpoolInfo> threadpools = Collections.emptyList();
+	public List<ThreadpoolInfo> threadpools = Collections.emptyList();
 
 	@JsonProperty("execution-plan")
-	Map<String, TaskInstance> executionPlan;
+	public Map<String, TaskInstance> executionPlan;
 	
 	// Validations definition
 	@JsonProperty("validations")
-	Map<String, Validation> validations;
+	public Map<String, Validation> validations;
 	
 	@JsonProperty("metrics")
 	public List<String> metrics;
@@ -57,21 +57,28 @@ public class Workflow {
 	@JsonProperty("zk-metrics")
 	public List<String> zkMetrics = Collections.emptyList();
 
-	static class ThreadpoolInfo {
+	/**
+	 * If defined, the benchmarking will export/expose tests metrics to prometheus by running the plain Java HttpServer at
+	 * the port defined
+	 */
+	@JsonProperty("prometheus-export-port")
+	public Integer prometheusExportPort;
+
+	public static class ThreadpoolInfo {
 		public String name;
 		public int size;
 	}
 	
-	static class Validation {
+	public static class Validation {
 		@JsonProperty("num-inactive-replicas")
-		Integer numInactiveReplicas;
+		public Integer numInactiveReplicas;
 		
 		@JsonProperty("match-docs")
-		MatchDocs matchDocs;
-		
-		static class MatchDocs {
+		public MatchDocs matchDocs;
+
+		public static class MatchDocs {
 			@JsonProperty("indexing-tasks")
-			List<String> indexingTasks;
+			public List<String> indexingTasks;
 			
 		}
 	}

@@ -34,7 +34,7 @@ public class ControlledExecutor<T, R> {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private final Supplier<Callable<R>> taskSupplier;
     private final ExecutorService executor;
-    private final ExecutionListener<T, R> executionListener;
+    private final ExecutionListener<T, R>[] executionListeners;
     private String label;
     private final Integer duration; //if defined, this executor should cease executing more tasks once duration is reached
     private Long endTime; //this executor should cease executing more tasks once this time is reached, computed from duration
@@ -66,16 +66,16 @@ public class ControlledExecutor<T, R> {
     }
 
     public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier) {
-        this(label, threads, duration, rpm, maxExecution, warmCount, taskSupplier, null);
+        this(label, threads, duration, rpm, maxExecution, warmCount, taskSupplier, new ExecutionListener[0]);
     }
-    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier, ExecutionListener<T, R> executionListener) {
+    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier, ExecutionListener<T, R>... executionListeners) {
         this.label = label;
         this.duration = duration;
         this.maxExecution = maxExecution;
         this.warmCount = warmCount;
         this.stats = new SynchronizedDescriptiveStatistics();
         this.taskSupplier = taskSupplier;
-        this.executionListener = executionListener;
+        this.executionListeners = executionListeners;
         executor = new ThreadPoolExecutor(threads, threads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
@@ -142,12 +142,14 @@ public class ControlledExecutor<T, R> {
                     if (executionCount.incrementAndGet() > warmCount) {
                         long durationInNanoSec = (System.nanoTime() - start);
                         stats.addValue(durationInNanoSec  / 1000_000.0);
-                        if (executionListener != null) {
+                        if (executionListeners.length > 0) {
                             T type = null;
                             if (task instanceof CallableWithType) {
-                                type = ((CallableWithType<T, ?>)task).getType();
+                                type = ((CallableWithType<T, ?>) task).getType();
                             }
-                            executionListener.onExecutionComplete(type, result, durationInNanoSec);
+                            for (ExecutionListener<T, R> executionListener : executionListeners) {
+                                executionListener.onExecutionComplete(type, result, durationInNanoSec);
+                            }
                         }
                     }
                     return null;
