@@ -30,7 +30,7 @@ import org.apache.solr.benchmarks.beans.TaskInstance;
 import org.apache.solr.benchmarks.beans.TaskType;
 import org.apache.solr.benchmarks.beans.Workflow;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
-import org.apache.solr.benchmarks.grafana.GrafanaExportManager;
+import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
 import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
@@ -144,8 +144,8 @@ public class StressMain {
 		}
 
 		//initialize Grafana server if necessary
-		if (workflow.prometheusExportPort != null) {
-			GrafanaExportManager.startServer(workflow);
+		if (workflow.prometheusExport != null) {
+			PrometheusExportManager.startServer(workflow);
 		}
 
 		long executionStart = System.currentTimeMillis();

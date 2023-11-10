@@ -1,4 +1,4 @@
-package org.apache.solr.benchmarks.grafana;
+package org.apache.solr.benchmarks.prometheus;
 
 import io.prometheus.client.Histogram;
 import io.prometheus.client.Summary;
@@ -13,14 +13,14 @@ import java.lang.invoke.MethodHandles;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class GrafanaExportServer {
+public class PrometheusExportServer {
   private final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   Histogram queryHistogram;
 
-  GrafanaExportServer(Workflow workflow) throws IOException {
+  PrometheusExportServer(Workflow workflow) throws IOException {
     if (initMetrics(workflow)) {
-      log.info("Starting grafana exporter and metrics will be available at 127.0.0.1:{}/metrics", workflow.prometheusExportPort);
-      new HTTPServer(workflow.prometheusExportPort, true);
+      log.info("Starting grafana exporter and metrics will be available at 127.0.0.1:{}/metrics", workflow.prometheusExport.port);
+      new HTTPServer(workflow.prometheusExport.port, true);
     }
   }
   /**
@@ -29,7 +29,7 @@ public class GrafanaExportServer {
    * @return
    */
   final boolean initMetrics(Workflow workflow) {
-    if (workflow.prometheusExportPort == null) {
+    if (workflow.prometheusExport == null) {
       return false;
     }
 
@@ -38,7 +38,6 @@ public class GrafanaExportServer {
 
     //only export grafana metrics on query and index benchmarks
     if (taskTypes.stream().anyMatch(t -> t.queryBenchmark != null)) {
-//      querySummary = registerSummary("solr_bench_query_duration", "duration taken to execute a Solr query", "query");
       queryHistogram = registerHistogram("solr_bench_query_duration", "duration taken to execute a Solr query");
       shouldStart = true;
     }
@@ -48,11 +47,11 @@ public class GrafanaExportServer {
     return shouldStart;
   }
 
-  private static Summary registerSummary(String name, String help, String... labelNames) {
-    return Summary.build(name, help).labelNames(labelNames).register();
+  private static Summary registerSummary(String name, String help) {
+    return Summary.build(name, help).labelNames("type").register(); //only support a single "type" label for now
   }
 
-  private static Histogram registerHistogram(String name, String help, String... labelNames) {
-    return Histogram.build(name, help).labelNames(labelNames).exponentialBuckets(1, 1.5, 30).register();
+  private static Histogram registerHistogram(String name, String help) {
+    return Histogram.build(name, help).labelNames("type").exponentialBuckets(1, 1.5, 30).register(); //only support a single "type" label for now
   }
 }

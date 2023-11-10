@@ -58,11 +58,20 @@ public class Workflow {
 	public List<String> zkMetrics = Collections.emptyList();
 
 	/**
-	 * If defined, the benchmarking will export/expose tests metrics to prometheus by running the plain Java HttpServer at
-	 * the port defined
+	 * If defined, the benchmarking will export/expose tests metrics to prometheus by running the plain Java HttpServer.
+	 *
+	 * This is different from prometheusMetrics/prometheusMetricsPort which scrapes prometheus metrics from the running
+	 * host
 	 */
-	@JsonProperty("prometheus-export-port")
-	public Integer prometheusExportPort;
+	@JsonProperty("prometheus-export")
+	public PrometheusExport prometheusExport;
+
+	public static class PrometheusExport {
+		@JsonProperty("port")
+		public int port = 11100;
+		@JsonProperty("type-label")
+		public String typeLabel = "all";
+	}
 
 	public static class ThreadpoolInfo {
 		public String name;

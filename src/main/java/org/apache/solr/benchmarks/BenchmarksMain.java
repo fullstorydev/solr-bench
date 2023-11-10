@@ -8,7 +8,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
-import org.apache.solr.benchmarks.grafana.GrafanaExportManager;
+import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.benchmarks.indexing.DocReader;
 import org.apache.solr.benchmarks.indexing.FileDocReader;
 import org.apache.solr.benchmarks.indexing.IndexBatchSupplier;
@@ -84,8 +84,8 @@ public class BenchmarksMain {
 					detailedQueryStatsListener = new DetailedQueryStatsListener();
 					listeners.add(detailedQueryStatsListener);
 				}
-				if (GrafanaExportManager.isEnabled()) {
-					listeners.add(new GrafanaListener());
+				if (PrometheusExportManager.isEnabled()) {
+					listeners.add(new GrafanaListener(benchmark.prometheusTypeLabel));
 				}
 
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
@@ -491,12 +491,14 @@ public class BenchmarksMain {
 	}
 
 	private static class GrafanaListener implements  ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
-		GrafanaListener() {
+		private final String typeLabel; //if null then we will use the workflow global value
 
+		GrafanaListener(String typeLabel) {
+			this.typeLabel = typeLabel;
 		}
 		@Override
 		public void onExecutionComplete(String typeKey, NamedList<Object> result, long durationInNanosecond) {
-			GrafanaExportManager.markQueryDuration(typeKey, durationInNanosecond / 1_000_000);
+			PrometheusExportManager.markQueryDuration(typeKey, typeLabel,durationInNanosecond / 1_000_000);
 		}
 	}
 }
