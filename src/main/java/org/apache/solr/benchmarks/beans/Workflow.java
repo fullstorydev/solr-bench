@@ -5,8 +5,10 @@ import java.util.List;
 import java.util.Map;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonIgnoreProperties({"extra-jvm-args"})
 public class Workflow {
 	// Cluster definition
 	@JsonProperty("cluster")
