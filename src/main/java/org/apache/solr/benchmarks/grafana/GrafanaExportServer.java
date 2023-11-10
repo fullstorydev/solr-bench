@@ -1,5 +1,6 @@
 package org.apache.solr.benchmarks.grafana;
 
+import io.prometheus.client.Histogram;
 import io.prometheus.client.Summary;
 import io.prometheus.client.exporter.HTTPServer;
 import org.apache.solr.benchmarks.beans.TaskType;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 
 public class GrafanaExportServer {
   private final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  Summary querySummary;
+  Histogram queryHistogram;
 
   GrafanaExportServer(Workflow workflow) throws IOException {
     if (initMetrics(workflow)) {
@@ -38,7 +39,7 @@ public class GrafanaExportServer {
     //only export grafana metrics on query and index benchmarks
     if (taskTypes.stream().anyMatch(t -> t.queryBenchmark != null)) {
 //      querySummary = registerSummary("solr_bench_query_duration", "duration taken to execute a Solr query", "query");
-      querySummary = registerSummary("solr_bench_query_duration", "duration taken to execute a Solr query");
+      queryHistogram = registerHistogram("solr_bench_query_duration", "duration taken to execute a Solr query");
       shouldStart = true;
     }
     if (taskTypes.stream().anyMatch(t -> t.indexBenchmark != null)) {
@@ -49,5 +50,9 @@ public class GrafanaExportServer {
 
   private static Summary registerSummary(String name, String help, String... labelNames) {
     return Summary.build(name, help).labelNames(labelNames).register();
+  }
+
+  private static Histogram registerHistogram(String name, String help, String... labelNames) {
+    return Histogram.build(name, help).labelNames(labelNames).register();
   }
 }
