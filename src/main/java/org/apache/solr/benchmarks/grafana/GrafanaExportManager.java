@@ -29,7 +29,8 @@ public class GrafanaExportManager {
 
   public static void markQueryDuration(String query, long durationInNanosecond) {
     checkEnabled();
-    SERVER.querySummary.labels(query).observe(durationInNanosecond);
+//    SERVER.querySummary.labels(query).observe(durationInNanosecond);
+    SERVER.querySummary.observe(durationInNanosecond); //less not mark query for now, it could be very high cardinalityß
   }
 
 
