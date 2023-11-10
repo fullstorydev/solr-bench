@@ -53,6 +53,6 @@ public class GrafanaExportServer {
   }
 
   private static Histogram registerHistogram(String name, String help, String... labelNames) {
-    return Histogram.build(name, help).labelNames(labelNames).register();
+    return Histogram.build(name, help).labelNames(labelNames).exponentialBuckets(1, 1.5, 30).register();
   }
 }
