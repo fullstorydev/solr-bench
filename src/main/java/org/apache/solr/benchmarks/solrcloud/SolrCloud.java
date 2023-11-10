@@ -196,13 +196,15 @@ public class SolrCloud {
                     liveNode.split("_solr")[0].split(":")[0],
                     Integer.valueOf(liveNode.split("_solr")[0].split(":")[1]),
                     cluster.externalSolrConfig.sshUserName,
-                    cluster.externalSolrConfig.restartScript));
+                    cluster.externalSolrConfig.restartScript,
+                    cluster.externalSolrConfig.protocol));
           }
           List<SolrNode> dataNodes = getExternalDataNodes(client).stream().map(dataNode -> new ExternalSolrNode(
                   dataNode.split("_solr")[0].split(":")[0],
                   Integer.valueOf(dataNode.split("_solr")[0].split(":")[1]),
                   cluster.externalSolrConfig.sshUserName,
-                  cluster.externalSolrConfig.restartScript)).collect(Collectors.toList());
+                  cluster.externalSolrConfig.restartScript,
+                  cluster.externalSolrConfig.protocol)).collect(Collectors.toList());
           if (!dataNodes.isEmpty()) {
             nodesByRole.put(NodeRole.DATA, dataNodes);
           }
@@ -210,7 +212,8 @@ public class SolrCloud {
                   queryNode.split("_solr")[0].split(":")[0],
                   Integer.valueOf(queryNode.split("_solr")[0].split(":")[1]),
                   cluster.externalSolrConfig.sshUserName,
-                  cluster.externalSolrConfig.restartScript)).collect(Collectors.toList());
+                  cluster.externalSolrConfig.restartScript,
+                  cluster.externalSolrConfig.protocol)).collect(Collectors.toList());
           if (!queryNodes.isEmpty()) {
             nodesByRole.put(NodeRole.COORDINATOR, queryNodes);
           }
@@ -218,7 +221,8 @@ public class SolrCloud {
                   overseerNode.split("_solr")[0].split(":")[0],
                   Integer.valueOf(overseerNode.split("_solr")[0].split(":")[1]),
                   cluster.externalSolrConfig.sshUserName,
-                  cluster.externalSolrConfig.restartScript)).collect(Collectors.toList());
+                  cluster.externalSolrConfig.restartScript,
+                  cluster.externalSolrConfig.protocol)).collect(Collectors.toList());
           if (!queryNodes.isEmpty()) {
             nodesByRole.put(NodeRole.OVERSEER, overseerNodes);
           }

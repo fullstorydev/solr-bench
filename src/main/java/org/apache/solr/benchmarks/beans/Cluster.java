@@ -54,5 +54,8 @@ public class Cluster {
 
     @JsonProperty("ssh-username")
     public String sshUserName;
+
+    @JsonProperty("protocol")
+    public String protocol = "http";
   }
 }
