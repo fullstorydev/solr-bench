@@ -37,7 +37,7 @@ public class GrafanaExportServer {
 
     //only export grafana metrics on query and index benchmarks
     if (taskTypes.stream().anyMatch(t -> t.queryBenchmark != null)) {
-      querySummary = registerSummary("query_duration", "duration taken to execute a Solr query", "query");
+      querySummary = registerSummary("solr_bench_query_duration", "duration taken to execute a Solr query", "query");
       shouldStart = true;
     }
     if (taskTypes.stream().anyMatch(t -> t.indexBenchmark != null)) {
