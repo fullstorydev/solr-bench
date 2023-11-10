@@ -272,7 +272,7 @@ fi
 cd $BASEDIR
 echo_blue "Running Stress suite from working directory: $BASEDIR"
 
-EXTRA_JVM_ARGS=`jq -r '.["extra-jvm-args"]' $CONFIGFILE`
+EXTRA_JVM_ARGS=`jq -r '.["extra-jvm-args"] // ""' $CONFIGFILE`
 if [ -z "$SOLR_BENCH_JAR" ] #then no explicit jar provided
 then
   java -Xmx12g $EXTRA_JVM_ARGS -cp $BASEDIR/target/org.apache.solr.benchmarks-${SOLR_BENCH_VERSION}-jar-with-dependencies.jar:. \
