@@ -27,10 +27,10 @@ public class GrafanaExportManager {
     return SERVER != null;
   }
 
-  public static void markQueryDuration(String query, long durationInNanosecond) {
+  public static void markQueryDuration(String query, long durationInMillisecond) {
     checkEnabled();
 //    SERVER.queryHistogram.labels(query).observe(durationInNanosecond);
-    SERVER.queryHistogram.observe(durationInNanosecond); //less not mark query for now, it could be very high cardinalityß
+    SERVER.queryHistogram.observe(durationInMillisecond); //less not mark query for now, it could be very high cardinalityß
   }
 
 

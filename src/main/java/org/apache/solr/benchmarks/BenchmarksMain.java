@@ -495,8 +495,8 @@ public class BenchmarksMain {
 
 		}
 		@Override
-		public void onExecutionComplete(String typeKey, NamedList<Object> result, long duration) {
-			GrafanaExportManager.markQueryDuration(typeKey, duration);
+		public void onExecutionComplete(String typeKey, NamedList<Object> result, long durationInNanosecond) {
+			GrafanaExportManager.markQueryDuration(typeKey, durationInNanosecond / 1_000_000);
 		}
 	}
 }
