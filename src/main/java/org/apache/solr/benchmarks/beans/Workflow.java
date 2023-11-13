@@ -72,7 +72,7 @@ public class Workflow {
 		@JsonProperty("port")
 		public int port = 11100;
 		@JsonProperty("type-label")
-		public String typeLabel = "all";
+		public String typeLabel = "unknown";
 	}
 
 	public static class ThreadpoolInfo {

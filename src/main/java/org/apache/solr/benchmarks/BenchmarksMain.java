@@ -76,7 +76,7 @@ public class BenchmarksMain {
       String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
       log.info("Query base URL " + baseUrl);
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-				List<ControlledExecutor.ExecutionListener<String, NamedList<Object>>> listeners = new ArrayList<>();
+				List<ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>>> listeners = new ArrayList<>();
 				DetailedQueryStatsListener detailedQueryStatsListener = null;
 
 				listeners.add(new ErrorListener());
@@ -85,12 +85,12 @@ public class BenchmarksMain {
 					listeners.add(detailedQueryStatsListener);
 				}
 				if (PrometheusExportManager.isEnabled()) {
-					listeners.add(new GrafanaListener(benchmark.prometheusTypeLabel));
+					listeners.add(new PrometheusListener(benchmark.prometheusTypeLabel));
 				}
 
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-				ControlledExecutor<String, Long> controlledExecutor = new ControlledExecutor(
+				ControlledExecutor<Long> controlledExecutor = new ControlledExecutor(
 					benchmark.name,
 					threads,
 					benchmark.durationSecs,
@@ -192,32 +192,32 @@ public class BenchmarksMain {
 		}
 	}
 
-    private static Supplier<ControlledExecutor.CallableWithType<String, NamedList<Object>>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
-		class QueryCallable implements ControlledExecutor.CallableWithType<String, NamedList<Object>> {
-			private final QueryRequest queryRequest;
+    private static Supplier<ControlledExecutor.CallableWithType<NamedList<Object>>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
+			class QueryCallable implements ControlledExecutor.CallableWithType<NamedList<Object>> {
+				private final QueryRequest queryRequest;
 
-			private QueryCallable(QueryRequest queryRequest) {
-				this.queryRequest = queryRequest;
-			}
-			@Override
-			public String getType() {
-				return queryRequest.toString();
-			}
+				private QueryCallable(QueryRequest queryRequest) {
+					this.queryRequest = queryRequest;
+				}
+				@Override
+				public OperationKey getType() {
+					return new OperationKey(queryRequest.getMethod().name(), queryRequest.getPath(), Map.of("query", queryRequest.toString()));
+				}
 
-			@Override
-			public NamedList<Object> call() throws Exception {
-				NamedList<Object> rsp = client.request(queryRequest, collection);
-				//let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
-				//Probably better to let the caller handle the return values instead
-				//printErrOutput(queryRequest, rsp);
-				return rsp;
+				@Override
+				public NamedList<Object> call() throws Exception {
+					NamedList<Object> rsp = client.request(queryRequest, collection);
+					//let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
+					//Probably better to let the caller handle the return values instead
+					//printErrOutput(queryRequest, rsp);
+					return rsp;
+				}
 			}
-		}
-        return () -> {
-            QueryRequest qr = queryGenerator.nextRequest();
-            if (qr == null) return null;
-            return new QueryCallable(qr);
-        };
+			return () -> {
+					QueryRequest qr = queryGenerator.nextRequest();
+					if (qr == null) return null;
+					return new QueryCallable(qr);
+			};
     }
 
     private static void printErrOutput(String qr, NamedList<Object> rsp) throws IOException {
@@ -308,14 +308,22 @@ public class BenchmarksMain {
             File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
             try (DocReader docReader = new FileDocReader(datasetFile, benchmark.maxDocs != null ? benchmark.maxDocs.longValue() : null, benchmark.offset)) {
               try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
+								ControlledExecutor.ExecutionListener[] listeners;
+								if (PrometheusExportManager.isEnabled()) {
+									listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusListener(null) }; //no type label override for indexing
+								} else {
+									listeners = new ControlledExecutor.ExecutionListener[0];
+								}
+
                 ControlledExecutor controlledExecutor = new ControlledExecutor(
-						benchmark.name,
-						threads,
-                        benchmark.durationSecs,
-                        benchmark.rpm,
-                        null, //total is controlled by docReader's maxDocs
-                        0,
-                        indexBatchSupplier);
+									benchmark.name,
+									threads,
+									benchmark.durationSecs,
+									benchmark.rpm,
+									null, //total is controlled by docReader's maxDocs
+									0,
+									indexBatchSupplier,
+									listeners);
                 controlledExecutor.run();
                 HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
                 client.commit(collection);
@@ -337,16 +345,16 @@ public class BenchmarksMain {
 	 *     <li>Error count on the query (long)</li>
 	 * </ol>
 	 */
-	private static class DetailedQueryStatsListener implements ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
+	private static class DetailedQueryStatsListener implements ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>> {
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> durationStatsByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> docHitCountStatsByType = new ConcurrentHashMap<>();
 		private final ConcurrentMap<String, AtomicLong> errorCountStatsByType= new ConcurrentHashMap<>();
 		private final AtomicBoolean loggedQueryRspError = new AtomicBoolean(false);
 		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 		@Override
-		public void onExecutionComplete(String typeKey, NamedList<Object> queryRsp, long duration) {
-			if (typeKey != null) {
-				SynchronizedDescriptiveStatistics durationStats = durationStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
+		public void onExecutionComplete(OperationKey key, NamedList<Object> queryRsp, long duration) {
+			if (key != null) {
+				SynchronizedDescriptiveStatistics durationStats = durationStatsByType.computeIfAbsent((String) key.attributes.get("query"), (typeKey) -> new SynchronizedDescriptiveStatistics());
 				durationStats.addValue(duration / 1_000_000.0);
 				if (queryRsp != null) {
 
@@ -355,17 +363,17 @@ public class BenchmarksMain {
 					try {
 						responseStreamAsString = getResponseStreamAsString(responseStream); //should only call this once, as this reads the stream!
 					} catch (IOException e) {
-						logger.warn("Failed to read the response stream for " + typeKey);
+						logger.warn("Failed to read the response stream for " + (String) key.attributes.get("query"));
 					}
 
 					if (isSuccessfulRsp(queryRsp.get("closeableResponse"))) {
-						SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent(typeKey, (key) -> new SynchronizedDescriptiveStatistics());
+						SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent((String) key.attributes.get("query"), (typeKey) -> new SynchronizedDescriptiveStatistics());
 						int hitCount = getHitCount(responseStreamAsString);
 						if (hitCount != -1) {
 							hitCountStats.addValue(hitCount);
 						}
 					} else {
-						AtomicLong errorCount = errorCountStatsByType.computeIfAbsent(typeKey, (key) -> new AtomicLong(0));
+						AtomicLong errorCount = errorCountStatsByType.computeIfAbsent((String) key.attributes.get("query"), (typeKey) -> new AtomicLong(0));
 						errorCount.incrementAndGet();
 						//this could be noisy
 						if (!loggedQueryRspError.getAndSet(true) || logger.isDebugEnabled()) {
@@ -478,27 +486,51 @@ public class BenchmarksMain {
 		}
 	}
 
-	private static class ErrorListener implements ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
+	private static class ErrorListener implements ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>> {
 
 		@Override
-		public void onExecutionComplete(String typeKey, NamedList<Object> result, long duration) {
+		public void onExecutionComplete(OperationKey key, NamedList<Object> result, long duration) {
 			try {
-				printErrOutput(typeKey, result);
+				printErrOutput((String) key.attributes.get("query"), result);
 			} catch (IOException e) {
 				log.warn("Failed to invoke printErrOutput");
 			}
 		}
 	}
 
-	private static class GrafanaListener implements  ControlledExecutor.ExecutionListener<String, NamedList<Object>> {
+	private static class PrometheusListener implements  ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>> {
 		private final String typeLabel; //if null then we will use the workflow global value
 
-		GrafanaListener(String typeLabel) {
+		PrometheusListener(String typeLabel) {
 			this.typeLabel = typeLabel;
 		}
 		@Override
-		public void onExecutionComplete(String typeKey, NamedList<Object> result, long durationInNanosecond) {
-			PrometheusExportManager.markQueryDuration(typeKey, typeLabel,durationInNanosecond / 1_000_000);
+		public void onExecutionComplete(OperationKey key, NamedList<Object> result, long durationInNanosecond) {
+			PrometheusExportManager.markDuration(key, typeLabel,durationInNanosecond / 1_000_000);
+		}
+	}
+
+	public static class OperationKey {
+		private final String httpMethod;
+		private final String path;
+		private final Map<String, Object> attributes;
+
+		public OperationKey(String httpMethod, String path, Map<String, Object> attributes) {
+			this.httpMethod = httpMethod;
+			this.path = path;
+			this.attributes = attributes;
+		}
+
+		public String getHttpMethod() {
+			return httpMethod;
+		}
+
+		public String getPath() {
+			return path;
+		}
+
+		public Map<String, Object> getAttributes() {
+			return attributes;
 		}
 	}
 }

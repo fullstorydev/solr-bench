@@ -2,6 +2,7 @@ package org.apache.solr.benchmarks.indexing;
 
 import org.apache.http.client.HttpClient;
 import org.apache.solr.benchmarks.BenchmarksMain;
+import org.apache.solr.benchmarks.ControlledExecutor;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Slice;
@@ -134,7 +135,18 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
                 batch = pendingBatches.poll();
             }
 
-            return batch;
+            Callable finalBatch = batch;
+            return new ControlledExecutor.CallableWithType<>() { //wrap it so listener can report metrics on it with extra info
+              @Override
+              public Object call() throws Exception {
+                return finalBatch.call();
+              }
+
+              @Override
+              public BenchmarksMain.OperationKey getType() {
+                return new BenchmarksMain.OperationKey("POST", "/update", Collections.EMPTY_MAP); //tricky to extract values from batch, let's just hard-code this for now and it should be correct
+              }
+            };
         } catch (InterruptedException e) {
             log.warn("Cannot get the pending batches " + e.getMessage(), e);
             return null;

@@ -1,5 +1,6 @@
 package org.apache.solr.benchmarks.prometheus;
 
+import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.beans.Workflow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,9 +29,14 @@ public class PrometheusExportManager {
     return SERVER != null;
   }
 
-  public static void markQueryDuration(String query, String typeLabel, long durationInMillisecond) {
+  public static void markDuration(BenchmarksMain.OperationKey key, String typeLabel, long durationInMillisecond) {
     checkEnabled();
-    SERVER.queryHistogram.labels(typeLabel != null ? typeLabel : globalTypeLabel).observe(durationInMillisecond);
+    if (typeLabel == null) {
+      typeLabel = globalTypeLabel;
+    }
+    String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel };
+
+    SERVER.histogram.labels(labels).observe(durationInMillisecond);
   }
 
 

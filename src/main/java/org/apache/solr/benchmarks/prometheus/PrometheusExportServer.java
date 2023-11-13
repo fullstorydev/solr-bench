@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 public class PrometheusExportServer {
   private final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  Histogram queryHistogram;
+  Histogram histogram;
 
   PrometheusExportServer(Workflow workflow) throws IOException {
     if (initMetrics(workflow)) {
@@ -38,7 +38,7 @@ public class PrometheusExportServer {
 
     //only export grafana metrics on query and index benchmarks
     if (taskTypes.stream().anyMatch(t -> t.queryBenchmark != null)) {
-      queryHistogram = registerHistogram("solr_bench_query_duration", "duration taken to execute a Solr query");
+      histogram = registerHistogram("solr_bench_query_duration", "duration taken to execute a Solr query");
       shouldStart = true;
     }
     if (taskTypes.stream().anyMatch(t -> t.indexBenchmark != null)) {
@@ -48,10 +48,10 @@ public class PrometheusExportServer {
   }
 
   private static Summary registerSummary(String name, String help) {
-    return Summary.build(name, help).labelNames("type").register(); //only support a single "type" label for now
+    return Summary.build(name, help).labelNames("method", "path", "type").register(); //only support a single "type" label for now
   }
 
   private static Histogram registerHistogram(String name, String help) {
-    return Histogram.build(name, help).labelNames("type").exponentialBuckets(1, 1.5, 30).register(); //only support a single "type" label for now
+    return Histogram.build(name, help).labelNames("method", "path", "type").exponentialBuckets(1, 1.5, 30).register(); //only support a single "type" label for now
   }
 }
