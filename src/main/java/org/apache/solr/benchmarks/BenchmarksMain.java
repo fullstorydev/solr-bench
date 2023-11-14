@@ -192,38 +192,38 @@ public class BenchmarksMain {
 		}
 	}
 
-    private static Supplier<ControlledExecutor.CallableWithType<NamedList<Object>>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
-			class QueryCallable implements ControlledExecutor.CallableWithType<NamedList<Object>> {
-				private final QueryRequest queryRequest;
+  private static Supplier<ControlledExecutor.CallableWithType<NamedList<Object>>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
+    class QueryCallable implements ControlledExecutor.CallableWithType<NamedList<Object>> {
+      private final QueryRequest queryRequest;
 
-				private QueryCallable(QueryRequest queryRequest) {
-					this.queryRequest = queryRequest;
-				}
-				@Override
-				public OperationKey getType() {
-					return new OperationKey(queryRequest.getMethod().name(), queryRequest.getPath(), Map.of("query", queryRequest.toString()));
-				}
+      private QueryCallable(QueryRequest queryRequest) {
+        this.queryRequest = queryRequest;
+      }
+      @Override
+      public OperationKey getType() {
+        return new OperationKey(queryRequest.getMethod().name(), queryRequest.getPath(), Map.of("query", queryRequest.toString()));
+      }
 
-				@Override
-				public NamedList<Object> call() throws Exception {
-					NamedList<Object> rsp = client.request(queryRequest, collection);
-					//let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
-					//Probably better to let the caller handle the return values instead
-					//printErrOutput(queryRequest, rsp);
-					return rsp;
-				}
-			}
-			return () -> {
-					QueryRequest qr = queryGenerator.nextRequest();
-					if (qr == null) return null;
-					return new QueryCallable(qr);
-			};
+      @Override
+      public NamedList<Object> call() throws Exception {
+        NamedList<Object> rsp = client.request(queryRequest, collection);
+        //let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
+        //Probably better to let the caller handle the return values instead
+        //printErrOutput(queryRequest, rsp);
+        return rsp;
+      }
     }
+    return () -> {
+      QueryRequest qr = queryGenerator.nextRequest();
+      if (qr == null) return null;
+      return new QueryCallable(qr);
+    };
+  }
 
     private static void printErrOutput(String qr, NamedList<Object> rsp) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         if (rsp.get("stream") == null) {
-        	return;
+          return;
         }
         IOUtils.copy((InputStream) rsp.get("stream"), baos);
         String errorout = new String(baos.toByteArray());
