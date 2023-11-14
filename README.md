@@ -89,7 +89,7 @@ Mac OS requires a few tools to run this script. Install the following:
 This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
 
 ### Prometheus Exporter
-Currently, query metrics stats can also be exported via a Prometheus Exporter endpoint (default at port 11100 at /metrics).
+Currently, query and index benchmark metrics can also be exported via a Prometheus Exporter endpoint (default at port 11100 at /metrics).
 
 To enable this, simply set `prometheus-export` node in the root level of the configuration, there are 2 fields under such node:
 - port : the port to run the http server which exposes the metrics, default 11100 (to avoid conflicts with node-exporter etc at 9100)
@@ -103,7 +103,6 @@ for example:
 }
 ```
 To enable Prometheus with defaults, simply add `"prometheus-export": {}`
-
 
 Label override can also defined as `prometheus-type-label` under `query-benchmark` 
 
