@@ -13,7 +13,12 @@ import java.lang.invoke.MethodHandles;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class PrometheusExportServer {
+/**
+ * The wrapper of the underlying Prometheus HTTP server that exposes /metrics endpoint
+ *
+ * <p>This also registers a pre-determined set of histogram to the Prometheus default registry
+ */
+class PrometheusExportServer {
   private final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   Histogram histogram;
 
