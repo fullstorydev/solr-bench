@@ -57,6 +57,6 @@ class PrometheusExportServer {
   }
 
   private static Histogram registerHistogram(String name, String help) {
-    return Histogram.build(name, help).labelNames("method", "path", "type").exponentialBuckets(1, 1.5, 30).register();
+    return Histogram.build(name, help).labelNames("method", "path", "type").exponentialBuckets(1, 2, 30).register();
   }
 }
