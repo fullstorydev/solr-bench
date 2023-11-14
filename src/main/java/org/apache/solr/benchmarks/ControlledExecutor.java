@@ -138,19 +138,23 @@ public class ControlledExecutor<R> {
                         return null;
                     }
                     long start = System.nanoTime();
-                    R result = task.call();
-                    if (executionCount.incrementAndGet() > warmCount) {
-                        long durationInNanoSec = (System.nanoTime() - start);
-                        stats.addValue(durationInNanoSec  / 1000_000.0);
-                        if (executionListeners.length > 0) {
-                            BenchmarksMain.OperationKey key = null;
-                            if (task instanceof CallableWithType) {
-                                key = ((CallableWithType<R>) task).getType();
-                            }
-                            for (ExecutionListener<BenchmarksMain.OperationKey, R> executionListener : executionListeners) {
-                                executionListener.onExecutionComplete(key, result, durationInNanoSec);
+                    try {
+                        R result = task.call();
+                        if (executionCount.incrementAndGet() > warmCount) {
+                            long durationInNanoSec = (System.nanoTime() - start);
+                            stats.addValue(durationInNanoSec  / 1000_000.0);
+                            if (executionListeners.length > 0) {
+                                BenchmarksMain.OperationKey key = null;
+                                if (task instanceof CallableWithType) {
+                                    key = ((CallableWithType<R>) task).getType();
+                                }
+                                for (ExecutionListener<BenchmarksMain.OperationKey, R> executionListener : executionListeners) {
+                                    executionListener.onExecutionComplete(key, result, durationInNanoSec);
+                                }
                             }
                         }
+                    } catch (Exception e) {
+                        log.warn("Failed to execute task. Message: " + e.getMessage());
                     }
                     return null;
                 }));
