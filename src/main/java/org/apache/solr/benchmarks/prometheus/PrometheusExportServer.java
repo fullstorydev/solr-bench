@@ -24,7 +24,7 @@ class PrometheusExportServer {
 
   PrometheusExportServer(Workflow workflow) throws IOException {
     if (initMetrics(workflow)) {
-      log.info("Starting Promethus exporter and metrics will be available at 127.0.0.1:{}/metrics", workflow.prometheusExport.port);
+      log.info("Starting Prometheus exporter and metrics will be available at 127.0.0.1:{}/metrics", workflow.prometheusExport.port);
       new HTTPServer(workflow.prometheusExport.port, true);
     }
   }
