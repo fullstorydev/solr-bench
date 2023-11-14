@@ -290,48 +290,48 @@ public class BenchmarksMain {
     	} else return false;
     }
     static void indexJsonComplex(boolean init, String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
-    	if (init && !isInitPhaseNeeded(benchmark)) return; // no-op
+      if (init && !isInitPhaseNeeded(benchmark)) return; // no-op
 
         long start = System.currentTimeMillis();
         CloseableHttpClient httpClient = HttpClientUtil.createClient(null);
 
         try {
-            HttpClusterStateProvider stateProvider = new HttpClusterStateProvider(Collections.singletonList(baseUrl), httpClient);
-            DocCollection coll = stateProvider.getCollection(collection);
+          HttpClusterStateProvider stateProvider = new HttpClusterStateProvider(Collections.singletonList(baseUrl), httpClient);
+          DocCollection coll = stateProvider.getCollection(collection);
 
-            Map<String, String> shardVsLeader = new HashMap<>();
+          Map<String, String> shardVsLeader = new HashMap<>();
 
-            for (Slice slice : coll.getSlices()) {
-                Replica leader = slice.getLeader();
-                shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getCoreName());
-            }
-            File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
-            try (DocReader docReader = new FileDocReader(datasetFile, benchmark.maxDocs != null ? benchmark.maxDocs.longValue() : null, benchmark.offset)) {
-              try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
-								ControlledExecutor.ExecutionListener[] listeners;
-								if (PrometheusExportManager.isEnabled()) {
-									listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusListener(null) }; //no type label override for indexing
-								} else {
-									listeners = new ControlledExecutor.ExecutionListener[0];
-								}
-
-                ControlledExecutor controlledExecutor = new ControlledExecutor(
-									benchmark.name,
-									threads,
-									benchmark.durationSecs,
-									benchmark.rpm,
-									null, //total is controlled by docReader's maxDocs
-									0,
-									indexBatchSupplier,
-									listeners);
-                controlledExecutor.run();
-                HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-                client.commit(collection);
-                client.close();
-
-                log.info("Indexed " + indexBatchSupplier.getBatchesIndexed() + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
+          for (Slice slice : coll.getSlices()) {
+              Replica leader = slice.getLeader();
+              shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getCoreName());
+          }
+          File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
+          try (DocReader docReader = new FileDocReader(datasetFile, benchmark.maxDocs != null ? benchmark.maxDocs.longValue() : null, benchmark.offset)) {
+            try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
+              ControlledExecutor.ExecutionListener[] listeners;
+              if (PrometheusExportManager.isEnabled()) {
+                listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusListener(null) }; //no type label override for indexing
+              } else {
+                listeners = new ControlledExecutor.ExecutionListener[0];
               }
+
+              ControlledExecutor controlledExecutor = new ControlledExecutor(
+                benchmark.name,
+                threads,
+                benchmark.durationSecs,
+                benchmark.rpm,
+                null, //total is controlled by docReader's maxDocs
+                0,
+                indexBatchSupplier,
+                listeners);
+              controlledExecutor.run();
+              HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
+              client.commit(collection);
+              client.close();
+
+              log.info("Indexed " + indexBatchSupplier.getBatchesIndexed() + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
             }
+          }
         } finally {
             httpClient.close();
         }
