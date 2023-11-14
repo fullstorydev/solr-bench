@@ -53,10 +53,10 @@ class PrometheusExportServer {
   }
 
   private static Summary registerSummary(String name, String help) {
-    return Summary.build(name, help).labelNames("method", "path", "type").register(); //only support a single "type" label for now
+    return Summary.build(name, help).labelNames("method", "path", "type").register();
   }
 
   private static Histogram registerHistogram(String name, String help) {
-    return Histogram.build(name, help).labelNames("method", "path", "type").exponentialBuckets(1, 1.5, 30).register(); //only support a single "type" label for now
+    return Histogram.build(name, help).labelNames("method", "path", "type").exponentialBuckets(1, 1.5, 30).register();
   }
 }
