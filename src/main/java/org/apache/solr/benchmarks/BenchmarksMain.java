@@ -85,6 +85,7 @@ public class BenchmarksMain {
 					listeners.add(detailedQueryStatsListener);
 				}
 				if (PrometheusExportManager.isEnabled()) {
+					log.info("Adding Prometheus listener for query benchmark [" + benchmark.name + "]");
 					listeners.add(new PrometheusListener(benchmark.prometheusTypeLabel));
 				}
 
@@ -310,6 +311,7 @@ public class BenchmarksMain {
             try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
               ControlledExecutor.ExecutionListener[] listeners;
               if (PrometheusExportManager.isEnabled()) {
+								log.info("Adding Prometheus listener for index benchmark [" + benchmark.name + "]");
                 listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusListener(null) }; //no type label override for indexing
               } else {
                 listeners = new ControlledExecutor.ExecutionListener[0];
