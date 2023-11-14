@@ -43,7 +43,7 @@ class PrometheusExportServer {
 
     //only export grafana metrics on query and index benchmarks
     if (taskTypes.stream().anyMatch(t -> t.queryBenchmark != null)) {
-      histogram = registerHistogram("solr_bench_query_duration", "duration taken to execute a Solr query");
+      histogram = registerHistogram("solr_bench_duration", "duration taken to execute a Solr query");
       shouldStart = true;
     }
     if (taskTypes.stream().anyMatch(t -> t.indexBenchmark != null)) {
