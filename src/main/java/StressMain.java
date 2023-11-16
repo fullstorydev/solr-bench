@@ -305,7 +305,6 @@ public class StressMain {
 							System.out.println("\tInactive replicas on paused node ("+node.port+"): "+numInactive);
 							if (numInactive != 0) {
 								Thread.sleep(2000);
-								refreshZkClusterState(cloud);
 							}
 						} while (numInactive > 0);
 					}
@@ -744,14 +743,6 @@ public class StressMain {
 		return c;
 	}
 
-	private static void refreshZkClusterState(SolrCloud cloud) {
-		try (SolrZkClient zkClient = new SolrZkClient.Builder().withUrl(cloud.getZookeeperUrl()).withTimeout(100, TimeUnit.SECONDS).build()) {
-			new ZkStateReader(zkClient).forciblyRefreshAllClusterStateSlow();
-		} catch (Exception e) {
-			log.warn("failed to refresh cluster state "+ e.getMessage());
-		}
-	}
-
 	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
 		return new CloudSolrClient.Builder(Arrays.asList(cloud.getZookeeperUrl()), Optional.ofNullable(cloud.getZookeeperChroot())).build();
 	}
@@ -774,7 +765,6 @@ public class StressMain {
 		int numInactive;
 		numInactive = 0;
 		Map<String, String> inactive = new HashMap<>();
-		refreshZkClusterState(cloud);
 		ClusterState state = client.getClusterStateProvider().getClusterState();
 		for (String coll: state.getCollectionsMap().keySet()) {
 			for (Slice shard: state.getCollection(coll).getActiveSlices()) {
@@ -794,7 +784,6 @@ public class StressMain {
 			System.out.println("\tInactive replicas on restarted node ("+node.getBaseUrl()+"): " + numInactive );
 			if (numInactive != 0) {
 				Thread.sleep(1000);
-				refreshZkClusterState(cloud);
 			}
 		}
 		return numInactive;
@@ -867,7 +856,6 @@ public class StressMain {
 	private static List<Slice> getActiveSlicedShuffled(CloudSolrClient client, String collection, SolrCloud cloud)
 			throws KeeperException, InterruptedException {
 		List<Slice> slices = new ArrayList();
-		refreshZkClusterState(cloud);
 		for (Slice s: client.getClusterStateProvider().getClusterState().getCollection(collection).getSlices()) {
 			if (s.getState().equals(Slice.State.ACTIVE)) {
 				slices.add(s);
