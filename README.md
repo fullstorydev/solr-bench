@@ -85,9 +85,6 @@ Mac OS requires a few tools to run this script. Install the following:
 
 1. `brew install coreutils` 
 
-## Acknowledgement
-This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
-
 ### Prometheus Exporter
 Currently, query and index benchmark metrics can also be exported via a Prometheus Exporter endpoint (default at port 11100 at /metrics).
 
@@ -104,5 +101,19 @@ for example:
 ```
 To enable Prometheus with defaults, simply add `"prometheus-export": {}`
 
-Label override can also defined as `prometheus-type-label` under `query-benchmark` 
+Label override can also defined as `prometheus-type-label` under `query-benchmark`
+
+
+### External mode with SSL
+For testing when external mode (ie cluster.provisioning-method as "external"), which benchmarks against an external 
+(existing) Solr cluster, we might want to set the solr-bench driver with extra JVM args for certs/keys location. 
+
+Set at the root of the json config with `extra-jvm-args`, for example :
+`"extra-jvm-args": "-Djavax.net.ssl.trustStore=<truststore path> -Djavax.net.ssl.trustStorePassword=<secret> -Djavax.net.ssl.keyStore=<keystore path> -Djavax.net.ssl.keyStorePassword=<secret>”`
+
+
+## Acknowledgement
+This started as a project funded by Google Summer of Code (SOLR-10317), later supported by FullStory.
+
+
 
