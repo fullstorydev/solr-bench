@@ -31,6 +31,7 @@ import org.apache.solr.benchmarks.beans.TaskType;
 import org.apache.solr.benchmarks.beans.Workflow;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
 import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
+import org.apache.solr.benchmarks.query.DetailedStats;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
 import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
@@ -519,16 +520,16 @@ public class StressMain {
 								//while the ? could be another List of Maps
 								//and lacked description of what each level corresponds to. Might be better to rewrite
 								//this to a more structured custom class for readability
-								Map<String, BenchmarksMain.DetailedStats> firstEntry = (Map<String, BenchmarksMain.DetailedStats>) ((List) entry.getValue()).get(0);
+								Map<String, DetailedStats> firstEntry = (Map<String, DetailedStats>) ((List) entry.getValue()).get(0);
 								String category = firstEntry.keySet().iterator().next(); //one entry map, the key is the category, the value is the stats
-								BenchmarksMain.DetailedStats firstDetailedStats =  firstEntry.values().iterator().next();
+								DetailedStats firstDetailedStats =  firstEntry.values().iterator().next();
 								resultOfThisStatType.put("query", firstDetailedStats.getQueryType());
 								resultOfThisStatType.put("metricType", firstDetailedStats.getMetricType());
 								resultOfThisStatType.put("taskName", taskName);
 
 								List<Map> statsByThreadCount = new ArrayList<>(); //each entry in the list is the test result per run by thread count
-								for (Map<String, BenchmarksMain.DetailedStats> entryByThreadCount : ((List<Map<String, BenchmarksMain.DetailedStats>>) entry.getValue())) {
-									BenchmarksMain.DetailedStats stats = entryByThreadCount.values().iterator().next(); //again a one entry map to get around the existing structure
+								for (Map<String, DetailedStats> entryByThreadCount : ((List<Map<String, DetailedStats>>) entry.getValue())) {
+									DetailedStats stats = entryByThreadCount.values().iterator().next(); //again a one entry map to get around the existing structure
 									statsByThreadCount.add(stats.values()); //convert to the expected structure
 								}
 								resultOfThisStatType.put(category, statsByThreadCount); //category could be "timing", "percentile" or "simple" etc

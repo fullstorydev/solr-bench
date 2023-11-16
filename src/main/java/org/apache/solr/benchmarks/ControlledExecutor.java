@@ -46,7 +46,7 @@ public class ControlledExecutor<R> {
     private final BackPressureLimiter backPressureLimiter;
     private long startTime;
 
-    interface ExecutionListener<T, R> {
+    public interface ExecutionListener<T, R> {
         /**
          * Gets invoked when a callable finishes execution by this executor. Take note that execution of warmups will
          * not trigger this. And this might get invoked by multiple threads concurrently

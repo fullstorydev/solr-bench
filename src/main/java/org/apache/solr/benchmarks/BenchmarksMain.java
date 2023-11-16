@@ -1,10 +1,5 @@
 package org.apache.solr.benchmarks;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
@@ -12,6 +7,10 @@ import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.benchmarks.indexing.DocReader;
 import org.apache.solr.benchmarks.indexing.FileDocReader;
 import org.apache.solr.benchmarks.indexing.IndexBatchSupplier;
+import org.apache.solr.benchmarks.query.DetailedQueryStatsListener;
+import org.apache.solr.benchmarks.query.DetailedStats;
+import org.apache.solr.benchmarks.query.QueryResponseContents;
+import org.apache.solr.benchmarks.query.QueryResponseContentsListener;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
@@ -33,11 +32,7 @@ import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.text.ParseException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
 
@@ -76,22 +71,23 @@ public class BenchmarksMain {
       String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
       log.info("Query base URL " + baseUrl);
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-				List<ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>>> listeners = new ArrayList<>();
+				List<ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, QueryResponseContents>> listeners = new ArrayList<>();
 				DetailedQueryStatsListener detailedQueryStatsListener = null;
 
-				listeners.add(new ErrorListener());
-				if (benchmark.detailedStats) {
+				if (benchmark.detailedStats) {  //add either DetailedQueryStatsListener or ErrorListener
 					detailedQueryStatsListener = new DetailedQueryStatsListener();
 					listeners.add(detailedQueryStatsListener);
+				} else {
+					listeners.add(new ErrorListener());
 				}
 				if (PrometheusExportManager.isEnabled()) {
 					log.info("Adding Prometheus listener for query benchmark [" + benchmark.name + "]");
-					listeners.add(new PrometheusListener(benchmark.prometheusTypeLabel));
+					listeners.add(new PrometheusListener<>(benchmark.prometheusTypeLabel));
 				}
 
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
-				ControlledExecutor<Long> controlledExecutor = new ControlledExecutor(
+				ControlledExecutor<QueryResponseContents> controlledExecutor = new ControlledExecutor(
 					benchmark.name,
 					threads,
 					benchmark.durationSecs,
@@ -123,7 +119,7 @@ public class BenchmarksMain {
 							List<Map> outputStats = (List<Map>)(detailedStats.computeIfAbsent(statsName, key -> new ArrayList<>()));
 							stats.setExtraProperty("threads", threads);
 							stats.setExtraProperty("total-time", time);
-							outputStats.add(Util.map(stats.metricType.dataCategory, stats)); //forced by the design that this has to be a map, otherwise we shouldn't need to do this one entry map
+							outputStats.add(Util.map(stats.getMetricType().getDataCategory(), stats)); //forced by the design that this has to be a map, otherwise we shouldn't need to do this one entry map
 						}
 					}
 				}
@@ -193,8 +189,8 @@ public class BenchmarksMain {
 		}
 	}
 
-  private static Supplier<ControlledExecutor.CallableWithType<NamedList<Object>>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
-    class QueryCallable implements ControlledExecutor.CallableWithType<NamedList<Object>> {
+  private static Supplier<ControlledExecutor.CallableWithType<QueryResponseContents>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
+    class QueryCallable implements ControlledExecutor.CallableWithType<QueryResponseContents> {
       private final QueryRequest queryRequest;
 
       private QueryCallable(QueryRequest queryRequest) {
@@ -206,12 +202,12 @@ public class BenchmarksMain {
       }
 
       @Override
-      public NamedList<Object> call() throws Exception {
+      public QueryResponseContents call() throws Exception {
         NamedList<Object> rsp = client.request(queryRequest, collection);
         //let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
         //Probably better to let the caller handle the return values instead
         //printErrOutput(queryRequest, rsp);
-        return rsp;
+        return new QueryResponseContents(rsp);
       }
     }
     return () -> {
@@ -221,18 +217,12 @@ public class BenchmarksMain {
     };
   }
 
-    private static void printErrOutput(String qr, NamedList<Object> rsp) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        if (rsp.get("stream") == null) {
-          return;
-        }
-        IOUtils.copy((InputStream) rsp.get("stream"), baos);
-        String errorout = new String(baos.toByteArray());
-        if (!errorout.trim().startsWith("{")) {
+    private static void printErrOutput(String qr, String responseStreamString) throws IOException {
+        if (!responseStreamString.trim().startsWith("{")) {
             // it's not a JSON output, something must be wrong
             System.out.println("########### A query failed ");
             System.out.println("failed query " + qr.toString());
-            System.out.println("Error response " + errorout);
+            System.out.println("Error response " + responseStreamString);
         }
     }
 
@@ -339,175 +329,26 @@ public class BenchmarksMain {
         }
     }
 
-	/**
-	 * A Query specific stats listener that accumulates stats for:
-	 * <ol>
-	 *     <li>Duration of query execution (percentile)</li>
-	 *     <li>Document hit count of the query (percentile)</li>
-	 *     <li>Error count on the query (long)</li>
-	 * </ol>
-	 */
-	private static class DetailedQueryStatsListener implements ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>> {
-		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> durationStatsByType = new ConcurrentHashMap<>();
-		private final ConcurrentMap<String, SynchronizedDescriptiveStatistics> docHitCountStatsByType = new ConcurrentHashMap<>();
-		private final ConcurrentMap<String, AtomicLong> errorCountStatsByType= new ConcurrentHashMap<>();
-		private final AtomicBoolean loggedQueryRspError = new AtomicBoolean(false);
-		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-		@Override
-		public void onExecutionComplete(OperationKey key, NamedList<Object> queryRsp, long duration) {
-			if (key != null) {
-				SynchronizedDescriptiveStatistics durationStats = durationStatsByType.computeIfAbsent((String) key.attributes.get("query"), (typeKey) -> new SynchronizedDescriptiveStatistics());
-				durationStats.addValue(duration / 1_000_000.0);
-				if (queryRsp != null) {
-
-					InputStream responseStream = (InputStream) queryRsp.get("stream");
-					String responseStreamAsString = "";
-					try {
-						responseStreamAsString = getResponseStreamAsString(responseStream); //should only call this once, as this reads the stream!
-					} catch (IOException e) {
-						logger.warn("Failed to read the response stream for " + (String) key.attributes.get("query"));
-					}
-
-					if (isSuccessfulRsp(queryRsp.get("closeableResponse"))) {
-						SynchronizedDescriptiveStatistics hitCountStats = docHitCountStatsByType.computeIfAbsent((String) key.attributes.get("query"), (typeKey) -> new SynchronizedDescriptiveStatistics());
-						int hitCount = getHitCount(responseStreamAsString);
-						if (hitCount != -1) {
-							hitCountStats.addValue(hitCount);
-						}
-					} else {
-						AtomicLong errorCount = errorCountStatsByType.computeIfAbsent((String) key.attributes.get("query"), (typeKey) -> new AtomicLong(0));
-						errorCount.incrementAndGet();
-						//this could be noisy
-						if (!loggedQueryRspError.getAndSet(true) || logger.isDebugEnabled()) {
-							logger.warn("Non successful response. The response stream is " + responseStreamAsString + " And the full rsp list " + queryRsp);
-						}
-					}
-				}
-			}
-		}
-
-		private boolean isSuccessfulRsp(Object responseObj) {
-			if (responseObj instanceof CloseableHttpResponse) {
-				int statusCode = ((CloseableHttpResponse) responseObj).getStatusLine().getStatusCode();
-				if (statusCode == 200) {
-					return true;
-				} else {
-					return false;
-				}
-			} else {
-				return false;
-			}
-		}
-
-		private int getHitCount(String response)  {
-			Map<String, Object> jsonResponse;
-			try {
-				jsonResponse = new ObjectMapper().readValue(response, Map.class);
-			} catch (JsonProcessingException e) {
-				logger.warn("Failed to json parse the response stream " + response);
-				return -1;
-			}
-
-			if (jsonResponse.containsKey("response")) {
-				return (int)((Map<String, Object>) jsonResponse.get("response")).get("numFound");
-			} else {
-				logger.warn("The json response stream does not have key `response`. The json response stream : " + jsonResponse);
-				return -1;
-			}
-		}
-
-		private String getResponseStreamAsString(InputStream responseStream) throws IOException {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			IOUtils.copy(responseStream, baos);
-
-			return new String(baos.toByteArray());
-		}
-
-		public List<DetailedStats> getStats() {
-			List<DetailedStats> results  = new ArrayList<>();
-			durationStatsByType.forEach( (key, stats) -> results.add(new DetailedStats(StatsMetricType.DURATION, key, stats)));
-			docHitCountStatsByType.forEach( (key, stats) -> results.add(new DetailedStats(StatsMetricType.DOC_HIT_COUNT, key, stats)));
-			errorCountStatsByType.forEach( (key, stats) -> results.add(new DetailedStats(StatsMetricType.ERROR_COUNT, key, stats)));
-
-			return results;
-		}
-		private enum StatsMetricType {
-			DURATION("timings"), DOC_HIT_COUNT("percentile"), ERROR_COUNT("error_count");
-			private final String dataCategory;
-
-			StatsMetricType(String dataCategory) {
-				this.dataCategory = dataCategory;
-			}
-			
-		}
-	}
-
-	public static class DetailedStats {
-		private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-		private final DetailedQueryStatsListener.StatsMetricType metricType;
-		private final Object statsObj;
-		private final String queryType;
-		private final Map<String, Object> extraProperties = new HashMap<>();
-
-		private DetailedStats(DetailedQueryStatsListener.StatsMetricType metricType, String queryType, Object stats) {
-			this.metricType = metricType;
-			this.queryType = queryType;
-			this.statsObj = stats;
-		}
-
-		private String getStatsName(){
-			return "(" + metricType + ") " + queryType;
-		}
-
-		public String getQueryType() {
-			return queryType;
-		}
-
-		public DetailedQueryStatsListener.StatsMetricType getMetricType() {
-			return metricType;
-		}
-
-		private void setExtraProperty(String key, Object value) {
-			extraProperties.put(key, value);
-		}
-
-		public Map values() {
-			Map resultMap;
-			if (statsObj instanceof SynchronizedDescriptiveStatistics) {
-				SynchronizedDescriptiveStatistics stats = (SynchronizedDescriptiveStatistics) statsObj;
-				resultMap = Util.map("5th", stats.getPercentile(5), "10th", stats.getPercentile(10), "50th", stats.getPercentile(50), "90th", stats.getPercentile(90),
-						"95th", stats.getPercentile(95), "99th", stats.getPercentile(99), "mean", stats.getMean(), "total-queries", stats.getN());
-			} else if (statsObj instanceof Number) {
-				resultMap = Util.map("count", ((Number)statsObj).doubleValue());
-			} else {
-				logger.warn("Unexpected stats type " + statsObj.getClass());
-				return null;
-			}
-			resultMap.putAll(extraProperties);
-			return resultMap;
-		}
-	}
-
-	private static class ErrorListener implements ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>> {
+	private static class ErrorListener implements QueryResponseContentsListener {
 
 		@Override
-		public void onExecutionComplete(OperationKey key, NamedList<Object> result, long duration) {
+		public void onExecutionComplete(OperationKey key, QueryResponseContents result, long duration) {
 			try {
-				printErrOutput((String) key.attributes.get("query"), result);
+				printErrOutput((String) key.attributes.get("query"), result.getResponseStreamAsString());
 			} catch (IOException e) {
 				log.warn("Failed to invoke printErrOutput");
 			}
 		}
 	}
 
-	private static class PrometheusListener implements  ControlledExecutor.ExecutionListener<OperationKey, NamedList<Object>> {
+	private static class PrometheusListener<R> implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, R> {
 		private final String typeLabel; //if null then we will use the workflow global value
 
 		PrometheusListener(String typeLabel) {
 			this.typeLabel = typeLabel;
 		}
 		@Override
-		public void onExecutionComplete(OperationKey key, NamedList<Object> result, long durationInNanosecond) {
+		public void onExecutionComplete(OperationKey key, R result, long durationInNanosecond) {
 			PrometheusExportManager.markDuration(key, typeLabel,durationInNanosecond / 1_000_000);
 		}
 	}
