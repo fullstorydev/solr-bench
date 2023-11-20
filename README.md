@@ -88,7 +88,7 @@ Mac OS requires a few tools to run this script. Install the following:
 ### Prometheus Exporter
 Currently, query and index benchmark metrics can also be exported via a Prometheus Exporter endpoint (default at port 11100 at /metrics).
 
-To enable this, simply set `prometheus-export` node in the root level of the configuration, there are 2 fields under such node:
+To enable this, simply set `prometheus-export` node in the root level of the configuration, there are 2 optional fields under such node:
 - port : the port to run the http server which exposes the metrics, default 11100 (to avoid conflicts with node-exporter etc at 9100)
 - type-label : an extra label value with key "type" will be sent along the metrics, by default it has value "all"
 
