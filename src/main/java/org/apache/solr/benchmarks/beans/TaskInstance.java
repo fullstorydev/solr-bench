@@ -1,3 +1,5 @@
+package org.apache.solr.benchmarks.beans;
+
 import java.util.List;
 import java.util.Map;
 
@@ -5,32 +7,32 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class TaskInstance {
 	@JsonProperty("type")
-	String type;
+	public String type;
 	
 	@JsonProperty("mode")
-	String mode;
+	public String mode;
 	
 	@JsonProperty("description")
-	String description;
+	public String description;
 	
 	@JsonProperty("instances")
-	int instances = 1;
+	public int instances = 1;
 	
 	@JsonProperty("concurrency")
-	int concurrency = 1; // single threaded by default
+	public int concurrency = 1; // single threaded by default
 
 	@JsonProperty("threadpool")
-	String threadpool;
+	public String threadpool;
 	
 	@JsonProperty("validations")
-	List<String> validations;
+	public List<String> validations;
 	
 	@JsonProperty("parameters")
-	Map<String, String> parameters;
+	public Map<String, String> parameters;
 	
 	@JsonProperty("pre-task-evals")
-	List<String> preTaskEvals;
+	public List<String> preTaskEvals;
 	
 	@JsonProperty("wait-for")
-	String waitFor;
+	public String waitFor;
 }

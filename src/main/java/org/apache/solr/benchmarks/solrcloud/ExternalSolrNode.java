@@ -27,16 +27,29 @@ public class ExternalSolrNode extends GenericSolrNode {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final String restartScript;
+  private final String protocol;
 
-  public ExternalSolrNode(String host, int port, String user, String restartScript) {
+  public ExternalSolrNode(String host, int port, String user, String restartScript, String protocol) {
     super(host, port, user);
     this.restartScript = restartScript;
+    this.protocol = protocol;
   }
 
   @Override
   public int restart() throws Exception {
     return Util.execute(restartScript + " " + host + " " + (user != null ? user : ""), Util.getWorkingDir());
   }
+
+  @Override
+  public String getBaseUrl() {
+    return protocol + "://"+host+":" + port + "/solr/";
+  }
+
+  @Override
+  public String getHostUrl() {
+    return protocol + "://"+host;
+  }
+
 
   @Override
   public String toString() {

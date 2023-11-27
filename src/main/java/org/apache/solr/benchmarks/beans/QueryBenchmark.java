@@ -58,4 +58,10 @@ public class QueryBenchmark extends BaseBenchmark {
    */
   @JsonProperty("detailed-stats")
   public boolean detailedStats = false;
+
+  /**
+   * Overrides the workflow level type label value
+   */
+  @JsonProperty("prometheus-type-label")
+  public String prometheusTypeLabel;
 }

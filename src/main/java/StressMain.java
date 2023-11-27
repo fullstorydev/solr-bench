@@ -26,7 +26,12 @@ import org.apache.solr.benchmarks.MetricsCollector;
 import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.WorkflowResult;
 import org.apache.solr.benchmarks.beans.Cluster;
+import org.apache.solr.benchmarks.beans.TaskInstance;
+import org.apache.solr.benchmarks.beans.TaskType;
+import org.apache.solr.benchmarks.beans.Workflow;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
+import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
+import org.apache.solr.benchmarks.query.DetailedStats;
 import org.apache.solr.benchmarks.solrcloud.CreateWithAdditionalParameters;
 import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
@@ -137,6 +142,11 @@ public class StressMain {
 			metricsThread = new Thread(metricsCollector);
 			metricsThread.start();
 			//results.put("solr-metrics", metricsCollector.metrics);
+		}
+
+		//initialize Grafana server if necessary
+		if (workflow.prometheusExport != null) {
+			PrometheusExportManager.startServer(workflow);
 		}
 
 		long executionStart = System.currentTimeMillis();
@@ -296,7 +306,6 @@ public class StressMain {
 							System.out.println("\tInactive replicas on paused node ("+node.port+"): "+numInactive);
 							if (numInactive != 0) {
 								Thread.sleep(2000);
-								refreshZkClusterState(cloud);
 							}
 						} while (numInactive > 0);
 					}
@@ -511,16 +520,16 @@ public class StressMain {
 								//while the ? could be another List of Maps
 								//and lacked description of what each level corresponds to. Might be better to rewrite
 								//this to a more structured custom class for readability
-								Map<String, BenchmarksMain.DetailedStats> firstEntry = (Map<String, BenchmarksMain.DetailedStats>) ((List) entry.getValue()).get(0);
+								Map<String, DetailedStats> firstEntry = (Map<String, DetailedStats>) ((List) entry.getValue()).get(0);
 								String category = firstEntry.keySet().iterator().next(); //one entry map, the key is the category, the value is the stats
-								BenchmarksMain.DetailedStats firstDetailedStats =  firstEntry.values().iterator().next();
+								DetailedStats firstDetailedStats =  firstEntry.values().iterator().next();
 								resultOfThisStatType.put("query", firstDetailedStats.getQueryType());
 								resultOfThisStatType.put("metricType", firstDetailedStats.getMetricType());
 								resultOfThisStatType.put("taskName", taskName);
 
 								List<Map> statsByThreadCount = new ArrayList<>(); //each entry in the list is the test result per run by thread count
-								for (Map<String, BenchmarksMain.DetailedStats> entryByThreadCount : ((List<Map<String, BenchmarksMain.DetailedStats>>) entry.getValue())) {
-									BenchmarksMain.DetailedStats stats = entryByThreadCount.values().iterator().next(); //again a one entry map to get around the existing structure
+								for (Map<String, DetailedStats> entryByThreadCount : ((List<Map<String, DetailedStats>>) entry.getValue())) {
+									DetailedStats stats = entryByThreadCount.values().iterator().next(); //again a one entry map to get around the existing structure
 									statsByThreadCount.add(stats.values()); //convert to the expected structure
 								}
 								resultOfThisStatType.put(category, statsByThreadCount); //category could be "timing", "percentile" or "simple" etc
@@ -735,14 +744,6 @@ public class StressMain {
 		return c;
 	}
 
-	private static void refreshZkClusterState(SolrCloud cloud) {
-		try (SolrZkClient zkClient = new SolrZkClient.Builder().withUrl(cloud.getZookeeperUrl()).withTimeout(100, TimeUnit.SECONDS).build()) {
-			new ZkStateReader(zkClient).forciblyRefreshAllClusterStateSlow();
-		} catch (Exception e) {
-			log.warn("failed to refresh cluster state "+ e.getMessage());
-		}
-	}
-
 	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
 		return new CloudSolrClient.Builder(Arrays.asList(cloud.getZookeeperUrl()), Optional.ofNullable(cloud.getZookeeperChroot())).build();
 	}
@@ -765,7 +766,6 @@ public class StressMain {
 		int numInactive;
 		numInactive = 0;
 		Map<String, String> inactive = new HashMap<>();
-		refreshZkClusterState(cloud);
 		ClusterState state = client.getClusterStateProvider().getClusterState();
 		for (String coll: state.getCollectionsMap().keySet()) {
 			for (Slice shard: state.getCollection(coll).getActiveSlices()) {
@@ -785,7 +785,6 @@ public class StressMain {
 			System.out.println("\tInactive replicas on restarted node ("+node.getBaseUrl()+"): " + numInactive );
 			if (numInactive != 0) {
 				Thread.sleep(1000);
-				refreshZkClusterState(cloud);
 			}
 		}
 		return numInactive;
@@ -858,7 +857,6 @@ public class StressMain {
 	private static List<Slice> getActiveSlicedShuffled(CloudSolrClient client, String collection, SolrCloud cloud)
 			throws KeeperException, InterruptedException {
 		List<Slice> slices = new ArrayList();
-		refreshZkClusterState(cloud);
 		for (Slice s: client.getClusterStateProvider().getClusterState().getCollection(collection).getSlices()) {
 			if (s.getState().equals(Slice.State.ACTIVE)) {
 				slices.add(s);

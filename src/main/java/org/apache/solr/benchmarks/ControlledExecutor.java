@@ -30,11 +30,11 @@ import java.util.function.Supplier;
  *
  * Tasks will be submitted adhering to the rpm if provided.
  */
-public class ControlledExecutor<T, R> {
+public class ControlledExecutor<R> {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private final Supplier<Callable<R>> taskSupplier;
     private final ExecutorService executor;
-    private final ExecutionListener<T, R> executionListener;
+    private final ExecutionListener<BenchmarksMain.OperationKey, R>[] executionListeners;
     private String label;
     private final Integer duration; //if defined, this executor should cease executing more tasks once duration is reached
     private Long endTime; //this executor should cease executing more tasks once this time is reached, computed from duration
@@ -46,7 +46,7 @@ public class ControlledExecutor<T, R> {
     private final BackPressureLimiter backPressureLimiter;
     private long startTime;
 
-    interface ExecutionListener<T, R> {
+    public interface ExecutionListener<T, R> {
         /**
          * Gets invoked when a callable finishes execution by this executor. Take note that execution of warmups will
          * not trigger this. And this might get invoked by multiple threads concurrently
@@ -61,21 +61,21 @@ public class ControlledExecutor<T, R> {
         void onExecutionComplete(T typeKey, R result, long duration);
     }
 
-    interface CallableWithType<T, V> extends Callable<V> {
-        T getType();
+    public interface CallableWithType<V> extends Callable<V> {
+        BenchmarksMain.OperationKey getType();
     }
 
     public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier) {
-        this(label, threads, duration, rpm, maxExecution, warmCount, taskSupplier, null);
+        this(label, threads, duration, rpm, maxExecution, warmCount, taskSupplier, new ExecutionListener[0]);
     }
-    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier, ExecutionListener<T, R> executionListener) {
+    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier, ExecutionListener<BenchmarksMain.OperationKey, R>... executionListeners) {
         this.label = label;
         this.duration = duration;
         this.maxExecution = maxExecution;
         this.warmCount = warmCount;
         this.stats = new SynchronizedDescriptiveStatistics();
         this.taskSupplier = taskSupplier;
-        this.executionListener = executionListener;
+        this.executionListeners = executionListeners;
         executor = new ThreadPoolExecutor(threads, threads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
@@ -138,17 +138,23 @@ public class ControlledExecutor<T, R> {
                         return null;
                     }
                     long start = System.nanoTime();
-                    R result = task.call();
-                    if (executionCount.incrementAndGet() > warmCount) {
-                        long durationInNanoSec = (System.nanoTime() - start);
-                        stats.addValue(durationInNanoSec  / 1000_000.0);
-                        if (executionListener != null) {
-                            T type = null;
-                            if (task instanceof CallableWithType) {
-                                type = ((CallableWithType<T, ?>)task).getType();
+                    try {
+                        R result = task.call();
+                        if (executionCount.incrementAndGet() > warmCount) {
+                            long durationInNanoSec = (System.nanoTime() - start);
+                            stats.addValue(durationInNanoSec  / 1000_000.0);
+                            if (executionListeners.length > 0) {
+                                BenchmarksMain.OperationKey key = null;
+                                if (task instanceof CallableWithType) {
+                                    key = ((CallableWithType<R>) task).getType();
+                                }
+                                for (ExecutionListener<BenchmarksMain.OperationKey, R> executionListener : executionListeners) {
+                                    executionListener.onExecutionComplete(key, result, durationInNanoSec);
+                                }
                             }
-                            executionListener.onExecutionComplete(type, result, durationInNanoSec);
                         }
+                    } catch (Exception e) {
+                        log.warn("Failed to execute task. Message: " + e.getMessage());
                     }
                     return null;
                 }));
