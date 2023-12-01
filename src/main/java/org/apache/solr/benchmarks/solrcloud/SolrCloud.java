@@ -23,12 +23,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.zookeeper.CreateMode;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -94,6 +96,7 @@ public class SolrCloud {
    * @throws Exception 
    */
   public void init() throws Exception {
+	  
     if ("local".equalsIgnoreCase(cluster.provisioningMethod)) {
       zookeeper = new LocalZookeeper();
       int initValue = zookeeper.start();
@@ -101,6 +104,8 @@ public class SolrCloud {
         log.error("Failed to start Zookeeper!");
         throw new RuntimeException("Failed to start Zookeeper!");
       }
+
+      setupClusterProps();
 
       ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
     		  //Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()/2+1, new ThreadFactoryBuilder().setNameFormat("nodestarter-threadpool").build()); 
@@ -175,6 +180,7 @@ public class SolrCloud {
     	System.out.println("Solr nodes: "+getSolrNodesFromTFState());
     	System.out.println("ZK node: "+getZkNodeFromTFState());
     	zookeeper = new GenericZookeeper(getZkNodeFromTFState());
+        setupClusterProps();
     	for (String host: getSolrNodesFromTFState()) {
     		nodes.add(new GenericSolrNode(host, cluster.terraformGCPConfig.get("user").toString()));
     	}
@@ -182,6 +188,7 @@ public class SolrCloud {
     	System.out.println("Solr nodes: "+getSolrNodesFromVagrant());
     	System.out.println("ZK node: "+getZkNodeFromVagrant());
     	zookeeper = new GenericZookeeper(getZkNodeFromVagrant());
+        setupClusterProps();
     	for (String host: getSolrNodesFromVagrant()) {
     		nodes.add(new GenericSolrNode(host, null)); // TODO fix username for vagrant
     	}
@@ -189,7 +196,7 @@ public class SolrCloud {
         log.info("ZK node: " + cluster.externalSolrConfig.zkHost);
         String[] tokens = cluster.externalSolrConfig.zkHost.split(":");
         zookeeper = new GenericZookeeper(tokens[0], tokens.length > 1 ? Integer.parseInt(tokens[1]) : null, cluster.externalSolrConfig.zkAdminPort, cluster.externalSolrConfig.zkChroot);
-
+        setupClusterProps();
         try (CloudSolrClient client = new CloudSolrClient.Builder().withZkHost(cluster.externalSolrConfig.zkHost).withZkChroot(cluster.externalSolrConfig.zkChroot).build()) {
           for (String liveNode : client.getClusterStateProvider().getLiveNodes()) {
             nodes.add(new ExternalSolrNode(
@@ -226,8 +233,17 @@ public class SolrCloud {
         log.info("Cluster initialized with nodes: " + nodes + ", zkHost: " + zookeeper + ", nodes by role: " + nodesByRole);
     }
 
-
   }
+
+private void setupClusterProps() throws IOException, KeeperException, InterruptedException {
+	// init clusterprops.json
+      if (cluster.clusterpropsFilename != null) {
+    	  String clusterPropsData = FileUtils.readFileToString(new File(cluster.clusterpropsFilename), Charset.forName("UTF-8"));
+    	  try (SolrZkClient zkClient = new SolrZkClient(zookeeper.getHost() + ":" + zookeeper.getPort(), 100)) {
+             zkClient.create("/clusterprops.json", clusterPropsData.getBytes(), CreateMode.PERSISTENT, true);
+	  }
+      }
+}
 
     private Collection<String> getExternalDataNodes(CloudSolrClient client) {
         try {

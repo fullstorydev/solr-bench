@@ -36,6 +36,9 @@ public class Cluster {
   @JsonProperty("external-solr-config")
   public ExternalSolrConfig externalSolrConfig;
 
+  @JsonProperty("clusterprops")
+  public String clusterpropsFilename;
+  
   @JsonProperty("provisioning-method")
   public String provisioningMethod;
 

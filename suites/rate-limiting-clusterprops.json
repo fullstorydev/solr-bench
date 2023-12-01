@@ -1,0 +1,17 @@
+{
+  "rate-limiters": {
+    "readBuckets": [
+      {
+        "name": "test-bucket",
+        "conditions": [{
+          "queryParamPattern": {
+            "q-bucket": "test-bucket"
+          }
+        }],
+        "allowedRequests": 2,
+        "slotAcquisitionTimeoutInMS": 100
+      }
+
+    ]
+  }
+}
