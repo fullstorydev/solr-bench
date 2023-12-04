@@ -9,7 +9,7 @@
           }
         }],
         "allowedRequests": 2,
-        "slotAcquisitionTimeoutInMS": 100
+        "slotAcquisitionTimeoutInMS": 1000
       }
 
     ]

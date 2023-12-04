@@ -37,7 +37,8 @@
         "rpm": 3000,
         "total-count": 5000,
         "warm-count": 20,
-	"params": { "q-bucket": "test-bucket" }
+	"params": { "q-bucket": "test-bucket" },
+	"headers": { "Solr-Request-Type": "QUERY" }
       }
     },
     "restart-solr-node": {
@@ -123,7 +124,7 @@
     }
   ],
   "metrics": [
-    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count"
+    "jvm/solr.jvm/memory.heap.usage", "jvm/solr.jvm/threads.count", "solr.node/solr.node/CONTAINER.bucketedQueryRateLimiter/test-bucket/success", "solr.node/solr.node/CONTAINER.bucketedQueryRateLimiter/test-bucket/fails", "solr.node/solr.node/CONTAINER.bucketedQueryRateLimiter/test-bucket/available", "solr.node/solr.node/CONTAINER.bucketedQueryRateLimiter/test-bucket/queueLength", "solr.node/solr.node/CONTAINER.bucketedQueryRateLimiter/test-bucket/tryWaitAverage"
   ],
   "zk-metrics": [
     "sum_configs_read_per_namespace", "sum_configs_write_per_namespace"
