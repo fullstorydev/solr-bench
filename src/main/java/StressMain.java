@@ -477,7 +477,7 @@ public class StressMain {
 				}
 			} else if (type.queryBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.queryBenchmark.queryFile);
-				if (type.queryBenchmark.collection == null || type.queryBenchmark.collection == "") {
+				if (type.queryBenchmark.collection == null || type.queryBenchmark.collection.equals("")) {
 					throw new IllegalArgumentException("collection name is empty for queryBenchmark"+type.queryBenchmark.name);
 				}
 
