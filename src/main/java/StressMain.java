@@ -477,6 +477,9 @@ public class StressMain {
 				}
 			} else if (type.queryBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.queryBenchmark.queryFile);
+				if (type.queryBenchmark.collection == null || type.queryBenchmark.collection == "") {
+					throw new IllegalArgumentException("collection name is empty for queryBenchmark"+type.queryBenchmark.name);
+				}
 
 				// resolve the collection name using template
 				Map<String, String> solrurlMap = Map.of("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
