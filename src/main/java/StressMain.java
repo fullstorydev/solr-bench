@@ -25,10 +25,7 @@ import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.MetricsCollector;
 import org.apache.solr.benchmarks.Util;
 import org.apache.solr.benchmarks.WorkflowResult;
-import org.apache.solr.benchmarks.beans.Cluster;
-import org.apache.solr.benchmarks.beans.TaskInstance;
-import org.apache.solr.benchmarks.beans.TaskType;
-import org.apache.solr.benchmarks.beans.Workflow;
+import org.apache.solr.benchmarks.beans.*;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
 import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.benchmarks.query.DetailedStats;
@@ -37,6 +34,7 @@ import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.benchmarks.task.Task;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -736,6 +734,22 @@ public class StressMain {
 				long taskEnd = System.currentTimeMillis();
 				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode,
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+			} else if (type.taskByClass != null) {
+				Class<?> taskClass = Class.forName(type.taskByClass.taskClass);
+				if (!org.apache.solr.benchmarks.task.Task.class.isAssignableFrom(taskClass)) {
+					log.warn(type.taskByClass.taskClass + " does not implement " + Task.class.getName());
+				} else {
+					org.apache.solr.benchmarks.task.Task task = (org.apache.solr.benchmarks.task.Task)taskClass.getDeclaredConstructor(TaskByClass.class, SolrCloud.class).newInstance(type.taskByClass, cloud); //default constructor
+					long taskStart = System.currentTimeMillis();
+					Map<String, Object> additionalResult = task.runTask();
+					long taskEnd = System.currentTimeMillis();
+					if (additionalResult != null) {
+						finalResults.get(taskName).add(additionalResult);
+					}
+					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
+				}
 			}
 			long end = System.currentTimeMillis();
 
