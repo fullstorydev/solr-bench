@@ -140,9 +140,11 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
 
     @Override
     public void onExecutionComplete(Object typeKey, List<SegmentInfo> result, long duration) {
-      segmentCountGauge.labels(collection).set(result.size()); //keep it simple for now
-      result.sort(Comparator.comparingInt(o -> o.size));
-      segmentDocCountMedianGauge.labels(collection).set(result.get(result.size() / 2).size);
+      if (!result.isEmpty()) {
+        segmentCountGauge.labels(collection).set(result.size()); //keep it simple for now
+        result.sort(Comparator.comparingInt(o -> o.size));
+        segmentDocCountMedianGauge.labels(collection).set(result.get(result.size() / 2).size);
+      }
     }
   }
 }
