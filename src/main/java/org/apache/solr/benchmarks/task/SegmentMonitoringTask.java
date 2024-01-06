@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.prometheus.client.Gauge;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.lucene.index.SegmentInfo;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.ControlledExecutor;
 import org.apache.solr.benchmarks.beans.TaskByClass;
@@ -49,7 +50,13 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
 
   @Override
   public List<SegmentInfo> runAction() throws Exception {
-    List<String> cores = getCores();
+    List<String> cores;
+    try {
+      cores = getCores();
+    } catch (IOException e) {
+      log.info("Collection/Cores " + collection + " might not be available yet...");
+      return Collections.emptyList();
+    }
 
     List<SegmentInfo> allSegments = new ArrayList<>();
     for (String core : cores) {
