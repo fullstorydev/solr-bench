@@ -83,8 +83,7 @@ public class BenchmarksMain {
 			}
 			if (PrometheusExportManager.isEnabled()) {
 				log.info("Adding Prometheus listener for query benchmark [" + benchmark.name + "]");
-				Histogram histogram = PrometheusExportManager.registerHistogram("solr_bench_duration", "duration taken to execute a Solr indexing/query", "method", "path", "type");
-				listeners.add(new PrometheusHttpRequestDurationListener<>(histogram, benchmark.prometheusTypeLabel));
+				listeners.add(new PrometheusHttpRequestDurationListener<>(benchmark.prometheusTypeLabel));
 			}
 
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
@@ -304,9 +303,8 @@ public class BenchmarksMain {
             try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
               ControlledExecutor.ExecutionListener[] listeners;
               if (PrometheusExportManager.isEnabled()) {
-								Histogram histogram = PrometheusExportManager.registerHistogram("solr_bench_duration", "duration taken to execute a Solr indexing/query", "method", "path", "type");
 								log.info("Adding Prometheus listener for index benchmark [" + benchmark.name + "]");
-                listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusHttpRequestDurationListener(histogram) }; //no type label override for indexing
+                listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusHttpRequestDurationListener(null) }; //no type label override for indexing
               } else {
                 listeners = new ControlledExecutor.ExecutionListener[0];
               }
@@ -348,17 +346,16 @@ public class BenchmarksMain {
 	private static class PrometheusHttpRequestDurationListener<R> implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, R> {
 		private final String typeLabel;
 		private final Histogram histogram;
+		private static final String zkHost = PrometheusExportManager.zkHost; //to determine the target cluster being tested on
 
-		PrometheusHttpRequestDurationListener(Histogram histogram, String typeLabelOverride) {
+		PrometheusHttpRequestDurationListener(String typeLabelOverride) {
+			this.histogram = PrometheusExportManager.registerHistogram("solr_bench_duration", "duration taken to execute a Solr indexing/query", "method", "path", "type", "zk_host");
 			this.typeLabel = typeLabelOverride != null ? typeLabelOverride : PrometheusExportManager.globalTypeLabel;
-			this.histogram = histogram;
 		}
-		PrometheusHttpRequestDurationListener(Histogram histogram) {
-			this(histogram, null);
-		}
+
 		@Override
 		public void onExecutionComplete(OperationKey key, R result, long durationInNanosecond) {
-			String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel };
+			String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel, zkHost };
 			histogram.labels(labels).observe(durationInNanosecond / 1_000_000);
 		}
 	}

@@ -40,9 +40,7 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
 
     if (PrometheusExportManager.isEnabled()) {
       log.info("Adding Prometheus listener for Segment Monitoring Task");
-      Gauge segmentCountGauge = PrometheusExportManager.registerGauge("solr_bench_segment_count", "Total segment count per collection", "collection");
-      Gauge segmentDocCountMedianGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_median", "Medium of segment doc count per collection", "collection");
-      executionListeners = new ControlledExecutor.ExecutionListener[] { new SegmentInfoPrometheusListener(segmentCountGauge, segmentDocCountMedianGauge, collection)};
+      executionListeners = new ControlledExecutor.ExecutionListener[] { new SegmentInfoPrometheusListener(collection)};
     } else {
       executionListeners = new ControlledExecutor.ExecutionListener[0];
     }
@@ -130,10 +128,11 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
     private final Gauge segmentCountGauge;
     private final Gauge segmentDocCountMedianGauge;
     private final String collection;
+    private static final String zkHost = PrometheusExportManager.zkHost;
 
-    public SegmentInfoPrometheusListener(Gauge segmentCountGauge, Gauge segmentDocCountMedianGauge, String collection) {
-      this.segmentCountGauge = segmentCountGauge;
-      this.segmentDocCountMedianGauge = segmentDocCountMedianGauge;
+    public SegmentInfoPrometheusListener(String collection) {
+      this.segmentCountGauge = PrometheusExportManager.registerGauge("solr_bench_segment_count", "Total segment count per collection", "collection", "zk_host");
+      this.segmentDocCountMedianGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_median", "Medium of segment doc count per collection", "collection", "zk_host");
       this.collection = collection;
     }
 
@@ -141,9 +140,9 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
     @Override
     public void onExecutionComplete(Object typeKey, List<SegmentInfo> result, long duration) {
       if (!result.isEmpty()) {
-        segmentCountGauge.labels(collection).set(result.size()); //keep it simple for now
+        segmentCountGauge.labels(collection, zkHost).set(result.size()); //keep it simple for now
         result.sort(Comparator.comparingInt(o -> o.size));
-        segmentDocCountMedianGauge.labels(collection).set(result.get(result.size() / 2).size);
+        segmentDocCountMedianGauge.labels(collection, zkHost).set(result.get(result.size() / 2).size);
       }
     }
   }
