@@ -127,12 +127,14 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
   private static class SegmentInfoPrometheusListener implements ControlledExecutor.ExecutionListener<Object, List<SegmentInfo>> {
     private final Gauge segmentCountGauge;
     private final Gauge segmentDocCountMedianGauge;
+    private final Gauge segmentDocCountMaxGauge;
     private final String collection;
     private static final String zkHost = PrometheusExportManager.zkHost;
 
     public SegmentInfoPrometheusListener(String collection) {
       this.segmentCountGauge = PrometheusExportManager.registerGauge("solr_bench_segment_count", "Total segment count per collection", "collection", "zk_host");
       this.segmentDocCountMedianGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_median", "Medium of segment doc count per collection", "collection", "zk_host");
+      this.segmentDocCountMaxGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_max", "Max of segment doc count per collection", "collection", "zk_host");
       this.collection = collection;
     }
 
@@ -142,6 +144,7 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
       if (!result.isEmpty()) {
         segmentCountGauge.labels(collection, zkHost).set(result.size()); //keep it simple for now
         result.sort(Comparator.comparingInt(o -> o.size));
+        segmentDocCountMaxGauge.labels(collection, zkHost).set(result.get(result.size() - 1).size);
         segmentDocCountMedianGauge.labels(collection, zkHost).set(result.get(result.size() / 2).size);
       }
     }
