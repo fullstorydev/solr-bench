@@ -29,7 +29,6 @@ public class PrometheusExportManager {
   private static final ConcurrentMap<String, Histogram> registeredHistograms = new ConcurrentHashMap<>();
   private static final ConcurrentMap<String, Gauge> registeredGauges = new ConcurrentHashMap<>();
   public static String globalTypeLabel;
-  public static String zkHost; //the target cluster getting tested
 
   /**
    * Starts this manager. This should be invoked once before any other operations on the manager except
@@ -42,9 +41,6 @@ public class PrometheusExportManager {
     if (SERVER == null) {
       SERVER = new PrometheusExportServer(workflow);
       globalTypeLabel = workflow.prometheusExport.typeLabel;
-      if (workflow.cluster.externalSolrConfig != null) {
-        zkHost = workflow.cluster.externalSolrConfig.zkHost;
-      }
     }
   }
 

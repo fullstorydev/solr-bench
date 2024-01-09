@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.prometheus.client.Gauge;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.BasicResponseHandler;
-import org.apache.lucene.index.SegmentInfo;
+import org.apache.solr.benchmarks.BenchmarkContext;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.ControlledExecutor;
 import org.apache.solr.benchmarks.beans.TaskByClass;
@@ -129,12 +129,13 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
     private final Gauge segmentDocCountMedianGauge;
     private final Gauge segmentDocCountMaxGauge;
     private final String collection;
-    private static final String zkHost = PrometheusExportManager.zkHost;
+    private static final String zkHost = BenchmarkContext.getContext().getZkHost();
+    private static final String testSuite = BenchmarkContext.getContext().getTestSuite();
 
     public SegmentInfoPrometheusListener(String collection) {
-      this.segmentCountGauge = PrometheusExportManager.registerGauge("solr_bench_segment_count", "Total segment count per collection", "collection", "zk_host");
-      this.segmentDocCountMedianGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_median", "Medium of segment doc count per collection", "collection", "zk_host");
-      this.segmentDocCountMaxGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_max", "Max of segment doc count per collection", "collection", "zk_host");
+      this.segmentCountGauge = PrometheusExportManager.registerGauge("solr_bench_segment_count", "Total segment count per collection", "collection", "zk_host", "test_suite");
+      this.segmentDocCountMedianGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_median", "Medium of segment doc count per collection", "collection", "zk_host", "test_suite");
+      this.segmentDocCountMaxGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_max", "Max of segment doc count per collection", "collection", "zk_host", "test_suite");
       this.collection = collection;
     }
 
@@ -142,10 +143,10 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
     @Override
     public void onExecutionComplete(Object typeKey, List<SegmentInfo> result, long duration) {
       if (!result.isEmpty()) {
-        segmentCountGauge.labels(collection, zkHost).set(result.size()); //keep it simple for now
+        segmentCountGauge.labels(collection, zkHost, testSuite).set(result.size()); //keep it simple for now
         result.sort(Comparator.comparingInt(o -> o.size));
-        segmentDocCountMaxGauge.labels(collection, zkHost).set(result.get(result.size() - 1).size);
-        segmentDocCountMedianGauge.labels(collection, zkHost).set(result.get(result.size() / 2).size);
+        segmentDocCountMaxGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() - 1).size);
+        segmentDocCountMedianGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() / 2).size);
       }
     }
   }

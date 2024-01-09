@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
  */
 class PrometheusExportServer {
   private final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  Histogram histogram;
 
   PrometheusExportServer(Workflow workflow) throws IOException {
     log.info("Starting Prometheus exporter and metrics will be available at 127.0.0.1:{}/metrics", workflow.prometheusExport.port);

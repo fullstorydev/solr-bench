@@ -21,10 +21,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.solr.benchmarks.BenchmarksMain;
-import org.apache.solr.benchmarks.MetricsCollector;
-import org.apache.solr.benchmarks.Util;
-import org.apache.solr.benchmarks.WorkflowResult;
+import org.apache.solr.benchmarks.*;
 import org.apache.solr.benchmarks.beans.*;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
 import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
@@ -34,7 +31,6 @@ import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
-import org.apache.solr.benchmarks.task.Task;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -91,8 +87,9 @@ public class StressMain {
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
-			WorkflowResult workflowResult = executeWorkflow(workflow, solrCloud);
 			String testName = Files.getNameWithoutExtension(configFile);
+			setBenchmarkContext(testName, workflow);
+			WorkflowResult workflowResult = executeWorkflow(workflow, solrCloud);
 			ExporterFactory.getFileExporter(Paths.get(SUITE_BASE_DIR, testName)).export(workflowResult);
 		} catch (Exception e) {
 			log.warn("Got exception running StressMain: "+e.getMessage());
@@ -102,6 +99,11 @@ public class StressMain {
 			log.info("Shutting down...");
 			solrCloud.shutdown(true);
 		}
+	}
+
+	private static void setBenchmarkContext(String suiteName, Workflow workflow) {
+		BenchmarkContext context = new BenchmarkContext(suiteName, workflow.cluster.externalSolrConfig != null ? workflow.cluster.externalSolrConfig.zkHost : null);
+		BenchmarkContext.setContext(context);
 	}
 
 
