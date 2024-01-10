@@ -127,8 +127,7 @@ public class SolrCloud {
 	    		  //}
 	    		  return node;
     		  } catch (Exception ex) {
-    			  ex.printStackTrace();
-    			  log.error("Problem starting node: "+node.getBaseUrl());
+    			  log.error("Problem starting node: "+node.getBaseUrl(), ex);
     			  return null;
     		  }
     	  };
@@ -157,8 +156,7 @@ public class SolrCloud {
   				healthyNodes.add(node);
   			}
   		} catch (Exception ex) {
-  			ex.printStackTrace();
-  			log.error("Problem starting node: "+node.getBaseUrl());
+  			log.error("Problem starting node: "+node.getBaseUrl(), ex);
   		}
       }
       

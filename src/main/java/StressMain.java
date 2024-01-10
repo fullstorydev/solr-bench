@@ -281,7 +281,7 @@ public class StressMain {
 				try {
 					node.pause(pauseDuration);
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 
 				if (type.awaitRecoveries) {
@@ -473,7 +473,7 @@ public class StressMain {
 							"total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
-					//ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 			} else if (type.queryBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.queryBenchmark.queryFile);
@@ -542,7 +542,7 @@ public class StressMain {
 					}
 
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 			} else if (type.clusterStateBenchmark!=null) {
 				TaskType.ClusterStateBenchmark clusterStateBenchmark = type.clusterStateBenchmark;
@@ -663,7 +663,7 @@ public class StressMain {
 					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 			} else if (type.moveReplica != null) {
 				long taskStart = System.currentTimeMillis();
@@ -731,7 +731,7 @@ public class StressMain {
 					String output = IOUtils.toString((InputStream)connection.getContent(), StandardCharsets.UTF_8);
 					log.info("Output ("+responseCode+"): "+output);
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 				long taskEnd = System.currentTimeMillis();
 				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode,
