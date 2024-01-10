@@ -100,7 +100,7 @@ class UploadDocs implements Callable {
         HttpResponse rsp = client.execute(httpPost);
         int statusCode = rsp.getStatusLine().getStatusCode();
         if (statusCode != 200) {
-            log.error("Failed a request: " +
+            log.error("Failed a request [" + httpPost.getURI() + "]: " +
                     rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
         } else {
         	rsp.getEntity().getContent().close();
