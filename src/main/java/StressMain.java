@@ -206,25 +206,25 @@ public class StressMain {
 					.add(task.exe.submit(task.callable));
 		}
 
-		waitForSubmittedTasks(taskFutures);
+		try {
+			waitForSubmittedTasks(taskFutures);
+		} finally {
+			for (String tp : commonThreadpools.keySet())
+				commonThreadpools.get(tp).shutdown();
 
-		for (String tp: commonThreadpools.keySet())
-			commonThreadpools.get(tp).shutdown();
+			for (String task : taskExecutors.keySet()) {
+				taskExecutors.get(task).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+			}
 
-		for (String task: taskExecutors.keySet()) {
-			taskExecutors.get(task).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+			for (String tp : commonThreadpools.keySet())
+				commonThreadpools.get(tp).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+
+			// Stop metrics collection
+			if (workflow.metrics != null || workflow.prometheusMetrics != null) {
+				metricsCollector.stop();
+				metricsThread.stop();
+			}
 		}
-
-		for (String tp: commonThreadpools.keySet())
-			commonThreadpools.get(tp).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
-
-		// Stop metrics collection
-		if (workflow.metrics != null || workflow.prometheusMetrics != null) {
-			metricsCollector.stop();
-			metricsThread.stop();
-		}
-
-
 
 		log.info("Final results: "+finalResults);
 		if (metricsCollector != null) {
