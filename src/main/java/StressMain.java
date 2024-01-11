@@ -3,6 +3,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -236,15 +238,16 @@ public class StressMain {
 	}
 
 	/**
-	 * Interrupt all futures if any of them runs into exception
+	 * Interrupt all futures if any of them runs into exception, and also re-throw the exception encountered
 	 * <p>
 	 * Not super ideal to spin up another thread pool for this. However, this is the trivial solution w/o a major
 	 * rewrite on how tasks are submitted
 	 * @param taskFutures
 	 */
-	private static void monitorSubmittedTasks(Map<String, List<Future>> taskFutures) {
+	private static void monitorSubmittedTasks(Map<String, List<Future>> taskFutures) throws ExecutionException {
 		int taskCount = taskFutures.values().stream().mapToInt(List::size).sum();
 		ExecutorService monitorFutureService = Executors.newFixedThreadPool(taskCount);
+		Set<ExecutionException> exception = new HashSet<>();
 		try {
 			for (Map.Entry<String, List<Future>> entry : taskFutures.entrySet()) {
 				final String taskName = entry.getKey();
@@ -255,10 +258,8 @@ public class StressMain {
 						} catch (InterruptedException e) {
 							//it's ok to ignore interrupt
 						} catch (ExecutionException e) { //unhandled exception, print error and stop other futures
+							exception.add(e);
 							log.warn("Found exception from submitted ask [" + taskName + "] with exception. Going to interrupt all other tasks");
-							if (e.getCause() != null) {
-								log.warn(e.getMessage(), e.getCause());
-							}
 							taskFutures.values().forEach(targets -> targets.forEach(f -> f.cancel(true)));
 						}
 					});
@@ -266,6 +267,9 @@ public class StressMain {
 			}
 		} finally {
 			monitorFutureService.shutdown();
+		}
+		if (!exception.isEmpty()) {
+			throw exception.iterator().next();
 		}
 	}
 
