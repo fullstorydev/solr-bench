@@ -206,6 +206,8 @@ public class StressMain {
 					.add(task.exe.submit(task.callable));
 		}
 
+		monitorSubmittedTasks(taskFutures);
+
 		for (String tp: commonThreadpools.keySet())
 			commonThreadpools.get(tp).shutdown();
 
@@ -222,11 +224,7 @@ public class StressMain {
 			metricsThread.stop();
 		}
 
-		for (Map.Entry<String, List<Future>> futuresByTaskNames : taskFutures.entrySet()) {
-			for (Future future : futuresByTaskNames.getValue()) {
-					future.get(); //check if there are any uncaught exceptions in those tasks
-			}
-		}
+
 
 		log.info("Final results: "+finalResults);
 		if (metricsCollector != null) {
@@ -234,6 +232,40 @@ public class StressMain {
 			return new WorkflowResult(finalResults, metricsCollector.metrics);
 		} else {
 			return new WorkflowResult(finalResults, null);
+		}
+	}
+
+	/**
+	 * Interrupt all futures if any of them runs into exception
+	 * <p>
+	 * Not super ideal to spin up another thread pool for this. However, this is the trivial solution w/o a major
+	 * rewrite on how tasks are submitted
+	 * @param taskFutures
+	 */
+	private static void monitorSubmittedTasks(Map<String, List<Future>> taskFutures) {
+		int taskCount = taskFutures.values().stream().mapToInt(List::size).sum();
+		ExecutorService monitorFutureService = Executors.newFixedThreadPool(taskCount);
+		try {
+			for (Map.Entry<String, List<Future>> entry : taskFutures.entrySet()) {
+				final String taskName = entry.getKey();
+				for (Future future : entry.getValue()) {
+					monitorFutureService.submit(() -> {
+						try {
+							future.get();
+						} catch (InterruptedException e) {
+							//it's ok to ignore interrupt
+						} catch (ExecutionException e) { //unhandled exception, print error and stop other futures
+							log.warn("Found exception from submitted ask [" + taskName + "] with exception. Going to interrupt all other tasks");
+							if (e.getCause() != null) {
+								log.warn(e.getMessage(), e.getCause());
+							}
+							taskFutures.values().forEach(targets -> targets.forEach(f -> f.cancel(true)));
+						}
+					});
+				}
+			}
+		} finally {
+			monitorFutureService.shutdown();
 		}
 	}
 
