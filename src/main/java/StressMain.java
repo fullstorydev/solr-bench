@@ -3,8 +3,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
-import java.lang.ref.Reference;
-import java.lang.ref.SoftReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -208,7 +206,7 @@ public class StressMain {
 					.add(task.exe.submit(task.callable));
 		}
 
-		monitorSubmittedTasks(taskFutures);
+		waitForSubmittedTasks(taskFutures);
 
 		for (String tp: commonThreadpools.keySet())
 			commonThreadpools.get(tp).shutdown();
@@ -238,13 +236,15 @@ public class StressMain {
 	}
 
 	/**
-	 * Interrupt all futures if any of them runs into exception, and also re-throw the exception encountered
+	 * Blocks and waits for all tasks to finish.
+	 * <p>
+	 * Interrupts all futures if any of them runs into exception, and also re-throw the exception encountered
 	 * <p>
 	 * Not super ideal to spin up another thread pool for this. However, this is the trivial solution w/o a major
 	 * rewrite on how tasks are submitted
 	 * @param taskFutures
 	 */
-	private static void monitorSubmittedTasks(Map<String, List<Future>> taskFutures) throws ExecutionException {
+	private static void waitForSubmittedTasks(Map<String, List<Future>> taskFutures) throws ExecutionException, InterruptedException {
 		int taskCount = taskFutures.values().stream().mapToInt(List::size).sum();
 		ExecutorService monitorFutureService = Executors.newFixedThreadPool(taskCount);
 		Set<ExecutionException> exception = new HashSet<>();
@@ -267,6 +267,7 @@ public class StressMain {
 			}
 		} finally {
 			monitorFutureService.shutdown();
+			monitorFutureService.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 		}
 		if (!exception.isEmpty()) {
 			throw exception.iterator().next();
