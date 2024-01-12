@@ -26,7 +26,7 @@ In the solr-bench config, for example under `task-types`, use `task-by-class` an
 
 In the above example, a task of name `segment-monitor` would be created with the implementation of `SegmentMonitoringTask` with params `collection`. Take note the params are specific to the actual task.
 
-Currently, all the config for `task-by-class` task type assumes all fields from `BaseBenchmark` (hence `rpm`, `duration-secs` etc) and would be executed using the `ControlledExecutor` with rate, duration and thread count control.
+Currently, all the config for `task-by-class` task type assumes all fields from [`BaseBenchmark`](../beans/BaseBenchmark.java) (name is always required. duration-secs is required if the task is finite) and would be executed using the `ControlledExecutor` with rate, duration and thread count control.
 
 ## Implementations
 ### SegmentMonitorTask

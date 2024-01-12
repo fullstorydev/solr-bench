@@ -8,8 +8,19 @@ import java.util.Map;
 
 public abstract class AbstractTask<T> implements Task<T> {
   protected final TaskByClass taskSpec;
+  private final boolean isFiniteTask;
 
   protected AbstractTask(TaskByClass taskSpec) {
+    this(taskSpec, false);
+  }
+  protected AbstractTask(TaskByClass taskSpec, boolean isFiniteTask) {
+    this.isFiniteTask = isFiniteTask;
+    if (taskSpec.name == null) {
+      throw new IllegalArgumentException(taskSpec + " is invalid, missing task name");
+    }
+    if (!isFiniteTask && taskSpec.durationSecs == null) {
+      throw new IllegalArgumentException("duration-secs should be defined if the task [" + taskSpec.name  + "] is not finite");
+    }
     this.taskSpec = taskSpec;
   }
 
@@ -26,20 +37,33 @@ public abstract class AbstractTask<T> implements Task<T> {
             taskSpec.rpm,
             null,
             0,
-            () -> new ControlledExecutor.CallableWithType<>() {
-              @Override
-              public T call() throws Exception {
-                return runAction();
-              }
 
-              @Override
-              public BenchmarksMain.OperationKey getType() {
+            () -> {
+              if (isFiniteTask && !AbstractTask.this.hasNext()) {
                 return null;
               }
+              return new ControlledExecutor.CallableWithType<T>() {
+                @Override
+                public T call() throws Exception {
+                  return runAction();
+                }
+
+                @Override
+                public BenchmarksMain.OperationKey getType() {
+                  return null;
+                }
+              };
             },
             getExecutionListeners());
 
     controlledExecutor.run();
     return getAdditionalResult();
+  }
+
+  /**
+   * Whether there are more actions to be executed. Overwrite this if {@link AbstractTask#isFiniteTask} is true
+   */
+  protected boolean hasNext() {
+    return true;
   }
 }

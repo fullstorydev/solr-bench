@@ -10,4 +10,12 @@ public class TaskByClass extends BaseBenchmark {
 
   @JsonProperty("params")
   public Map<String, Object> params;
+
+  @Override
+  public String toString() {
+    return "TaskByClass{" +
+            "taskClass='" + taskClass + '\'' +
+            ", params=" + params +
+            '}';
+  }
 }
