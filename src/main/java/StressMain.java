@@ -776,7 +776,7 @@ public class StressMain {
 			} else if (type.taskByClass != null) {
 				Class<?> taskClass = Class.forName(type.taskByClass.taskClass);
 				if (!org.apache.solr.benchmarks.task.Task.class.isAssignableFrom(taskClass)) {
-					log.warn(type.taskByClass.taskClass + " does not implement " + Task.class.getName());
+					throw new IllegalArgumentException(type.taskByClass.taskClass + " does not implement " + Task.class.getName());
 				} else {
 					org.apache.solr.benchmarks.task.Task task = (org.apache.solr.benchmarks.task.Task)taskClass.getDeclaredConstructor(TaskByClass.class, SolrCloud.class).newInstance(type.taskByClass, cloud); //default constructor
 					long taskStart = System.currentTimeMillis();
