@@ -3,7 +3,6 @@ package org.apache.solr.benchmarks.task;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.ControlledExecutor;
 import org.apache.solr.benchmarks.beans.TaskByClass;
-import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 
 import java.util.Map;
 
@@ -28,7 +27,7 @@ public abstract class AbstractTask<T> implements Task<T> {
             null,
             0,
             () -> {
-              return new ControlledExecutor.CallableWithType<T>() {
+              return new ControlledExecutor.CallableWithType<>() {
                 @Override
                 public T call() throws Exception {
                   return runAction();
