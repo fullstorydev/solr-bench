@@ -26,19 +26,18 @@ public abstract class AbstractTask<T> implements Task<T> {
             taskSpec.rpm,
             null,
             0,
-            () -> {
-              return new ControlledExecutor.CallableWithType<>() {
-                @Override
-                public T call() throws Exception {
-                  return runAction();
-                }
+            () -> new ControlledExecutor.CallableWithType<>() {
+              @Override
+              public T call() throws Exception {
+                return runAction();
+              }
 
-                @Override
-                public BenchmarksMain.OperationKey getType() {
-                  return null;
-                }
-              };
-            }, getExecutionListeners());
+              @Override
+              public BenchmarksMain.OperationKey getType() {
+                return null;
+              }
+            },
+            getExecutionListeners());
 
     controlledExecutor.run();
     return getAdditionalResult();
