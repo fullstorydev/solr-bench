@@ -14,7 +14,6 @@ public abstract class AbstractTask<T> implements Task<T> {
     this.taskSpec = taskSpec;
   }
 
-
   @Override
   public final Map<String, Object> runTask() throws Exception {
     int threads = Math.min(taskSpec.minThreads, taskSpec.maxThreads);
@@ -45,10 +44,4 @@ public abstract class AbstractTask<T> implements Task<T> {
     controlledExecutor.run();
     return getAdditionalResult();
   }
-
-
-
-
-
-
 }
