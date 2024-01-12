@@ -154,7 +154,7 @@ public class ControlledExecutor<R> {
                             }
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to execute task. Message: " + e.getMessage());
+                        log.warn("Failed to execute task. Message: " + e.getMessage(), e);
                     }
                     return null;
                 }));

@@ -20,43 +20,9 @@ import java.util.stream.Collectors;
  */
 class PrometheusExportServer {
   private final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  Histogram histogram;
 
   PrometheusExportServer(Workflow workflow) throws IOException {
-    if (initMetrics(workflow)) {
-      log.info("Starting Prometheus exporter and metrics will be available at 127.0.0.1:{}/metrics", workflow.prometheusExport.port);
-      new HTTPServer(workflow.prometheusExport.port, true);
-    }
-  }
-  /**
-   * True if any metrics are created, hence server should be started
-   * @param workflow
-   * @return
-   */
-  final boolean initMetrics(Workflow workflow) {
-    if (workflow.prometheusExport == null) {
-      return false;
-    }
-
-    boolean shouldStart = false;
-    Set<TaskType> taskTypes = workflow.executionPlan.values().stream().map(instance -> workflow.taskTypes.get(instance.type)).collect(Collectors.toSet());
-
-    //only export grafana metrics on query and index benchmarks
-    if (taskTypes.stream().anyMatch(t -> t.queryBenchmark != null)) {
-      histogram = registerHistogram("solr_bench_duration", "duration taken to execute a Solr query");
-      shouldStart = true;
-    }
-    if (taskTypes.stream().anyMatch(t -> t.indexBenchmark != null)) {
-      shouldStart = true;
-    }
-    return shouldStart;
-  }
-
-  private static Summary registerSummary(String name, String help) {
-    return Summary.build(name, help).labelNames("method", "path", "type").register();
-  }
-
-  private static Histogram registerHistogram(String name, String help) {
-    return Histogram.build(name, help).labelNames("method", "path", "type").exponentialBuckets(1, 2, 30).register();
+    log.info("Starting Prometheus exporter and metrics will be available at 127.0.0.1:{}/metrics", workflow.prometheusExport.port);
+    new HTTPServer(workflow.prometheusExport.port, true);
   }
 }

@@ -22,6 +22,9 @@ public class TaskType {
 	@JsonProperty("move-replica")
 	public MoveReplica moveReplica;
 
+	@JsonProperty("task-by-class")
+	public TaskByClass taskByClass;
+
 	public static class MoveReplica {
 		@JsonProperty("collection")
 		public String collection;

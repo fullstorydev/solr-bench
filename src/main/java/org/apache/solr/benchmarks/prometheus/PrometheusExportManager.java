@@ -1,5 +1,9 @@
 package org.apache.solr.benchmarks.prometheus;
 
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.Histogram;
+import io.prometheus.client.Summary;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.beans.Workflow;
 import org.slf4j.Logger;
@@ -7,6 +11,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * A manager to control benchmark result exporting via Prometheus /metrics endpoint.
@@ -18,11 +26,14 @@ import java.lang.invoke.MethodHandles;
 public class PrometheusExportManager {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static volatile PrometheusExportServer SERVER = null; //singleton for now
-  private static String globalTypeLabel;
+  private static final ConcurrentMap<String, Histogram> registeredHistograms = new ConcurrentHashMap<>();
+  private static final ConcurrentMap<String, Gauge> registeredGauges = new ConcurrentHashMap<>();
+  public static String globalTypeLabel;
 
   /**
    * Starts this manager. This should be invoked once before any other operations on the manager except
    * <code>isEnabled</code>
+   *
    * @param workflow
    * @throws IOException
    */
@@ -33,10 +44,12 @@ public class PrometheusExportManager {
     }
   }
 
-  private static void checkEnabled() {
-    if (!isEnabled()) {
-      throw new IllegalStateException("Server is not yet started. Call startServer first");
-    }
+  public static Histogram registerHistogram(String name, String help, String...labels) {
+    return registeredHistograms.computeIfAbsent(name, n -> Histogram.build(name, help).labelNames(labels).exponentialBuckets(1, 2, 30).register());
+  }
+
+  public static Gauge registerGauge(String name, String help, String...labels) {
+    return registeredGauges.computeIfAbsent(name, n -> Gauge.build(name, help).labelNames(labels).register());
   }
 
   /**
@@ -45,21 +58,5 @@ public class PrometheusExportManager {
    */
   public synchronized static boolean isEnabled() {
     return SERVER != null;
-  }
-
-  /**
-   * Records a duration metrics on the operation defined by the key and typeLabel
-   * @param key       the key of the operation, for example a GET operation on path /select
-   * @param typeLabel custom value to define the label `type`
-   * @param durationInMillisecond duration of the operation measured in millisecond
-   */
-  public static void markDuration(BenchmarksMain.OperationKey key, String typeLabel, long durationInMillisecond) {
-    checkEnabled();
-    if (typeLabel == null) {
-      typeLabel = globalTypeLabel;
-    }
-    String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel };
-
-    SERVER.histogram.labels(labels).observe(durationInMillisecond);
   }
 }

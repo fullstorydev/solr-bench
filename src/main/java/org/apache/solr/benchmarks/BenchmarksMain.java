@@ -1,5 +1,6 @@
 package org.apache.solr.benchmarks;
 
+import io.prometheus.client.Histogram;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
@@ -64,27 +65,30 @@ public class BenchmarksMain {
 		if (queryBenchmarks != null && queryBenchmarks.size() > 0)
 		    log.info("Starting querying benchmarks...");
 
+
 		for (QueryBenchmark benchmark : queryBenchmarks) {
+			String collection = collectionNameOverride == null ? benchmark.collection: collectionNameOverride;
       log.info("Query Benchmark name: " + benchmark.name);
 			results.get("query-benchmarks").put(benchmark.name, new ArrayList());
       List<? extends SolrNode> queryNodes = solrCloud.getNodesByRole(SolrCloud.NodeRole.COORDINATOR);
       String baseUrl = queryNodes.get(benchmark.queryNode-1).getBaseUrl();
       log.info("Query base URL " + baseUrl);
+
+			List<ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, QueryResponseContents>> listeners = new ArrayList<>();
+			DetailedQueryStatsListener detailedQueryStatsListener = null;
+
+			if (benchmark.detailedStats) {  //add either DetailedQueryStatsListener or ErrorListener
+				detailedQueryStatsListener = new DetailedQueryStatsListener();
+				listeners.add(detailedQueryStatsListener);
+			} else {
+				listeners.add(new ErrorListener());
+			}
+			if (PrometheusExportManager.isEnabled()) {
+				log.info("Adding Prometheus listener for query benchmark [" + benchmark.name + "]");
+				listeners.add(new PrometheusHttpRequestDurationListener<>(benchmark.prometheusTypeLabel, collection));
+			}
+
 			for (int threads = benchmark.minThreads; threads <= benchmark.maxThreads; threads++) {
-				List<ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, QueryResponseContents>> listeners = new ArrayList<>();
-				DetailedQueryStatsListener detailedQueryStatsListener = null;
-
-				if (benchmark.detailedStats) {  //add either DetailedQueryStatsListener or ErrorListener
-					detailedQueryStatsListener = new DetailedQueryStatsListener();
-					listeners.add(detailedQueryStatsListener);
-				} else {
-					listeners.add(new ErrorListener());
-				}
-				if (PrometheusExportManager.isEnabled()) {
-					log.info("Adding Prometheus listener for query benchmark [" + benchmark.name + "]");
-					listeners.add(new PrometheusListener<>(benchmark.prometheusTypeLabel));
-				}
-
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 				ControlledExecutor<QueryResponseContents> controlledExecutor = new ControlledExecutor(
@@ -94,7 +98,7 @@ public class BenchmarksMain {
 					benchmark.rpm,
 					benchmark.totalCount,
 					benchmark.warmCount,
-					getQuerySupplier(queryGenerator, client, collectionNameOverride==null? benchmark.collection: collectionNameOverride),
+					getQuerySupplier(queryGenerator, client, collection),
 					listeners.toArray(new ControlledExecutor.ExecutionListener[listeners.size()]));
 				long start = System.currentTimeMillis();
 				try {
@@ -302,7 +306,7 @@ public class BenchmarksMain {
               ControlledExecutor.ExecutionListener[] listeners;
               if (PrometheusExportManager.isEnabled()) {
 								log.info("Adding Prometheus listener for index benchmark [" + benchmark.name + "]");
-                listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusListener(null) }; //no type label override for indexing
+                listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusHttpRequestDurationListener(null, collection) }; //no type label override for indexing
               } else {
                 listeners = new ControlledExecutor.ExecutionListener[0];
               }
@@ -341,15 +345,23 @@ public class BenchmarksMain {
 		}
 	}
 
-	private static class PrometheusListener<R> implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, R> {
-		private final String typeLabel; //if null then we will use the workflow global value
+	private static class PrometheusHttpRequestDurationListener<R> implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, R> {
+		private final String typeLabel;
+		private final Histogram histogram;
+		private static final String zkHost = BenchmarkContext.getContext().getZkHost();
+		private static final String testSuite = BenchmarkContext.getContext().getTestSuite();
+		private final String collection;
 
-		PrometheusListener(String typeLabel) {
-			this.typeLabel = typeLabel;
+		PrometheusHttpRequestDurationListener(String typeLabelOverride, String collection) {
+			this.histogram = PrometheusExportManager.registerHistogram("solr_bench_duration", "duration taken to execute a Solr indexing/query", "method", "path", "type", "collection", "zk_host", "test_suite");
+			this.typeLabel = typeLabelOverride != null ? typeLabelOverride : PrometheusExportManager.globalTypeLabel;
+			this.collection = collection;
 		}
+
 		@Override
 		public void onExecutionComplete(OperationKey key, R result, long durationInNanosecond) {
-			PrometheusExportManager.markDuration(key, typeLabel,durationInNanosecond / 1_000_000);
+			String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel, collection, zkHost, testSuite };
+			histogram.labels(labels).observe(durationInNanosecond / 1_000_000);
 		}
 	}
 

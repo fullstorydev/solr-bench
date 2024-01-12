@@ -21,14 +21,8 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.solr.benchmarks.BenchmarksMain;
-import org.apache.solr.benchmarks.MetricsCollector;
-import org.apache.solr.benchmarks.Util;
-import org.apache.solr.benchmarks.WorkflowResult;
-import org.apache.solr.benchmarks.beans.Cluster;
-import org.apache.solr.benchmarks.beans.TaskInstance;
-import org.apache.solr.benchmarks.beans.TaskType;
-import org.apache.solr.benchmarks.beans.Workflow;
+import org.apache.solr.benchmarks.*;
+import org.apache.solr.benchmarks.beans.*;
 import org.apache.solr.benchmarks.exporter.ExporterFactory;
 import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.benchmarks.query.DetailedStats;
@@ -93,8 +87,9 @@ public class StressMain {
 		SolrCloud solrCloud = new SolrCloud(cluster, solrPackagePath);
 		solrCloud.init();
 		try {
-			WorkflowResult workflowResult = executeWorkflow(workflow, solrCloud);
 			String testName = Files.getNameWithoutExtension(configFile);
+			setBenchmarkContext(testName, workflow);
+			WorkflowResult workflowResult = executeWorkflow(workflow, solrCloud);
 			ExporterFactory.getFileExporter(Paths.get(SUITE_BASE_DIR, testName)).export(workflowResult);
 		} catch (Exception e) {
 			log.warn("Got exception running StressMain: "+e.getMessage());
@@ -104,6 +99,11 @@ public class StressMain {
 			log.info("Shutting down...");
 			solrCloud.shutdown(true);
 		}
+	}
+
+	private static void setBenchmarkContext(String suiteName, Workflow workflow) {
+		BenchmarkContext context = new BenchmarkContext(suiteName, workflow.cluster.externalSolrConfig != null ? workflow.cluster.externalSolrConfig.zkHost : null);
+		BenchmarkContext.setContext(context);
 	}
 
 
@@ -206,25 +206,23 @@ public class StressMain {
 					.add(task.exe.submit(task.callable));
 		}
 
-		for (String tp: commonThreadpools.keySet())
-			commonThreadpools.get(tp).shutdown();
+		try {
+			waitForSubmittedTasks(taskFutures);
+		} finally {
+			for (String tp : commonThreadpools.keySet())
+				commonThreadpools.get(tp).shutdown();
 
-		for (String task: taskExecutors.keySet()) {
-			taskExecutors.get(task).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
-		}
+			for (String task : taskExecutors.keySet()) {
+				taskExecutors.get(task).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+			}
 
-		for (String tp: commonThreadpools.keySet())
-			commonThreadpools.get(tp).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+			for (String tp : commonThreadpools.keySet())
+				commonThreadpools.get(tp).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 
-		// Stop metrics collection
-		if (workflow.metrics != null || workflow.prometheusMetrics != null) {
-			metricsCollector.stop();
-			metricsThread.stop();
-		}
-
-		for (Map.Entry<String, List<Future>> futuresByTaskNames : taskFutures.entrySet()) {
-			for (Future future : futuresByTaskNames.getValue()) {
-					future.get(); //check if there are any uncaught exceptions in those tasks
+			// Stop metrics collection
+			if (workflow.metrics != null || workflow.prometheusMetrics != null) {
+				metricsCollector.stop();
+				metricsThread.stop();
 			}
 		}
 
@@ -234,6 +232,45 @@ public class StressMain {
 			return new WorkflowResult(finalResults, metricsCollector.metrics);
 		} else {
 			return new WorkflowResult(finalResults, null);
+		}
+	}
+
+	/**
+	 * Blocks and waits for all tasks to finish.
+	 * <p>
+	 * Interrupts all futures if any of them runs into exception, and also re-throw the exception encountered
+	 * <p>
+	 * Not super ideal to spin up another thread pool for this. However, this is the trivial solution w/o a major
+	 * rewrite on how tasks are submitted
+	 * @param taskFutures
+	 */
+	private static void waitForSubmittedTasks(Map<String, List<Future>> taskFutures) throws ExecutionException, InterruptedException {
+		int taskCount = taskFutures.values().stream().mapToInt(List::size).sum();
+		ExecutorService monitorFutureService = Executors.newFixedThreadPool(taskCount);
+		Set<ExecutionException> exception = new HashSet<>();
+		try {
+			for (Map.Entry<String, List<Future>> entry : taskFutures.entrySet()) {
+				final String taskName = entry.getKey();
+				for (Future future : entry.getValue()) {
+					monitorFutureService.submit(() -> {
+						try {
+							future.get();
+						} catch (InterruptedException e) {
+							//it's ok to ignore interrupt
+						} catch (ExecutionException e) { //unhandled exception, print error and stop other futures
+							exception.add(e);
+							log.warn("Found exception from submitted ask [" + taskName + "] with exception. Going to interrupt all other tasks");
+							taskFutures.values().forEach(targets -> targets.forEach(f -> f.cancel(true)));
+						}
+					});
+				}
+			}
+		} finally {
+			monitorFutureService.shutdown();
+			monitorFutureService.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+		}
+		if (!exception.isEmpty()) {
+			throw exception.iterator().next();
 		}
 	}
 
@@ -281,7 +318,7 @@ public class StressMain {
 				try {
 					node.pause(pauseDuration);
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 
 				if (type.awaitRecoveries) {
@@ -473,7 +510,7 @@ public class StressMain {
 							"total-time", totalTime, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
-					//ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 			} else if (type.queryBenchmark != null) {
 				log.info("Running benchmarking task: "+ type.queryBenchmark.queryFile);
@@ -542,7 +579,7 @@ public class StressMain {
 					}
 
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 			} else if (type.clusterStateBenchmark!=null) {
 				TaskType.ClusterStateBenchmark clusterStateBenchmark = type.clusterStateBenchmark;
@@ -663,7 +700,7 @@ public class StressMain {
 					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart), "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
 							"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 			} else if (type.moveReplica != null) {
 				long taskStart = System.currentTimeMillis();
@@ -731,11 +768,27 @@ public class StressMain {
 					String output = IOUtils.toString((InputStream)connection.getContent(), StandardCharsets.UTF_8);
 					log.info("Output ("+responseCode+"): "+output);
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					log.warn("Failed task [" + taskName + "] with exception " + ex.getMessage(), ex);
 				}
 				long taskEnd = System.currentTimeMillis();
 				finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0, "status", responseCode,
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+			} else if (type.taskByClass != null) {
+				Class<?> taskClass = Class.forName(type.taskByClass.taskClass);
+				if (!org.apache.solr.benchmarks.task.Task.class.isAssignableFrom(taskClass)) {
+					throw new IllegalArgumentException(type.taskByClass.taskClass + " does not implement " + Task.class.getName());
+				} else {
+					org.apache.solr.benchmarks.task.Task task = (org.apache.solr.benchmarks.task.Task)taskClass.getDeclaredConstructor(TaskByClass.class, SolrCloud.class).newInstance(type.taskByClass, cloud); //default constructor
+					long taskStart = System.currentTimeMillis();
+					Map<String, Object> additionalResult = task.runTask();
+					long taskEnd = System.currentTimeMillis();
+					if (additionalResult != null) {
+						finalResults.get(taskName).add(additionalResult);
+					}
+					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+
+				}
 			}
 			long end = System.currentTimeMillis();
 
