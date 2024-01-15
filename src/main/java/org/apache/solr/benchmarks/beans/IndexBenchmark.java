@@ -33,6 +33,8 @@ public class IndexBenchmark extends BaseBenchmark {
   @JsonProperty("id-field")
   public String idField = "id";
 
+  @JsonProperty("override-timestamp")
+  public String overrideTimestamp;
 
   static public class Setup {
     @JsonProperty("setup-name")

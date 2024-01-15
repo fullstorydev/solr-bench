@@ -8,6 +8,8 @@ import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.util.JsonRecordReader;
 import org.eclipse.jgit.util.FileUtils;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +17,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
+import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,32 +48,65 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
     this.workerFuture = startWorker(docReader);
   }
 
-  class IdParser implements JsonRecordReader.Handler {
-    String idParsed;
+  static class KeyValueParser implements JsonRecordReader.Handler {
+    private final Map<String, Object> keyValue = new HashMap<>();
+    private final String[] keys;
+
+    KeyValueParser(String... keys) {
+      this.keys = keys;
+    }
+
 
     @Override
     public void handle(Map<String, Object> record, String path) {
-      idParsed = record.get(benchmark.idField) instanceof String ?
-              (String) record.get(benchmark.idField) :
-              record.get(benchmark.idField).toString();
+      for (String key : keys) {
+        Object value = record.get(key);
+        if (value != null) {
+          keyValue.put(key, value);
+        } else {
+          keyValue.remove(key);
+        }
+      }
+    }
+
+    public Object value(String key) {
+      return keyValue.get(key);
     }
   }
 
   private Future<?> startWorker(DocReader docReader) {
+//    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     //a continuously running job until either all input is exhausted or exit is flagged
     Future<?> workerFuture = executorService.submit(() -> {
       List<String> inputDocs;
-      JsonRecordReader rdr = JsonRecordReader.getInst("/", Collections.singletonList(benchmark.idField + ":/" + benchmark.idField));
-      IdParser idParser = new IdParser();
+      //JsonRecordReader rdr = JsonRecordReader.getInst("/", List.of(benchmark.idField + ":/" + benchmark.idField, "EventStart:/EventStart"));
+      //KeyValueParser parser = new KeyValueParser(benchmark.idField, "EventStart");
+      JSONParser parser = new JSONParser();
       Map<String, List<String>> shardVsDocs = new HashMap<>();
       Map<String, AtomicInteger> batchCounters = new ConcurrentHashMap<>();
       try {
         while (!exit && (inputDocs = docReader.readDocs(benchmark.batchSize)) != null) { //can read more than batch size, just use batch size as a sensible value
           for (String inputDoc : inputDocs) {
-            rdr.streamRecords(new StringReader(inputDoc), idParser);
-            Slice targetSlice = docCollection.getRouter().getTargetSlice(idParser.idParsed, null, null, null, docCollection);
+            //rdr.streamRecords(new StringReader(inputDoc), parser);
+            JSONObject jsonObj = (JSONObject) parser.parse(inputDoc);
+            //String id = (String) parser.value(benchmark.idField);
+            String id = (String) jsonObj.get(benchmark.idField);
+            Slice targetSlice = docCollection.getRouter().getTargetSlice(id, null, null, null, docCollection);
             List<String> shardDocs = shardVsDocs.computeIfAbsent(targetSlice.getName(), key -> new ArrayList<>(benchmark.batchSize));
+            //Object eventStart = parser.value("EventStart");
+            if (benchmark.overrideTimestamp != null) {
+              Object oldTime = jsonObj.get(benchmark.overrideTimestamp);
+              if (oldTime instanceof String) {
+                //System.out.println(formatter.format(new Date((Long) eventStart)));
+                String newTime = ZonedDateTime.now().format(formatter);
+                System.out.println(id + " : " + oldTime + "=>" + newTime);
+                jsonObj.put(benchmark.overrideTimestamp, newTime);
+                inputDoc = jsonObj.toJSONString();
+              }
+            }
+
             shardDocs.add(inputDoc);
             if (shardDocs.size() >= benchmark.batchSize) {
               shardVsDocs.remove(targetSlice.getName());
