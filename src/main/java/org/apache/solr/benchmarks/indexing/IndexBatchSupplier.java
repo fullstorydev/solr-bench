@@ -101,7 +101,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
               if (oldTime instanceof String) {
                 //System.out.println(formatter.format(new Date((Long) eventStart)));
                 String newTime = ZonedDateTime.now().format(formatter);
-                System.out.println(id + " : " + oldTime + "=>" + newTime);
+//                System.out.println(id + " : " + oldTime + "=>" + newTime);
                 jsonObj.put(benchmark.overrideTimestamp, newTime);
                 inputDoc = jsonObj.toJSONString();
               }
