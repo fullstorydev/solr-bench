@@ -128,6 +128,8 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
     private final Gauge segmentCountGauge;
     private final Gauge segmentDocCountMedianGauge;
     private final Gauge segmentDocCountMaxGauge;
+    private final Gauge segmentByteSizeMedianGauge;
+    private final Gauge segmentByteSizeMaxGauge;
     private final String collection;
     private static final String zkHost = BenchmarkContext.getContext().getZkHost();
     private static final String testSuite = BenchmarkContext.getContext().getTestSuite();
@@ -136,6 +138,8 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
       this.segmentCountGauge = PrometheusExportManager.registerGauge("solr_bench_segment_count", "Total segment count per collection", "collection", "zk_host", "test_suite");
       this.segmentDocCountMedianGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_median", "Medium of segment doc count per collection", "collection", "zk_host", "test_suite");
       this.segmentDocCountMaxGauge = PrometheusExportManager.registerGauge("solr_bench_segment_doc_count_max", "Max of segment doc count per collection", "collection", "zk_host", "test_suite");
+      this.segmentByteSizeMedianGauge = PrometheusExportManager.registerGauge("solr_bench_segment_byte_size_median", "Medium of segment byte size per collection", "collection", "zk_host", "test_suite");
+      this.segmentByteSizeMaxGauge = PrometheusExportManager.registerGauge("solr_bench_segment_byte_size_max", "Max of segment doc byte size collection", "collection", "zk_host", "test_suite");
       this.collection = collection;
     }
 
@@ -147,7 +151,11 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
         result.sort(Comparator.comparingInt(o -> o.size));
         segmentDocCountMaxGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() - 1).size);
         segmentDocCountMedianGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() / 2).size);
+        result.sort(Comparator.comparingLong(o -> o.sizeInBytes));
+        segmentByteSizeMaxGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() - 1).sizeInBytes);
+        segmentByteSizeMedianGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() / 2).sizeInBytes);
       }
     }
   }
 }
+
