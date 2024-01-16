@@ -152,8 +152,8 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
         segmentDocCountMaxGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() - 1).size);
         segmentDocCountMedianGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() / 2).size);
         result.sort(Comparator.comparingLong(o -> o.sizeInBytes));
-        segmentByteSizeMaxGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() - 1).size);
-        segmentByteSizeMedianGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() / 2).size);
+        segmentByteSizeMaxGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() - 1).sizeInBytes);
+        segmentByteSizeMedianGauge.labels(collection, zkHost, testSuite).set(result.get(result.size() / 2).sizeInBytes);
       }
     }
   }
