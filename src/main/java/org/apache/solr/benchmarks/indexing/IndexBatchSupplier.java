@@ -17,9 +17,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
-import java.text.SimpleDateFormat;
-import java.time.ZonedDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,14 +40,55 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
   private final boolean init;
   private AtomicLong batchesIndexed = new AtomicLong();
 
-  public IndexBatchSupplier(boolean init, DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, Map<String, String> shardVsLeader) {
+  private final long timestampMin = 1659830555857L;
+  private final long timestampMax = 1675296690875L;
+  private final long docCount = 3635227;
+
+  public IndexBatchSupplier(boolean init, DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, Map<String, String> shardVsLeader) throws Exception {
     this.benchmark = benchmark;
     this.docCollection = docCollection;
     this.init = init;
     this.httpClient = httpClient;
     this.shardVsLeader = shardVsLeader;
-
+//    findTimestampBoundaries(docReader);
     this.workerFuture = startWorker(docReader);
+  }
+
+  private void findTimestampBoundaries(DocReader docReader) throws Exception {
+    List<String> inputDocs;
+    JSONParser parser = new JSONParser();
+    long min = Long.MAX_VALUE;
+    long max = Long.MIN_VALUE;
+    long count = 0;
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneId.of("UTC"));
+    DateTimeFormatter formatter2 = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"));
+
+    JsonRecordReader rdr = JsonRecordReader.getInst("/", List.of(benchmark.overrideTimestamp+ ":/" + benchmark.overrideTimestamp));
+    KeyValueParser kvParser = new KeyValueParser("EventStart");
+    while (!exit && (inputDocs = docReader.readDocs(benchmark.batchSize)) != null) {
+      for (String inputDoc : inputDocs) {
+        rdr.streamRecords(new StringReader(inputDoc), kvParser);
+        String timestampString = (String) kvParser.value(benchmark.overrideTimestamp);
+        if (timestampString != null) {
+          TemporalAccessor temporal;
+          try {
+            temporal = formatter.parse(timestampString);
+          } catch (DateTimeParseException e) {
+            temporal = formatter2.parse(timestampString);
+          }
+          long timestamp = Instant.from(temporal).toEpochMilli();
+          if (timestamp > 0) { //there's some weird timestamp here like 0001-01-01T00:01:13.229Z
+            min = Math.min(min, timestamp);
+            max = Math.max(max, timestamp);
+          }
+        }
+        if (count ++ % 10000 == 0) {
+          System.out.println(count + " " + min + " " + max);
+        }
+      }
+    }
+
+    System.out.println("!!!!!!!!!" + count + " " + formatter.format(Instant.ofEpochMilli(min)) + " " + formatter.format(Instant.ofEpochMilli(max)));
   }
 
   static class KeyValueParser implements JsonRecordReader.Handler {
@@ -76,7 +119,9 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
 
   private Future<?> startWorker(DocReader docReader) {
 //    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneId.of("UTC"));
+//    DateTimeFormatter formatter2 = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"));
+
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     //a continuously running job until either all input is exhausted or exit is flagged
     Future<?> workerFuture = executorService.submit(() -> {
@@ -86,10 +131,12 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
       JSONParser parser = new JSONParser();
       Map<String, List<String>> shardVsDocs = new HashMap<>();
       Map<String, AtomicInteger> batchCounters = new ConcurrentHashMap<>();
+      long docIndex = 0;
       try {
         while (!exit && (inputDocs = docReader.readDocs(benchmark.batchSize)) != null) { //can read more than batch size, just use batch size as a sensible value
           for (String inputDoc : inputDocs) {
             //rdr.streamRecords(new StringReader(inputDoc), parser);
+            docIndex ++;
             JSONObject jsonObj = (JSONObject) parser.parse(inputDoc);
             //String id = (String) parser.value(benchmark.idField);
             String id = (String) jsonObj.get(benchmark.idField);
@@ -100,7 +147,8 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
               Object oldTime = jsonObj.get(benchmark.overrideTimestamp);
               if (oldTime instanceof String) {
                 //System.out.println(formatter.format(new Date((Long) eventStart)));
-                String newTime = ZonedDateTime.now().format(formatter);
+                long timestamp = timestampMin + (timestampMax - timestampMin) * docIndex / docCount;
+                String newTime = formatter.format(Instant.ofEpochMilli(timestamp));
 //                System.out.println(id + " : " + oldTime + "=>" + newTime);
                 jsonObj.put(benchmark.overrideTimestamp, newTime);
                 inputDoc = jsonObj.toJSONString();
