@@ -40,9 +40,14 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
   private final boolean init;
   private AtomicLong batchesIndexed = new AtomicLong();
 
-  private final long timestampMin = 1659830555857L;
-  private final long timestampMax = 1675296690875L;
-  private final long docCount = 3635227;
+//  private final long timestampMin = 1659830555857L;
+//  private final long timestampMax = 1675296690875L;
+//  private final long docCount = 3635227;
+
+//  35439951 2023-06-01T00:00:35.425Z 2024-01-17T23:28:23.961Z
+  private final long timestampMin = 1685577635425L;
+  private final long timestampMax = 1705534103961L;
+  private final long docCount = 35_439_951;
 
   public IndexBatchSupplier(boolean init, DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, Map<String, String> shardVsLeader) throws Exception {
     this.benchmark = benchmark;
@@ -50,13 +55,13 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
     this.init = init;
     this.httpClient = httpClient;
     this.shardVsLeader = shardVsLeader;
-//    findTimestampBoundaries(docReader);
+    findTimestampBoundaries(docReader);
     this.workerFuture = startWorker(docReader);
   }
 
   private void findTimestampBoundaries(DocReader docReader) throws Exception {
     List<String> inputDocs;
-    JSONParser parser = new JSONParser();
+//    JSONParser parser = new JSONParser();
     long min = Long.MAX_VALUE;
     long max = Long.MIN_VALUE;
     long count = 0;
