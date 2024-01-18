@@ -55,7 +55,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
     this.init = init;
     this.httpClient = httpClient;
     this.shardVsLeader = shardVsLeader;
-    findTimestampBoundaries(docReader);
+    //findTimestampBoundaries(docReader);
     this.workerFuture = startWorker(docReader);
   }
 
