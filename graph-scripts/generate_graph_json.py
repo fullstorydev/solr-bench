@@ -103,23 +103,19 @@ def parse_benchmark_results(meta_props):
 
 
 def get_commit_date(props):
-    return int(props["commit_date"])
+    return int(props.get("commit_date", '0'))
 
 benchmark_results = collections.OrderedDict()  # key as group, which usually is just the branch name
 
 for group in target_groups:
     for result_dir in result_dirs:
         test_name = os.path.splitext(os.path.basename(result_dir))[0]
-        meta_files = [f for f in os.listdir(result_dir) if
-            os.path.isfile(os.path.join(result_dir, f)) and f.startswith('meta-')]
-
         test_run_dirs = [f for f in os.listdir(result_dir) if
                     os.path.isdir(os.path.join(result_dir, f))]
         meta_props = []
         result_paths = []
         for test_run_base_dir in test_run_dirs:
             test_run_dir = os.path.join(result_dir, test_run_base_dir)
-
 
             results_file = os.path.join(test_run_dir, "results.json")
             if os.path.isfile(results_file) is False:
