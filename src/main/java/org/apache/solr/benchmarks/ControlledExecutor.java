@@ -184,14 +184,17 @@ public class ControlledExecutor<R> {
             this.maxPendingActions = maxPendingActions;
             progressTimer.schedule( new TimerTask() {
                 public void run() {
-                    StringBuilder logMessage = new StringBuilder("Action Submitted: " + submissionCount.get() + " Executed: " + executionCount.get());
+                    long currentSubmissionCount = submissionCount.get();
+                    long currentExecutionCount = executionCount.get();
+                    StringBuilder logMessage = new StringBuilder("Action Submitted: " + currentSubmissionCount + ", Executed: " + currentExecutionCount);
                     long timeElapsed = System.currentTimeMillis() - startTime;
                     if (timeElapsed > 0) {
-                        long currentRpmExecuted = executionCount.get() * 1000 * 60 / timeElapsed;
-                        long currentRpmSubmitted = submissionCount.get() * 1000 * 60 / timeElapsed;
-                        logMessage.append(" RPM(executed/submitted): " + currentRpmExecuted + "/" + currentRpmSubmitted);
-                        if  (rpm != null) {
-                            logMessage.append(" target RPM: " + rpm);
+                        long currentRpmExecuted = currentExecutionCount * 1000 * 60 / timeElapsed;
+                        long currentRpmSubmitted = currentSubmissionCount * 1000 * 60 / timeElapsed;
+                        if (rpm == null) {
+                            logMessage.append(", RPM(executed/submitted): " + currentRpmExecuted + "/" + currentRpmSubmitted);
+                        } else {
+                            logMessage.append(", RPM(executed/submitted/target): " + currentRpmExecuted + "/" + currentRpmSubmitted + "/" + rpm);
                         }
                     }
                     log(logMessage.toString());
