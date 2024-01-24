@@ -26,93 +26,93 @@ import java.util.concurrent.atomic.AtomicLong;
  * An upload task to a single shard with a list of docs
  */
 class UploadDocs implements Callable {
-    private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    final List<String> docs;
-    final HttpClient client;
-	private final boolean interruptOnFailure;
-	private AtomicLong totalUploadedDocs;
-	final String batchFilename;
-	
-	final String updateEndpoint;
-	final String contentType;
-	final byte[] payload;
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  final List<String> docs;
+  final HttpClient client;
+  private final boolean interruptOnFailure;
+  private AtomicLong totalUploadedDocs;
+  final String batchFilename;
 
-    UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
-        this.docs = docs;
-        this.client = client;
-        this.totalUploadedDocs = totalUploadedDocs;
-        this.batchFilename = batchFilename;
-				this.interruptOnFailure = benchmark.interruptOnFailure;
-        
-		log.debug("Batch file: "+batchFilename);
+  final String updateEndpoint;
+  final String contentType;
+  final byte[] payload;
 
-        if (batchFilename == null) { // plain JSON docs
-	        this.updateEndpoint = leaderUrl + "/update/json/docs";
-	        this.contentType = "application/json; charset=UTF-8";
-	        payload = null; // docs will be indexed one by one
+  UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
+    this.docs = docs;
+    this.client = client;
+    this.totalUploadedDocs = totalUploadedDocs;
+    this.batchFilename = batchFilename;
+    this.interruptOnFailure = benchmark.interruptOnFailure;
+
+    log.debug("Batch file: " + batchFilename);
+
+    if (batchFilename == null) { // plain JSON docs
+      this.updateEndpoint = leaderUrl + "/update/json/docs";
+      this.contentType = "application/json; charset=UTF-8";
+      payload = null; // docs will be indexed one by one
+    } else {
+      try {
+        payload = FileUtils.readFileToByteArray(new File(batchFilename));
+      } catch (IOException e) {
+        throw new RuntimeException("Cannot open pre-initialized batch file: " + batchFilename, e);
+      }
+      if (batchFilename.endsWith(".json")) {
+        this.updateEndpoint = leaderUrl + "/update/json/docs";
+        this.contentType = "application/json; charset=UTF-8";
+      } else if (batchFilename.endsWith(".javabin")) {
+        this.updateEndpoint = leaderUrl + "/update";
+        this.contentType = "application/javabin";
+      } else if (batchFilename.endsWith(".cbor")) {
+        this.updateEndpoint = leaderUrl + "/update/cbor";
+        this.contentType = "application/cbor";
+      } else {
+        throw new RuntimeException("Cannot determine update endpoint or content type for pre-initialized batch file: " + batchFilename);
+      }
+    }
+  }
+
+  @Override
+  public Object call() throws IOException {
+    log.debug("Posting to " + updateEndpoint + ", type: " + contentType + ", size: " + (payload == null ? 0 : payload.length));
+    HttpPost httpPost = new HttpPost(updateEndpoint);
+    httpPost.setHeader(new BasicHeader("Content-Type", contentType));
+    httpPost.getParams().setParameter("overwrite", "false");
+
+    httpPost.setEntity(new BasicHttpEntity() {
+      @Override
+      public boolean isStreaming() {
+        return true;
+      }
+
+      @Override
+      public void writeTo(OutputStream outstream) throws IOException {
+        if (payload == null) {
+          OutputStreamWriter writer = new OutputStreamWriter(outstream);
+          for (String doc : docs) {
+            writer.append(doc).append('\n');
+          }
+          writer.flush();
         } else {
-	        try {
-				payload = FileUtils.readFileToByteArray(new File(batchFilename));
-			} catch (IOException e) {
-				throw new RuntimeException("Cannot open pre-initialized batch file: " + batchFilename, e);
-			}
-        	if (batchFilename.endsWith(".json")) {
-    	        this.updateEndpoint = leaderUrl + "/update/json/docs";
-    	        this.contentType = "application/json; charset=UTF-8";
-        	} else if (batchFilename.endsWith(".javabin")) {
-    	        this.updateEndpoint = leaderUrl + "/update";
-    	        this.contentType = "application/javabin";        		        		
-        	} else if (batchFilename.endsWith(".cbor")) {
-    	        this.updateEndpoint = leaderUrl + "/update/cbor";
-    	        this.contentType = "application/cbor";        		
-        	} else {
-        		throw new RuntimeException ("Cannot determine update endpoint or content type for pre-initialized batch file: " + batchFilename);
-        	}
+          outstream.write(payload);
+          outstream.flush();
         }
+      }
+    });
+
+
+    HttpResponse rsp = client.execute(httpPost);
+    int statusCode = rsp.getStatusLine().getStatusCode();
+    if (!HttpStatus.isSuccess(statusCode)) {
+      log.error("Failed a request: " +
+              rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
+      if (interruptOnFailure) {
+        throw new IOException("Failed to execute index call on " + updateEndpoint + ", status code: " + statusCode + " reason: " + rsp.getStatusLine().getReasonPhrase());
+      }
+    } else {
+      rsp.getEntity().getContent().close();
+      totalUploadedDocs.addAndGet(docs.size());
     }
 
-    @Override
-    public Object call() throws IOException {
-    	log.debug("Posting to " + updateEndpoint+", type: "+contentType+", size: "+(payload==null?0:payload.length));
-    	HttpPost httpPost = new HttpPost(updateEndpoint);
-        httpPost.setHeader(new BasicHeader("Content-Type", contentType));
-        httpPost.getParams().setParameter("overwrite", "false");
-
-        httpPost.setEntity(new BasicHttpEntity() {
-            @Override
-            public boolean isStreaming() {
-                return true;
-            }
-
-            @Override
-            public void writeTo(OutputStream outstream) throws IOException {
-            	if (payload == null) {
-            		OutputStreamWriter writer = new OutputStreamWriter(outstream);
-            		for (String doc : docs) {
-            			writer.append(doc).append('\n');
-            		}
-            		writer.flush();
-            	} else {
-            		outstream.write(payload);
-            		outstream.flush();
-            	}
-            }
-        });
-
-
-        HttpResponse rsp = client.execute(httpPost);
-        int statusCode = rsp.getStatusLine().getStatusCode();
-        if (!HttpStatus.isSuccess(statusCode)) {
-            log.error("Failed a request: " +
-                    rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
-						if (interruptOnFailure) {
-							throw new RuntimeException("Failed to execute index call, status code: " + statusCode + " reason: " + rsp.getStatusLine().getReasonPhrase());
-						}
-        } else {
-        	rsp.getEntity().getContent().close();
-            totalUploadedDocs.addAndGet(docs.size());
-        }
-
-        return null;
-    }
+    return null;
+  }
 }
