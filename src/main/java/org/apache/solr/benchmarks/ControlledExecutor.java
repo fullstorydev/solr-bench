@@ -35,9 +35,9 @@ public class ControlledExecutor<R> {
     private final ExecutionListener<BenchmarksMain.OperationKey, R>[] executionListeners;
     private final int maxPendingActions;
     private final String taskName;
-    private final Integer rpm; //action run per min, if defined the executor would attempt to maintain the action execution rate adhering to this
-    private final Integer duration; //if defined, this executor should cease executing more actions once duration is reached
-    private final Long maxExecution; //max execution count, once this read the executor should no longer execute more actions
+    private final Integer rpm; //action run per min, if defined, the executor would slow down action submission if the rate is higher than this
+    private final Integer duration; //if defined, the executor should cease action execution/submission once this duration is reached
+    private final Long maxExecution; //max execution count, if defined, executor should only execute actions up to this number
     private final int warmCount; //executions before this would not be tracked in stats
 
     final SynchronizedDescriptiveStatistics stats;
@@ -135,7 +135,6 @@ public class ControlledExecutor<R> {
                 checker.incrementAndGetSubmissionCount();
             }
 
-            //if it was stopped because of duration or exception, interrupt all other actions if any action throws unhandled exception
             if (stopReason == StopReason.DURATION || stopReason == StopReason.EXCEPTION) {
                 if (stopReason == StopReason.EXCEPTION) {
                     log.warn("Interrupting all actions in executor of task " + taskName + " due to exception");
@@ -164,8 +163,8 @@ public class ControlledExecutor<R> {
 
     /**
      * 1. Periodically prints status of the submitted/executed actions
-     * 2. Keep status of the actions and determines whether we should stop the whole controller
-     * 3. Pause action submission if the execution cannot catch up (maintain rpm and back pressure)
+     * 2. Keeps status of the actions and determines whether we should stop the whole controller
+     * 3. Pauses action submission if action rate is too high or the execution cannot catch up (maintain rpm and back pressure)
      */
     private class StatusChecker implements Closeable {
         private final AtomicLong submissionCount = new AtomicLong();
