@@ -48,20 +48,16 @@ public class SegmentMonitoringTask extends AbstractTask<List<SegmentMonitoringTa
 
   @Override
   public List<SegmentInfo> runAction() throws Exception {
-    List<String> cores;
     try {
-      cores = getCores();
+      List<SegmentInfo> allSegments = new ArrayList<>();
+      for (String core : getCores()) {
+        allSegments.addAll(getSegmentInfos(core));
+      }
+      return allSegments;
     } catch (IOException e) {
       log.info("Collection/Cores " + collection + " might not be available yet...");
       return Collections.emptyList();
     }
-
-    List<SegmentInfo> allSegments = new ArrayList<>();
-    for (String core : cores) {
-      allSegments.addAll(getSegmentInfos(core));
-    }
-
-    return allSegments;
   }
 
   private Collection<SegmentInfo> getSegmentInfos(String core) throws IOException {

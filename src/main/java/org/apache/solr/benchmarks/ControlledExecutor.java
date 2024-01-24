@@ -5,52 +5,48 @@ import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatisti
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
- * A custom executor that blocks on `run` until one of the below condition fulfills:
+ * A custom executor that executes "actions" provided by a "Task". It blocks on `run` until one of
+ * the below conditions fulfills:
  * <ol>
  *  <li>If duration is defined, such duration is reached since run is invoked</li>
- *  <li>If taskSupplier no longer provides any more tasks</li>
+ *  <li>If actionSupplier no longer provides any more actions</li>
  *  <li>If execution count has reached maxExecution if provided</li>
  *  <li>If there is any uncaught exception</li>
  * </ol>
  *
- * More precisely, the executor would stop drawing tasks from task supplier but would still complete tasks that are
- * currently executing. For tasks that are submitted to the underlying executor but not yet executed, they will be
- * dropped iff the `StopReason` is `Duration`.
- *
- * Tasks will be submitted adhering to the rpm if provided.
+ * For actions that are submitted to the underlying executor but not yet executed, they will be
+ * cancelled iff the `StopReason` is `Duration` or `Exception`.
+ * <p>
+ * Actions will be submitted adhering to the rpm if provided.
  */
 public class ControlledExecutor<R> {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private final Supplier<Callable<R>> taskSupplier;
+    private final Supplier<Callable<R>> actionSupplier;
     private final ExecutorService executor;
     private final ExecutionListener<BenchmarksMain.OperationKey, R>[] executionListeners;
-    private String label;
-    private final Integer duration; //if defined, this executor should cease executing more tasks once duration is reached
-    private Long endTime; //this executor should cease executing more tasks once this time is reached, computed from duration
-    private final Long maxExecution; //max execution count, once this read the executor should no longer execute more tasks
+    private final int maxPendingActions;
+    private final String taskName;
+    private final Integer rpm; //action run per min, if defined the executor would attempt to maintain the action execution rate adhering to this
+    private final Integer duration; //if defined, this executor should cease executing more actions once duration is reached
+    private final Long maxExecution; //max execution count, once this read the executor should no longer execute more actions
     private final int warmCount; //executions before this would not be tracked in stats
 
     final SynchronizedDescriptiveStatistics stats;
-    private final RateLimiter rateLimiter;
-    private final BackPressureLimiter backPressureLimiter;
-    private long startTime;
 
     public interface ExecutionListener<T, R> {
         /**
          * Gets invoked when a callable finishes execution by this executor. Take note that execution of warmups will
          * not trigger this. And this might get invoked by multiple threads concurrently
-         *
+         * <p>
          * Take note that this gets executed within the same thread as the executor worker. Therefore, slow operation
          * can affect the actual RPM (runs per minute)
          *
@@ -65,88 +61,54 @@ public class ControlledExecutor<R> {
         BenchmarksMain.OperationKey getType();
     }
 
-    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier) {
-        this(label, threads, duration, rpm, maxExecution, warmCount, taskSupplier, new ExecutionListener[0]);
+    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> actionSupplier) {
+        this(label, threads, duration, rpm, maxExecution, warmCount, actionSupplier, new ExecutionListener[0]);
     }
-    public ControlledExecutor(String label, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> taskSupplier, ExecutionListener<BenchmarksMain.OperationKey, R>... executionListeners) {
-        this.label = label;
+    public ControlledExecutor(String taskName, int threads, Integer duration, Integer rpm, Long maxExecution, int warmCount, Supplier<Callable<R>> actionSupplier, ExecutionListener<BenchmarksMain.OperationKey, R>... executionListeners) {
+        this.taskName = taskName;
         this.duration = duration;
         this.maxExecution = maxExecution;
         this.warmCount = warmCount;
         this.stats = new SynchronizedDescriptiveStatistics();
-        this.taskSupplier = taskSupplier;
+        this.actionSupplier = actionSupplier;
         this.executionListeners = executionListeners;
+        this.maxPendingActions = threads * 10; //at most 10 * # of thread pending actions
+        this.rpm = rpm;
         executor = new ThreadPoolExecutor(threads, threads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
-                new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        return new Thread(r, ControlledExecutor.class.getSimpleName() + "-" + label);
-                    }
-                });
-        rateLimiter = rpm != null ? new RateLimiter(rpm) : null;
-
-        backPressureLimiter = new BackPressureLimiter(threads * 10); //at most 10 * # of thread pending tasks
+                r -> new Thread(r, ControlledExecutor.class.getSimpleName() + "-" + taskName));
     }
 
     public void run() throws InterruptedException, ExecutionException {
-        startTime = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
+        Long endTime = duration != null ?  startTime + (1000 * duration) : null;
 
-        if (duration != null) {
-            endTime = startTime + (1000 * duration);
-        }
-        AtomicLong submissionCount = new AtomicLong();
-        AtomicLong executionCount = new AtomicLong();
+        List<Future<Object>> actionFutures = new ArrayList<>();
 
-        Timer progressTimer = new Timer();
+        ExecutorService monitoringExecutorService = Executors.newCachedThreadPool(); //to monitor the action future
+        StopReason stopReason;
 
-        progressTimer.schedule( new TimerTask() {
-            public void run() {
-                log("Submitted " + submissionCount.get() + " task(s), executed " + executionCount.get());
-                long timeElapsed = System.currentTimeMillis() - startTime;
-                if (timeElapsed > 0) {
-                    long currentRpm = executionCount.get() * 1000 * 60 / timeElapsed;
-                    log("Current rpm: " + currentRpm + (rateLimiter != null ? (" target rpm: " + rateLimiter.targetRpm) : ""));
-                }
-            }
-        }, 0, 10*1000);
-
-        AtomicBoolean dropTaskFlag = new AtomicBoolean(false);
-        List<Future> futures = new ArrayList<>();
+        StatusChecker checker = new StatusChecker(rpm, endTime, maxPendingActions);
         try {
-            StopReason stopReason;
-            while ((stopReason = shouldStop(submissionCount.get())) == null) {
-                if (rateLimiter != null) {
-                    rateLimiter.waitIfRequired();
-                }
-                while (backPressureLimiter.waitIfRequired(submissionCount.get(), executionCount, 1000) && (stopReason = shouldStop(submissionCount.get())) == null) {
-                    //keep blocking until either back pressure no longer an issue or the executor is stopped
-                    //this could block for quite a while hence should check stop reason
-                }
-                if (stopReason != null) {
+            while ((stopReason = checker.shouldStop()) == null) {
+                Callable<R> action = actionSupplier.get();
+                if (action == null) { //no more action available
+                    log("Exhausted action supplier.");
+                    stopReason = StopReason.ACTION_SUPPLIER_EXHAUSTED;
                     break;
                 }
-
-                Callable<R> task = taskSupplier.get();
-                if (task == null) { //no more runners available
-                    log("Exhausted task supplier.");
-                    break;
-                }
-                futures.add(executor.submit(() -> {
-                    if (dropTaskFlag.get()) { //do not process the rest of this
-                        return null;
-                    }
+                Future<Object> actionFuture = executor.submit(() -> {
                     long start = System.nanoTime();
                     try {
-                        R result = task.call();
-                        if (executionCount.incrementAndGet() > warmCount) {
+                        R result = action.call();
+                        if (checker.incrementAndGetExecutionCount() > warmCount) {
                             long durationInNanoSec = (System.nanoTime() - start);
                             stats.addValue(durationInNanoSec  / 1000_000.0);
                             if (executionListeners.length > 0) {
                                 BenchmarksMain.OperationKey key = null;
-                                if (task instanceof CallableWithType) {
-                                    key = ((CallableWithType<R>) task).getType();
+                                if (action instanceof CallableWithType) {
+                                    key = ((CallableWithType<R>) action).getType();
                                 }
                                 for (ExecutionListener<BenchmarksMain.OperationKey, R> executionListener : executionListeners) {
                                     executionListener.onExecutionComplete(key, result, durationInNanoSec);
@@ -154,92 +116,162 @@ public class ControlledExecutor<R> {
                             }
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to execute task. Message: " + e.getMessage(), e);
+                        log.warn("Failed to execute action. Message: " + e.getMessage(), e);
+                        throw e;
                     }
                     return null;
-                }));
-                submissionCount.incrementAndGet();
+                });
+                actionFutures.add(actionFuture);
+                //monitor this action future in the background
+                monitoringExecutorService.submit(() -> {
+                    try {
+                        return actionFuture.get();
+                    } catch (ExecutionException e) {
+                        checker.flagException(e);
+                        return null;
+                    }
+                });
+
+                checker.incrementAndGetSubmissionCount();
             }
 
-            if (stopReason == StopReason.DURATION) { //if it was stopped because of duration, drop the remaining tasks
-                dropTaskFlag.set(true);
-            }
-
-        } finally {
-            executor.shutdown();
-            if (dropTaskFlag.get()) {
-                log("Now waiting for executing jobs to finish execution. The rest of the submitted jobs will be dropped");
-            } else {
-                log("Now waiting for all executing/submitted jobs to finish execution.");
-            }
-
-            for (Future future : futures) { //check for exceptions
-                try {
-                    future.get();
-                } catch (InterruptedException | CancellationException e) {
-                    //ok
+            //if it was stopped because of duration or exception, interrupt all other actions if any action throws unhandled exception
+            if (stopReason == StopReason.DURATION || stopReason == StopReason.EXCEPTION) {
+                if (stopReason == StopReason.EXCEPTION) {
+                    log.warn("Interrupting all actions in executor of task " + taskName + " due to exception");
+                } else {
+                    log.info("Interrupting all actions in executor of task " + taskName + " as it reaches the duration " + duration);
                 }
+                actionFutures.forEach(f -> f.cancel(true));
             }
+        } finally {
+            checker.close();
+            monitoringExecutorService.shutdown();
+            executor.shutdown();
 
-
+            log("Now waiting for all executing/submitted actions to finish execution.");
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            progressTimer.cancel();
-
-            long currTime = System.currentTimeMillis();
-            long rpm = (currTime - startTime) > 0 ? executionCount.get() * 1000 * 60 / (currTime - startTime) : executionCount.get() * 1000 * 60;
-            System.out.println("Time elapsed : " + (currTime - startTime)  + " total execution count : "+ executionCount.get() + " rpm : " + rpm + " benchmarked executions: "+stats.getN()) ;
         }
-    }
 
-    enum StopReason {
-        DURATION, MAX_EXECUTION
-    }
-    private synchronized StopReason shouldStop(long currentCount) {
-    	if (maxExecution != null && currentCount >= maxExecution) {
-            log("Max execution count " + maxExecution + " reached, exiting...");
-   			return StopReason.MAX_EXECUTION;
-    	}
-        if (endTime != null) {
-            long currentTime = System.currentTimeMillis();
-            if (currentTime > endTime) {
-                log("Duration " + duration + " secs reached, exiting...");
-                return StopReason.DURATION;
-            }
+        ExecutionException exception = checker.getException();
+        if (exception != null) {
+            throw exception; //re-throw the exception so the caller can handle it
         }
-        return null;
-    }
-
-    private void log(String message) {
-        log.info("(" + label + ") " +  message);
+        long currTime = System.currentTimeMillis();
+        long rpm = (currTime - startTime) > 0 ? checker.getExecutionCount() * 1000 * 60 / (currTime - startTime) : checker.getExecutionCount() * 1000 * 60;
+        System.out.println("Time elapsed : " + (currTime - startTime)  + " total execution count : "+ checker.getExecutionCount() + " rpm : " + rpm + " benchmarked executions: "+stats.getN()) ;
     }
 
     /**
-     * Pause job submission if the execution cannot catch up
+     * 1. Periodically prints status of the submitted/executed actions
+     * 2. Keep status of the actions and determines whether we should stop the whole controller
+     * 3. Pause action submission if the execution cannot catch up (maintain rpm and back pressure)
      */
-    private class BackPressureLimiter {
-        private final int maxPendingTasks;
+    private class StatusChecker implements Closeable {
+        private final AtomicLong submissionCount = new AtomicLong();
+        private final AtomicLong executionCount = new AtomicLong();
+        private final Timer progressTimer = new Timer();
+        AtomicReference<ExecutionException> exceptionRef = new AtomicReference<>(null);
+        private final Integer rpm;
+        private final Long endTime;
+        private final long startTime;
+        private final int maxPendingActions;
 
-        private BackPressureLimiter(int maxPendingTasks) {
-            this.maxPendingTasks = maxPendingTasks;
+        private StatusChecker(Integer rpm, Long endTime, int maxPendingActions) {
+            this.rpm = rpm;
+            this.endTime = endTime;
+            this.startTime = System.currentTimeMillis();
+            this.maxPendingActions = maxPendingActions;
+            progressTimer.schedule( new TimerTask() {
+                public void run() {
+                    StringBuilder logMessage = new StringBuilder("Action Submitted: " + submissionCount.get() + " Executed: " + executionCount.get());
+                    long timeElapsed = System.currentTimeMillis() - startTime;
+                    if (timeElapsed > 0) {
+                        long currentRpmExecuted = executionCount.get() * 1000 * 60 / timeElapsed;
+                        long currentRpmSubmitted = submissionCount.get() * 1000 * 60 / timeElapsed;
+                        logMessage.append(" RPM(executed/submitted): " + currentRpmExecuted + "/" + currentRpmSubmitted);
+                        if  (rpm != null) {
+                            logMessage.append(" target RPM: " + rpm);
+                        }
+                    }
+                    log(logMessage.toString());
+                }
+            }, 0, 10*1000);
         }
 
         /**
          *
-         * @param submissionCount
-         * @param executionCount
-         * @param timeout
-         * @return true  if back pressure still exists and this exits because of timeout. false if back pressure no longer should block
+         * @return  whether we should stop the current executor. This might block to handle RPM and back-pressure
          * @throws InterruptedException
          */
-        public boolean waitIfRequired(long submissionCount, AtomicLong executionCount, long timeout) throws InterruptedException {
-            long endTime = System.currentTimeMillis() + timeout;
-            while ((submissionCount - executionCount.get()) >= maxPendingTasks) {
-                if (System.currentTimeMillis() >= endTime) {
-                    return true;
+        private synchronized StopReason shouldStop() throws InterruptedException {
+            if (exceptionRef.get() != null) {
+                log("Encountered execution exception " + exceptionRef.get().getCause() + "... Stopping the executor");
+                return StopReason.EXCEPTION;
+            }
+            if (maxExecution != null && submissionCount.get() >= maxExecution) {
+                log("Max execution count " + maxExecution + " reached, exiting...");
+                return StopReason.MAX_EXECUTION;
+            }
+            if (endTime != null) {
+                long currentTime = System.currentTimeMillis();
+                if (currentTime > endTime) {
+                    log("Duration " + duration + " secs reached, exiting...");
+                    return StopReason.DURATION;
                 }
+            }
+            waitIfRequired();
+            return null;
+        }
+
+        private void waitIfRequired() throws InterruptedException {
+            //check if we are too fast according to rpm
+            if (rpm != null) {
+                long currentTime = System.currentTimeMillis();
+                //what the current time supposed to be if we go with the target rate
+                //use submission count here as long-running action might not be "executed" for quite a while
+                //we don't want to base wait estimation on actual execution
+                long targetTime = startTime + submissionCount.get() * 1000 * 60 / rpm;
+
+                if (targetTime > currentTime) { //then we are too fast, sleep for a while
+                    TimeUnit.MILLISECONDS.sleep(targetTime - currentTime);
+                }
+            }
+
+            //check for back pressure, if we have too many pending actions, then do not submit more
+            while ((submissionCount.get() - executionCount.get()) >= maxPendingActions) {
                 TimeUnit.MILLISECONDS.sleep(100);
             }
-            return false;
         }
+
+        private void flagException(ExecutionException exception) {
+            exceptionRef.set(exception);
+        }
+
+        public ExecutionException getException() {
+            return exceptionRef.get();
+        }
+
+        private long incrementAndGetSubmissionCount() {
+            return submissionCount.incrementAndGet();
+        }
+        private long incrementAndGetExecutionCount() {
+            return executionCount.incrementAndGet();
+        }
+        private long getExecutionCount() {
+            return executionCount.get();
+        }
+
+        @Override
+        public void close() {
+            progressTimer.cancel();
+        }
+    }
+    enum StopReason {
+        DURATION, EXCEPTION, MAX_EXECUTION, ACTION_SUPPLIER_EXHAUSTED
+    }
+
+    private void log(String message) {
+        log.info("(" + taskName + ") " +  message);
     }
 }

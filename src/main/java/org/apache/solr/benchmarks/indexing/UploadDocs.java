@@ -8,6 +8,7 @@ import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
+import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +29,8 @@ class UploadDocs implements Callable {
     private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     final List<String> docs;
     final HttpClient client;
-    private AtomicLong totalUploadedDocs;
+	private final boolean interruptOnFailure;
+	private AtomicLong totalUploadedDocs;
 	final String batchFilename;
 	
 	final String updateEndpoint;
@@ -40,6 +42,7 @@ class UploadDocs implements Callable {
         this.client = client;
         this.totalUploadedDocs = totalUploadedDocs;
         this.batchFilename = batchFilename;
+				this.interruptOnFailure = benchmark.interruptOnFailure;
         
 		log.debug("Batch file: "+batchFilename);
 
@@ -99,9 +102,12 @@ class UploadDocs implements Callable {
 
         HttpResponse rsp = client.execute(httpPost);
         int statusCode = rsp.getStatusLine().getStatusCode();
-        if (statusCode != 200) {
+        if (!HttpStatus.isSuccess(statusCode)) {
             log.error("Failed a request: " +
                     rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
+						if (interruptOnFailure) {
+							throw new RuntimeException("Failed to execute index call, status code: " + statusCode + " reason: " + rsp.getStatusLine().getReasonPhrase());
+						}
         } else {
         	rsp.getEntity().getContent().close();
             totalUploadedDocs.addAndGet(docs.size());
