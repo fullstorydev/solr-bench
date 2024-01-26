@@ -34,7 +34,7 @@ public class IndexBenchmark extends BaseBenchmark {
   public String idField = "id";
 
   @JsonProperty("interrupt-on-failure")
-  public boolean interruptOnFailure = true;
+  public boolean interruptOnFailure;
 
   static public class Setup {
     @JsonProperty("setup-name")
