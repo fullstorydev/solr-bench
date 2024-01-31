@@ -17,7 +17,7 @@ download() {
         elif [[ $file == "gs://"* ]]
         then
 		echo_blue "Downloading $file"
-                gsutil cp $file .
+                gsutil cp -n $file .
         fi
         # else, don't do anything
 }
