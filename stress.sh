@@ -250,7 +250,13 @@ generate_meta() {
 
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $BASEDIR; done
+for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do
+  if [ ! -f $CONFIGFILE_DIR/$(basename $i) ]; then
+    cd $CONFIGFILE_DIR;
+    download $i;
+    cd $BASEDIR;
+  fi
+done
 
 if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
 then
