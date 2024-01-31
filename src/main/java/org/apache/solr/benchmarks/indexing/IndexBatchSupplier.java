@@ -1,9 +1,11 @@
 package org.apache.solr.benchmarks.indexing;
 
+import io.prometheus.client.Counter;
 import org.apache.http.client.HttpClient;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.ControlledExecutor;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
+import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.util.JsonRecordReader;

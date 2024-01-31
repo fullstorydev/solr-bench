@@ -1,5 +1,6 @@
 package org.apache.solr.benchmarks.indexing;
 
+import io.prometheus.client.Counter;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -8,6 +9,7 @@ import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
+import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 class UploadDocs implements Callable {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Counter dataWriteCounter = PrometheusExportManager.registerCounter("solr_bench_data_write", "solr data written in bytes", "collection", "zk_host", "test_suite");
   final List<String> docs;
   final HttpClient client;
   private final boolean interruptOnFailure;
@@ -88,19 +91,23 @@ class UploadDocs implements Callable {
       public void writeTo(OutputStream outstream) throws IOException {
         if (payload == null) {
           OutputStreamWriter writer = new OutputStreamWriter(outstream);
+          int docSize = 0;
           for (String doc : docs) {
             writer.append(doc).append('\n');
+            docSize += doc.getBytes().length;
           }
+          dataWriteCounter.inc(docSize);
           writer.flush();
         } else {
+          dataWriteCounter.inc(payload.length);
           outstream.write(payload);
           outstream.flush();
         }
       }
     });
 
-
     HttpResponse rsp = client.execute(httpPost);
+    httpPost.getEntity().getContentLength();
     int statusCode = rsp.getStatusLine().getStatusCode();
     if (!HttpStatus.isSuccess(statusCode)) {
       log.error("Failed a request: " +

@@ -1,9 +1,6 @@
 package org.apache.solr.benchmarks.prometheus;
 
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Histogram;
-import io.prometheus.client.Summary;
+import io.prometheus.client.*;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.beans.Workflow;
 import org.slf4j.Logger;
@@ -28,6 +25,7 @@ public class PrometheusExportManager {
   private static volatile PrometheusExportServer SERVER = null; //singleton for now
   private static final ConcurrentMap<String, Histogram> registeredHistograms = new ConcurrentHashMap<>();
   private static final ConcurrentMap<String, Gauge> registeredGauges = new ConcurrentHashMap<>();
+  private static final ConcurrentMap<String, Counter> registeredCounters = new ConcurrentHashMap<>();
   public static String globalTypeLabel;
 
   /**
@@ -50,6 +48,10 @@ public class PrometheusExportManager {
 
   public static Gauge registerGauge(String name, String help, String...labels) {
     return registeredGauges.computeIfAbsent(name, n -> Gauge.build(name, help).labelNames(labels).register());
+  }
+
+  public static Counter registerCounter(String name, String help, String...labels) {
+    return registeredCounters.computeIfAbsent(name, n -> Counter.build(name, help).labelNames(labels).register());
   }
 
   /**
