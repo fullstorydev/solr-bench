@@ -203,7 +203,7 @@ public class BenchmarksMain {
       }
       @Override
       public OperationKey getType() {
-        return new OperationKey(queryRequest.getMethod().name(), queryRequest.getPath(), Map.of("query", queryRequest.toString()), 0);
+        return new OperationKey(queryRequest.getMethod().name(), queryRequest.getPath(), Map.of("query", queryRequest.toString()));
       }
 
       @Override
@@ -307,7 +307,7 @@ public class BenchmarksMain {
               ControlledExecutor.ExecutionListener[] listeners;
               if (PrometheusExportManager.isEnabled()) {
 								log.info("Adding Prometheus listener for index benchmark [" + benchmark.name + "]");
-                listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusHttpRequestDurationListener(null, collection) }; //no type label override for indexing
+                listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusHttpRequestDurationListener(null, collection), new PrometheusUploadMetricsListener(null, collection) }; //no type label override for indexing
               } else {
                 listeners = new ControlledExecutor.ExecutionListener[0];
               }
@@ -349,14 +349,12 @@ public class BenchmarksMain {
 	private static class PrometheusHttpRequestDurationListener<R> implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, R> {
 		private final String typeLabel;
 		private final Histogram histogram;
-		private final Counter counter;
 		private static final String zkHost = BenchmarkContext.getContext().getZkHost();
 		private static final String testSuite = BenchmarkContext.getContext().getTestSuite();
 		private final String collection;
 
 		PrometheusHttpRequestDurationListener(String typeLabelOverride, String collection) {
 			this.histogram = PrometheusExportManager.registerHistogram("solr_bench_duration", "duration taken to execute a Solr indexing/query", "method", "path", "type", "collection", "zk_host", "test_suite");
-			this.counter =  PrometheusExportManager.registerCounter("solr_bench_data_write", "solr data written in bytes", "method", "path", "type", "collection", "zk_host", "test_suite");
 
 			this.typeLabel = typeLabelOverride != null ? typeLabelOverride : PrometheusExportManager.globalTypeLabel;
 			this.collection = collection;
@@ -366,9 +364,28 @@ public class BenchmarksMain {
 		public void onExecutionComplete(OperationKey key, R result, long durationInNanosecond) {
 			String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel, collection, zkHost, testSuite };
 			histogram.labels(labels).observe(durationInNanosecond / 1_000_000);
-			if (key.getHttpPayloadSize() > 0) {
-				counter.labels(labels).inc(key.getHttpPayloadSize());
-			}
+		}
+	}
+
+	private static class PrometheusUploadMetricsListener<R> implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, R> {
+		private final String typeLabel;
+		private final Counter counter;
+		private static final String zkHost = BenchmarkContext.getContext().getZkHost();
+		private static final String testSuite = BenchmarkContext.getContext().getTestSuite();
+		private final String collection;
+
+		PrometheusUploadMetricsListener(String typeLabelOverride, String collection) {
+			this.counter = PrometheusExportManager.registerCounter("solr_bench_bytes_write", "solr data written in bytes", "method", "path", "type", "collection", "zk_host", "test_suite");
+
+			this.typeLabel = typeLabelOverride != null ? typeLabelOverride : PrometheusExportManager.globalTypeLabel;
+			this.collection = collection;
+		}
+
+		@Override
+		public void onExecutionComplete(OperationKey key, R result, long durationInNanosecond) {
+			String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel, collection, zkHost, testSuite };
+			long bytesWritten = (long)result;
+			counter.labels(labels).inc(bytesWritten);
 		}
 	}
 
@@ -376,13 +393,11 @@ public class BenchmarksMain {
 		private final String httpMethod;
 		private final String path;
 		private final Map<String, Object> attributes;
-		private final long httpPayloadSize;
 
-		public OperationKey(String httpMethod, String path, Map<String, Object> attributes, long httpPayloadSize) {
+		public OperationKey(String httpMethod, String path, Map<String, Object> attributes) {
 			this.httpMethod = httpMethod;
 			this.path = path;
 			this.attributes = attributes;
-			this.httpPayloadSize = httpPayloadSize;
 		}
 
 		public String getHttpMethod() {
@@ -396,7 +411,5 @@ public class BenchmarksMain {
 		public Map<String, Object> getAttributes() {
 			return attributes;
 		}
-
-		public long getHttpPayloadSize() { return httpPayloadSize; }
 	}
 }

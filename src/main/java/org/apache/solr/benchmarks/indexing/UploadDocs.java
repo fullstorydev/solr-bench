@@ -40,11 +40,10 @@ class UploadDocs implements Callable {
   final String contentType;
   final byte[] payload;
 
-  UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs, AtomicLong totalUploadedBytes) {
+  UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
     this.docs = docs;
     this.client = client;
     this.totalUploadedDocs = totalUploadedDocs;
-    this.totalUploadedBytes = totalUploadedBytes;
     this.batchFilename = batchFilename;
     this.interruptOnFailure = benchmark.interruptOnFailure;
 
@@ -92,15 +91,11 @@ class UploadDocs implements Callable {
       public void writeTo(OutputStream outstream) throws IOException {
         if (payload == null) {
           OutputStreamWriter writer = new OutputStreamWriter(outstream);
-          long bytesToWrite = 0;
           for (String doc : docs) {
             writer.append(doc).append('\n');
-            bytesToWrite += doc.getBytes().length + 1; // plus 1 for the newline
           }
-          totalUploadedBytes.addAndGet(bytesToWrite);
           writer.flush();
         } else {
-          totalUploadedBytes.addAndGet(payload.length);
           outstream.write(payload);
           outstream.flush();
         }
@@ -121,6 +116,14 @@ class UploadDocs implements Callable {
       totalUploadedDocs.addAndGet(docs.size());
     }
 
-    return null;
+    long bytesWritten = 0;
+    if (payload != null) {
+      bytesWritten = payload.length;
+    } else {
+      for (String doc : docs) {
+        bytesWritten += doc.getBytes().length + 1; // plus 1 for the newline
+      }
+    }
+    return bytesWritten;
   }
 }

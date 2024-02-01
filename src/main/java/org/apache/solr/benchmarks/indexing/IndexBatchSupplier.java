@@ -34,7 +34,6 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
   private BlockingQueue<Callable> pendingBatches = new LinkedBlockingQueue<>(10); //at most 10 pending batches
   private final boolean init;
   private AtomicLong batchesIndexed = new AtomicLong();
-  private AtomicLong bytesUploaded = new AtomicLong();
 
   public IndexBatchSupplier(boolean init, DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, Map<String, String> shardVsLeader) {
     this.benchmark = benchmark;
@@ -79,7 +78,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
               String batchFilename = computeBatchFilename(benchmark, batchCounters, targetSlice.getName());
               //a shard has accumulated enough docs to be executed
               Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, shardDocs, shardVsLeader.get(targetSlice.getName())) :
-                      new UploadDocs(benchmark, batchFilename, shardDocs, httpClient, shardVsLeader.get(targetSlice.getName()), batchesIndexed, bytesUploaded);
+                      new UploadDocs(benchmark, batchFilename, shardDocs, httpClient, shardVsLeader.get(targetSlice.getName()), batchesIndexed);
               while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
                 //try again
               }
@@ -90,7 +89,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
           try {
             String batchFilename = computeBatchFilename(benchmark, batchCounters, shard);
             Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, docs, shardVsLeader.get(shard)) :
-                    new UploadDocs(benchmark, batchFilename, docs, httpClient, shardVsLeader.get(shard), batchesIndexed, bytesUploaded);
+                    new UploadDocs(benchmark, batchFilename, docs, httpClient, shardVsLeader.get(shard), batchesIndexed);
             while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
               //try again
             }
@@ -149,7 +148,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
 
           @Override
           public BenchmarksMain.OperationKey getType() {
-            return new BenchmarksMain.OperationKey("POST", "/update", Collections.EMPTY_MAP, bytesUploaded.get()); //tricky to extract values from batch, let's just hard-code this for now and it should be correct
+            return new BenchmarksMain.OperationKey("POST", "/update", Collections.EMPTY_MAP); //tricky to extract values from batch, let's just hard-code this for now and it should be correct
           }
         };
       } else {
