@@ -29,21 +29,22 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 class UploadDocs implements Callable {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  private static final Counter dataWriteCounter = PrometheusExportManager.registerCounter("solr_bench_data_write", "solr data written in bytes", "collection", "zk_host", "test_suite");
   final List<String> docs;
   final HttpClient client;
   private final boolean interruptOnFailure;
   private AtomicLong totalUploadedDocs;
+  private AtomicLong totalUploadedBytes;
   final String batchFilename;
 
   final String updateEndpoint;
   final String contentType;
   final byte[] payload;
 
-  UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
+  UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs, AtomicLong totalUploadedBytes) {
     this.docs = docs;
     this.client = client;
     this.totalUploadedDocs = totalUploadedDocs;
+    this.totalUploadedBytes = totalUploadedBytes;
     this.batchFilename = batchFilename;
     this.interruptOnFailure = benchmark.interruptOnFailure;
 
@@ -91,15 +92,15 @@ class UploadDocs implements Callable {
       public void writeTo(OutputStream outstream) throws IOException {
         if (payload == null) {
           OutputStreamWriter writer = new OutputStreamWriter(outstream);
-          int docSize = 0;
+          long bytesToWrite = 0;
           for (String doc : docs) {
             writer.append(doc).append('\n');
-            docSize += doc.getBytes().length;
+            bytesToWrite += doc.getBytes().length + 1; // plus 1 for the newline
           }
-          dataWriteCounter.inc(docSize);
+          totalUploadedBytes.addAndGet(bytesToWrite);
           writer.flush();
         } else {
-          dataWriteCounter.inc(payload.length);
+          totalUploadedBytes.addAndGet(payload.length);
           outstream.write(payload);
           outstream.flush();
         }
