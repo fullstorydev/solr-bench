@@ -5,6 +5,7 @@ import io.prometheus.client.Histogram;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
+import org.apache.solr.benchmarks.indexing.IndexResult;
 import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.benchmarks.indexing.DocReader;
 import org.apache.solr.benchmarks.indexing.FileDocReader;
@@ -304,7 +305,7 @@ public class BenchmarksMain {
           File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
           try (DocReader docReader = new FileDocReader(datasetFile, benchmark.maxDocs != null ? benchmark.maxDocs.longValue() : null, benchmark.offset)) {
             try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
-              ControlledExecutor.ExecutionListener[] listeners;
+              ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, IndexResult>[] listeners;
               if (PrometheusExportManager.isEnabled()) {
 								log.info("Adding Prometheus listener for index benchmark [" + benchmark.name + "]");
                 listeners = new ControlledExecutor.ExecutionListener[]{ new PrometheusHttpRequestDurationListener(null, collection), new PrometheusUploadMetricsListener(null, collection) }; //no type label override for indexing
@@ -312,7 +313,7 @@ public class BenchmarksMain {
                 listeners = new ControlledExecutor.ExecutionListener[0];
               }
 
-              ControlledExecutor controlledExecutor = new ControlledExecutor(
+              ControlledExecutor<IndexResult> controlledExecutor = new ControlledExecutor<IndexResult>(
                 benchmark.name,
                 threads,
                 benchmark.durationSecs,
@@ -367,25 +368,27 @@ public class BenchmarksMain {
 		}
 	}
 
-	private static class PrometheusUploadMetricsListener<R> implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, R> {
+	private static class PrometheusUploadMetricsListener implements ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, IndexResult> {
 		private final String typeLabel;
-		private final Counter counter;
+		private final Counter bytesCounter;
+		private final Counter docsCounter;
 		private static final String zkHost = BenchmarkContext.getContext().getZkHost();
 		private static final String testSuite = BenchmarkContext.getContext().getTestSuite();
 		private final String collection;
 
 		PrometheusUploadMetricsListener(String typeLabelOverride, String collection) {
-			this.counter = PrometheusExportManager.registerCounter("solr_bench_bytes_write", "solr data written in bytes", "method", "path", "type", "collection", "zk_host", "test_suite");
+			this.bytesCounter = PrometheusExportManager.registerCounter("solr_bench_bytes_write", "solr data written in bytes", "method", "path", "type", "collection", "zk_host", "test_suite");
+			this.docsCounter = PrometheusExportManager.registerCounter("solr_bench_docs_write", "solr docs uploaded", "method", "path", "type", "collection", "zk_host", "test_suite");
 
 			this.typeLabel = typeLabelOverride != null ? typeLabelOverride : PrometheusExportManager.globalTypeLabel;
 			this.collection = collection;
 		}
 
 		@Override
-		public void onExecutionComplete(OperationKey key, R result, long durationInNanosecond) {
+		public void onExecutionComplete(OperationKey key, IndexResult result, long durationInNanosecond) {
 			String[] labels = new String[] { key.getHttpMethod(), key.getPath(), typeLabel, collection, zkHost, testSuite };
-			long bytesWritten = (long)result;
-			counter.labels(labels).inc(bytesWritten);
+			bytesCounter.labels(labels).inc(result.getBytesWritten());
+			docsCounter.labels(labels).inc(result.getDocsUploaded());
 		}
 	}
 

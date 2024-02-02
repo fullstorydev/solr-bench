@@ -1,11 +1,9 @@
 package org.apache.solr.benchmarks.indexing;
 
-import io.prometheus.client.Counter;
 import org.apache.http.client.HttpClient;
 import org.apache.solr.benchmarks.BenchmarksMain;
 import org.apache.solr.benchmarks.ControlledExecutor;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
-import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.util.JsonRecordReader;
@@ -23,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
-public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
+public class IndexBatchSupplier implements Supplier<Callable<IndexResult>>, AutoCloseable {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final Future<?> workerFuture;
   private volatile boolean exit;
@@ -31,7 +29,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
   private DocCollection docCollection;
   private HttpClient httpClient;
   private Map<String, String> shardVsLeader;
-  private BlockingQueue<Callable> pendingBatches = new LinkedBlockingQueue<>(10); //at most 10 pending batches
+  private BlockingQueue<Callable<IndexResult>> pendingBatches = new LinkedBlockingQueue<>(10); //at most 10 pending batches
   private final boolean init;
   private AtomicLong batchesIndexed = new AtomicLong();
 
@@ -77,7 +75,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
               shardVsDocs.remove(targetSlice.getName());
               String batchFilename = computeBatchFilename(benchmark, batchCounters, targetSlice.getName());
               //a shard has accumulated enough docs to be executed
-              Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, shardDocs, shardVsLeader.get(targetSlice.getName())) :
+              Callable<IndexResult> docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, shardDocs, shardVsLeader.get(targetSlice.getName())) :
                       new UploadDocs(benchmark, batchFilename, shardDocs, httpClient, shardVsLeader.get(targetSlice.getName()), batchesIndexed);
               while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
                 //try again
@@ -88,7 +86,7 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
         shardVsDocs.forEach((shard, docs) -> { //flush the remaining ones
           try {
             String batchFilename = computeBatchFilename(benchmark, batchCounters, shard);
-            Callable docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, docs, shardVsLeader.get(shard)) :
+            Callable<IndexResult> docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, docs, shardVsLeader.get(shard)) :
                     new UploadDocs(benchmark, batchFilename, docs, httpClient, shardVsLeader.get(shard), batchesIndexed);
             while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
               //try again
@@ -129,9 +127,9 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
   }
 
   @Override
-  public Callable get() {
+  public Callable<IndexResult> get() {
     try {
-      Callable batch = null;
+      Callable<IndexResult> batch = null;
       while ((batch = pendingBatches.poll(1, TimeUnit.SECONDS)) == null && !exit) {
       }
       if (batch == null) { //rare race condition can fill the queue even if above loop exits, just try it once last time...
@@ -139,10 +137,10 @@ public class IndexBatchSupplier implements Supplier<Callable>, AutoCloseable {
       }
 
       if (batch != null) {
-        Callable finalBatch = batch;
+        Callable<IndexResult> finalBatch = batch;
         return new ControlledExecutor.CallableWithType<>() { //wrap it so listener can report metrics on it with extra info
           @Override
-          public Object call() throws Exception {
+          public IndexResult call() throws Exception {
             return finalBatch.call();
           }
 

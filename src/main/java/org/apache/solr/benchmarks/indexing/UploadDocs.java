@@ -1,6 +1,5 @@
 package org.apache.solr.benchmarks.indexing;
 
-import io.prometheus.client.Counter;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -9,7 +8,6 @@ import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
-import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,13 +25,12 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * An upload task to a single shard with a list of docs
  */
-class UploadDocs implements Callable {
+class UploadDocs implements Callable<IndexResult> {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   final List<String> docs;
   final HttpClient client;
   private final boolean interruptOnFailure;
   private AtomicLong totalUploadedDocs;
-  private AtomicLong totalUploadedBytes;
   final String batchFilename;
 
   final String updateEndpoint;
@@ -75,7 +72,7 @@ class UploadDocs implements Callable {
   }
 
   @Override
-  public Object call() throws IOException {
+  public IndexResult call() throws IOException {
     log.debug("Posting to " + updateEndpoint + ", type: " + contentType + ", size: " + (payload == null ? 0 : payload.length));
     HttpPost httpPost = new HttpPost(updateEndpoint);
     httpPost.setHeader(new BasicHeader("Content-Type", contentType));
@@ -124,6 +121,7 @@ class UploadDocs implements Callable {
         bytesWritten += doc.getBytes().length + 1; // plus 1 for the newline
       }
     }
-    return bytesWritten;
+    return new IndexResult(bytesWritten, docs.size());
   }
 }
+
