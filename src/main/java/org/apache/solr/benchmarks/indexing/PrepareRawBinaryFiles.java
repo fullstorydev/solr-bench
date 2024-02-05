@@ -29,7 +29,7 @@ import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
  * prepare binary files, as per the {@link IndexBenchmark#indexingFormat}, to be used for
  * the actual indexing task later.
  */
-class PrepareRawBinaryFiles implements Callable {
+class PrepareRawBinaryFiles implements Callable<IndexResult> {
 	private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	final List<String> docs;
 	final String leaderUrl;
@@ -45,7 +45,7 @@ class PrepareRawBinaryFiles implements Callable {
 	}
 
 	@Override
-	public Object call() throws IOException {
+	public IndexResult call() throws IOException {
 		log.debug("INIT PHASE of INDEXING! Shard: "+leaderUrl + ", batch: "+batchFilename);		
 		List<Map> parsedDocs = new ArrayList<>();
 		for (String doc: docs) parsedDocs.add(new ObjectMapper().readValue(doc, Map.class));
@@ -63,7 +63,7 @@ class PrepareRawBinaryFiles implements Callable {
 		FileUtils.writeByteArrayToFile(new File(batchFilename), binary);
 		log.info("Json size: " + jsonDocs.length + ", cbor size: " + cborDocs.length + ", javabin size: " + javabinDocs.length);
 		log.debug("Writing filename: " + batchFilename);
-		return null;
+		return new IndexResult(binary.length, docs.size());
 	}
 
 	private byte[] createJavabinReq(byte[] b) throws IOException {

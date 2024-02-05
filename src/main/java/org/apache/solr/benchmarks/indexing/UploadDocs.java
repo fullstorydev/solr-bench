@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * An upload task to a single shard with a list of docs
  */
-class UploadDocs implements Callable {
+class UploadDocs implements Callable<IndexResult> {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   final List<String> docs;
   final HttpClient client;
@@ -72,7 +72,7 @@ class UploadDocs implements Callable {
   }
 
   @Override
-  public Object call() throws IOException {
+  public IndexResult call() throws IOException {
     log.debug("Posting to " + updateEndpoint + ", type: " + contentType + ", size: " + (payload == null ? 0 : payload.length));
     HttpPost httpPost = new HttpPost(updateEndpoint);
     httpPost.setHeader(new BasicHeader("Content-Type", contentType));
@@ -99,8 +99,8 @@ class UploadDocs implements Callable {
       }
     });
 
-
     HttpResponse rsp = client.execute(httpPost);
+    httpPost.getEntity().getContentLength();
     int statusCode = rsp.getStatusLine().getStatusCode();
     if (!HttpStatus.isSuccess(statusCode)) {
       log.error("Failed a request: " +
@@ -113,6 +113,15 @@ class UploadDocs implements Callable {
       totalUploadedDocs.addAndGet(docs.size());
     }
 
-    return null;
+    long bytesWritten = 0;
+    if (payload != null) {
+      bytesWritten = payload.length;
+    } else {
+      for (String doc : docs) {
+        bytesWritten += doc.getBytes().length + 1; // plus 1 for the newline
+      }
+    }
+    return new IndexResult(bytesWritten, docs.size());
   }
 }
+
