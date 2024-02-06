@@ -222,7 +222,7 @@ public class StressMain {
 			// Stop metrics collection
 			if (workflow.metrics != null || workflow.prometheusMetrics != null) {
 				metricsCollector.stop();
-				metricsThread.stop();
+				metricsThread.interrupt();
 			}
 		}
 
