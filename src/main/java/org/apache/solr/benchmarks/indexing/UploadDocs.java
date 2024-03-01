@@ -112,19 +112,25 @@ class UploadDocs implements Callable<IndexResult> {
     int retryCount = 0;
 
     while (retryCount ++ <= maxRetry) {
-      HttpResponse rsp = client.execute(httpPost);
-      httpPost.getEntity().getContentLength();
-      int statusCode = rsp.getStatusLine().getStatusCode();
-      if (!HttpStatus.isSuccess(statusCode)) {
-        log.error("Failed a request: " +
-                rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
-        if (interruptOnFailure) {
-          throw new IOException("Failed to execute index call on " + updateEndpoint + ", status code: " + statusCode + " reason: " + rsp.getStatusLine().getReasonPhrase());
+      try {
+        HttpResponse rsp = client.execute(httpPost);
+        httpPost.getEntity().getContentLength();
+        int statusCode = rsp.getStatusLine().getStatusCode();
+        if (!HttpStatus.isSuccess(statusCode)) {
+          log.error("Failed a request: " +
+                  rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
+          if (interruptOnFailure) {
+            throw new IOException("Failed to execute index call on " + updateEndpoint + ", status code: " + statusCode + " reason: " + rsp.getStatusLine().getReasonPhrase());
+          }
+        } else {
+          rsp.getEntity().getContent().close();
+          totalUploadedDocs.addAndGet(docs.size());
+          break; //successful, do not retry
         }
-      } else {
-        rsp.getEntity().getContent().close();
-        totalUploadedDocs.addAndGet(docs.size());
-        break; //successful, do not retry
+      } catch (IOException e) {
+        if (interruptOnFailure) {
+          throw e;
+        }
       }
 
       log.info("Retry attempt #{} for {} in {} millisecs", retryCount, taskName, RETRY_DELAY);
