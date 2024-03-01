@@ -295,6 +295,12 @@ public class StressMain {
 					}
 				}
 			}
+			if (instance.startDelay > 0) {
+				log.info("Sleeping for {}ms due to start-delay defined", instance.startDelay);
+				TimeUnit.MILLISECONDS.sleep(instance.startDelay);
+				log.info("Resuming after start-delay");
+			}
+
 			Map<String, Integer> copyOfGlobalVarialbes = new HashMap<String, Integer>();
 			if (instance.preTaskEvals != null) {
 				copyOfGlobalVarialbes = evaluate(instance.preTaskEvals, globalVariables);
