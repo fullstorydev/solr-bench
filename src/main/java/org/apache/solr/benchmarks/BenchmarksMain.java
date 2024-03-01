@@ -94,7 +94,7 @@ public class BenchmarksMain {
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 				ControlledExecutor<QueryResponseContents> controlledExecutor = new ControlledExecutor(
-					benchmark.name,
+					benchmark.name + "-" + collection,
 					threads,
 					benchmark.durationSecs,
 					benchmark.rpm,
@@ -314,7 +314,7 @@ public class BenchmarksMain {
               }
 
               ControlledExecutor<IndexResult> controlledExecutor = new ControlledExecutor<IndexResult>(
-                benchmark.name,
+                benchmark.name + "-" + collection,
                 threads,
                 benchmark.durationSecs,
                 benchmark.rpm,
