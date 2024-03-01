@@ -296,9 +296,9 @@ public class StressMain {
 				}
 			}
 			if (instance.startDelay > 0) {
-				log.info("Sleeping for {}ms due to start-delay defined", instance.startDelay);
+				log.info("Task {} Sleeping for {}ms due to start-delay defined", taskName, instance.startDelay);
 				TimeUnit.MILLISECONDS.sleep(instance.startDelay);
-				log.info("Resuming after start-delay");
+				log.info("Resuming Task {} after start-delay", taskName);
 			}
 
 			Map<String, Integer> copyOfGlobalVarialbes = new HashMap<String, Integer>();
