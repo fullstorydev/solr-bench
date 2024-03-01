@@ -116,7 +116,7 @@ public class ControlledExecutor<R> {
                             }
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to execute action. Message: " + e.getMessage(), e);
+                        log.warn("Failed to execute action. Message: " + e.getMessage());
                         throw e;
                     }
                     return null;
