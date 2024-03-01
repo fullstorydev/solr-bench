@@ -39,6 +39,9 @@ public class IndexBenchmark extends BaseBenchmark {
   @JsonProperty("max-retry")
   public int maxRetry; //retry up to this amount of time if indexing op failed, has no effect if interruptOnFailure is true
 
+  @JsonProperty("commit")
+  public boolean commit; //whether to commit on every update call
+
   static public class Setup {
     @JsonProperty("setup-name")
     public String name;

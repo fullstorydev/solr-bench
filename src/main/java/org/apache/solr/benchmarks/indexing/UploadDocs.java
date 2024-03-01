@@ -32,6 +32,7 @@ class UploadDocs implements Callable<IndexResult> {
   private final boolean interruptOnFailure;
   private final int maxRetry;
   private final String taskName;
+  private final boolean commit;
   private AtomicLong totalUploadedDocs;
   final String batchFilename;
 
@@ -48,6 +49,7 @@ class UploadDocs implements Callable<IndexResult> {
     this.interruptOnFailure = benchmark.interruptOnFailure;
     this.maxRetry = benchmark.maxRetry;
     this.taskName = benchmark.name;
+    this.commit = benchmark.commit;
 
     log.debug("Batch file: " + batchFilename);
 
@@ -78,10 +80,13 @@ class UploadDocs implements Callable<IndexResult> {
 
   @Override
   public IndexResult call() throws IOException {
-    log.debug("Posting to " + updateEndpoint + ", type: " + contentType + ", size: " + (payload == null ? 0 : payload.length));
+    log.debug("Posting to " + updateEndpoint + ", type: " + contentType + ", size: " + (payload == null ? 0 : payload.length) + ", commit: " + commit);
     HttpPost httpPost = new HttpPost(updateEndpoint);
     httpPost.setHeader(new BasicHeader("Content-Type", contentType));
     httpPost.getParams().setParameter("overwrite", "false");
+    if (commit) {
+      httpPost.getParams().setParameter("commit", true);
+    }
 
     httpPost.setEntity(new BasicHttpEntity() {
       @Override
