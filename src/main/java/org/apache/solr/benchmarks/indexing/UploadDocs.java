@@ -133,7 +133,7 @@ class UploadDocs implements Callable<IndexResult> {
         }
       }
 
-      log.info("Retry attempt #{} for {} in {} millisecs", retryCount, taskName, RETRY_DELAY);
+      log.info("Retry attempt #{} for {} for indexing on {} in {} millisecs", retryCount, taskName, updateEndpoint, RETRY_DELAY);
       try {
         Thread.sleep(RETRY_DELAY);
       } catch (InterruptedException e) {
