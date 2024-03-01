@@ -30,12 +30,15 @@ class UploadDocs implements Callable<IndexResult> {
   final List<String> docs;
   final HttpClient client;
   private final boolean interruptOnFailure;
+  private final int maxRetry;
+  private final String taskName;
   private AtomicLong totalUploadedDocs;
   final String batchFilename;
 
   final String updateEndpoint;
   final String contentType;
   final byte[] payload;
+  private final int RETRY_DELAY = 5000;
 
   UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
     this.docs = docs;
@@ -43,6 +46,8 @@ class UploadDocs implements Callable<IndexResult> {
     this.totalUploadedDocs = totalUploadedDocs;
     this.batchFilename = batchFilename;
     this.interruptOnFailure = benchmark.interruptOnFailure;
+    this.maxRetry = benchmark.maxRetry;
+    this.taskName = benchmark.name;
 
     log.debug("Batch file: " + batchFilename);
 
@@ -99,18 +104,25 @@ class UploadDocs implements Callable<IndexResult> {
       }
     });
 
-    HttpResponse rsp = client.execute(httpPost);
-    httpPost.getEntity().getContentLength();
-    int statusCode = rsp.getStatusLine().getStatusCode();
-    if (!HttpStatus.isSuccess(statusCode)) {
-      log.error("Failed a request: " +
-              rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
-      if (interruptOnFailure) {
-        throw new IOException("Failed to execute index call on " + updateEndpoint + ", status code: " + statusCode + " reason: " + rsp.getStatusLine().getReasonPhrase());
+    int retryCount = 0;
+
+    while (retryCount ++ <= maxRetry) {
+      HttpResponse rsp = client.execute(httpPost);
+      httpPost.getEntity().getContentLength();
+      int statusCode = rsp.getStatusLine().getStatusCode();
+      if (!HttpStatus.isSuccess(statusCode)) {
+        log.error("Failed a request: " +
+                rsp.getStatusLine() + " " + EntityUtils.toString(rsp.getEntity(), StandardCharsets.UTF_8));
+        if (interruptOnFailure) {
+          throw new IOException("Failed to execute index call on " + updateEndpoint + ", status code: " + statusCode + " reason: " + rsp.getStatusLine().getReasonPhrase());
+        }
+      } else {
+        rsp.getEntity().getContent().close();
+        totalUploadedDocs.addAndGet(docs.size());
+        break; //successful, do not retry
       }
-    } else {
-      rsp.getEntity().getContent().close();
-      totalUploadedDocs.addAndGet(docs.size());
+
+      log.info("Retry attempt #{} for {} in {} millisecs", retryCount, taskName, RETRY_DELAY);
     }
 
     long bytesWritten = 0;
