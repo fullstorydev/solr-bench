@@ -19,7 +19,7 @@ import java.util.*;
 public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.ExecutionResult> {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final String script;
-  private final List<String> scriptParameters;
+  private final List<?> scriptParameters;
   private boolean executed = false;
 
   public ScriptExecutionTask(TaskByClass taskSpec, SolrCloud solrCloud) {
@@ -28,7 +28,7 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
     if (script == null) {
       throw new IllegalArgumentException("script param of script execution task should not be null!");
     }
-    scriptParameters = (List<String>) taskSpec.params.get("script-params");
+    scriptParameters = (List<?>) taskSpec.params.get("script-params");
   }
 
   @Override
@@ -36,7 +36,7 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
     try {
       String cmd = script;
       if (scriptParameters != null) {
-        cmd += (" " + Strings.join(Arrays.asList(scriptParameters), ' '));
+        cmd += (" " + Strings.join(scriptParameters, ' '));
       }
       log.info("Executing cmd {}", cmd);
       int exitCode = Util.execute(cmd, Util.getWorkingDir());

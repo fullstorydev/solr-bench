@@ -41,5 +41,5 @@ See [this section](../README.md#prometheus-exporter) for prometheus export detai
 A task to execute a script once with optional params (`script-params`), take note that concurrent or repeated executions are not currently supported 
 ```
 "script": "some-script.sh"
-"script-params": ["c01", "true"]
+"script-params": ["c01", true]
 ```
