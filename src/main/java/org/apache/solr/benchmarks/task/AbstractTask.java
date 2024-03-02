@@ -6,6 +6,10 @@ import org.apache.solr.benchmarks.beans.TaskByClass;
 
 import java.util.Map;
 
+/**
+ *
+ * @param <T> The response type of each executed Action of such Task
+ */
 public abstract class AbstractTask<T> implements Task<T> {
   protected final TaskByClass taskSpec;
   private final boolean isFiniteTask;
@@ -39,7 +43,7 @@ public abstract class AbstractTask<T> implements Task<T> {
             0,
 
             () -> {
-              if (isFiniteTask && !AbstractTask.this.hasNext()) {
+              if (!AbstractTask.this.hasNext()) {
                 return null;
               }
               return new ControlledExecutor.CallableWithType<T>() {

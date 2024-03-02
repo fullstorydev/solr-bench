@@ -29,9 +29,17 @@ In the above example, a task of name `segment-monitor` would be created with the
 Currently, all the config for `task-by-class` task type assumes all fields from [`BaseBenchmark`](../beans/BaseBenchmark.java) (name is always required. duration-secs is required if the task is finite) and would be executed using the `ControlledExecutor` with rate, duration and thread count control.
 
 ## Implementations
+All the below class types are in package `org.apache.solr.benchmarks.task`, for example `org.apache.solr.benchmarks.task.SegmentMonitorTask` should be used as `task-class` in the config under `task-by-class`
 ### SegmentMonitorTask
 A task to monitor segment count and doc count median per collection. The values will then be exposed via the Prometheus endpoint of solr-bench. Therefore, this task should be accompanied by the prometheus export config, ie
 ```
 "prometheus-export": { "port": 1234 }
 ```
 See [this section](../README.md#prometheus-exporter) for prometheus export details
+
+### ScriptExecutionTask
+A task to execute a script once with optional params (`script-params`), take note that concurrent or repeated executions are not currently supported 
+```
+"script": "some-script.sh"
+"script-params": ["c01", "true"]
+```
