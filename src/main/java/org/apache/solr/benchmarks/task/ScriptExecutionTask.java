@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A task to execute the script supplied. Does not support concurrent or repeated executions at this moment.
@@ -20,7 +21,7 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final String script;
   private final List<?> scriptParameters;
-  private boolean executed = false;
+  private AtomicBoolean actionSubmitted = new AtomicBoolean(false);
 
   public ScriptExecutionTask(TaskByClass taskSpec, SolrCloud solrCloud) {
     super(taskSpec, true); //does not support repeated execution
@@ -33,17 +34,13 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
 
   @Override
   public ExecutionResult runAction() throws Exception {
-    try {
-      String cmd = script;
-      if (scriptParameters != null) {
-        cmd += (" " + Strings.join(scriptParameters, ' '));
-      }
-      log.info("Executing cmd {}", cmd);
-      int exitCode = Util.execute(cmd, Util.getWorkingDir());
-      return new ExecutionResult(exitCode);
-    } finally {
-      executed = true;
+    String cmd = script;
+    if (scriptParameters != null) {
+      cmd += (" " + Strings.join(scriptParameters, ' '));
     }
+    log.info("Executing cmd {}", cmd);
+    int exitCode = Util.execute(cmd, Util.getWorkingDir());
+    return new ExecutionResult(exitCode);
   }
 
   @Override
@@ -76,7 +73,7 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
 
   @Override
   protected boolean hasNext() {
-    return !executed;
+    return !actionSubmitted.getAndSet(true);
   }
 }
 
