@@ -22,6 +22,7 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
   private final String script;
   private final List<?> scriptParameters;
   private AtomicBoolean actionSubmitted = new AtomicBoolean(false);
+  private final int maxRetry; //max retry on non zero exit code, no retry on exception
 
   public ScriptExecutionTask(TaskByClass taskSpec, SolrCloud solrCloud) {
     super(taskSpec, true); //does not support repeated execution
@@ -30,6 +31,7 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
       throw new IllegalArgumentException("script param of script execution task should not be null!");
     }
     scriptParameters = (List<?>) taskSpec.params.get("script-params");
+    maxRetry = (int) taskSpec.params.getOrDefault("max-retry", 0);
   }
 
   @Override
@@ -38,8 +40,15 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
     if (scriptParameters != null) {
       cmd += (" " + Strings.join(scriptParameters, ' '));
     }
-    log.info("Executing cmd {}", cmd);
-    int exitCode = Util.execute(cmd, Util.getWorkingDir());
+    int retryCount = 0;
+    int exitCode = 0;
+    while (retryCount ++ <= maxRetry) {
+      log.info("Executing cmd {}", cmd);
+      exitCode = Util.execute(cmd, Util.getWorkingDir());
+      if (exitCode != 0) {
+        log.warn("Cmd exit with non-zero code {}", exitCode);
+      }
+    }
     return new ExecutionResult(exitCode);
   }
 

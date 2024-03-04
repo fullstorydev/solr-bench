@@ -38,8 +38,9 @@ A task to monitor segment count and doc count median per collection. The values 
 See [this section](../README.md#prometheus-exporter) for prometheus export details
 
 ### ScriptExecutionTask
-A task to execute a script once with optional params (`script-params`), take note that concurrent or repeated executions are not currently supported 
+A task to execute a script once with optional fields `script-params` (params to pass to the script) and `max-retry` (default to 0, retry up to this value for non-zero exit code, no retry on exception) , take note that concurrent or repeated executions are not currently supported 
 ```
-"script": "some-script.sh"
-"script-params": ["c01", true]
+"script": "some-script.sh",
+"script-params": ["c01", true],
+"max-retry": 10 
 ```
