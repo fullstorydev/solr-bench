@@ -125,6 +125,9 @@ class UploadDocs implements Callable<IndexResult> {
         } else {
           rsp.getEntity().getContent().close();
           totalUploadedDocs.addAndGet(docs.size());
+          if (retryCount > 1) {
+            log.info("Index doc on {} successful after {} retries", updateEndpoint, retryCount - 1);
+          }
           break; //successful, do not retry
         }
       } catch (IOException e) {
