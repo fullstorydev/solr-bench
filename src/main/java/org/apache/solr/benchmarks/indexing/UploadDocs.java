@@ -33,15 +33,18 @@ class UploadDocs implements Callable<IndexResult> {
   private final int maxRetry;
   private final String taskName;
   private final boolean commit;
+  private final String slice;
+  private final LeaderUrlProvider leaderUrlProvider;
   private AtomicLong totalUploadedDocs;
   final String batchFilename;
+  private final String updatePath;
 
-  final String updateEndpoint;
+  //final String updateEndpoint;
   final String contentType;
   final byte[] payload;
   private final int RETRY_DELAY = 5000;
 
-  UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String leaderUrl, AtomicLong totalUploadedDocs) {
+  UploadDocs(IndexBenchmark benchmark, String batchFilename, List<String> docs, HttpClient client, String slice, LeaderUrlProvider leaderUrlProvider, AtomicLong totalUploadedDocs) {
     this.docs = docs;
     this.client = client;
     this.totalUploadedDocs = totalUploadedDocs;
@@ -50,11 +53,13 @@ class UploadDocs implements Callable<IndexResult> {
     this.maxRetry = benchmark.maxRetry;
     this.taskName = benchmark.name;
     this.commit = benchmark.commit;
+    this.slice = slice;
+    this.leaderUrlProvider = leaderUrlProvider;
 
     log.debug("Batch file: " + batchFilename);
 
     if (batchFilename == null) { // plain JSON docs
-      this.updateEndpoint = leaderUrl + "/update/json/docs";
+      this.updatePath = "/update/json/docs";
       this.contentType = "application/json; charset=UTF-8";
       payload = null; // docs will be indexed one by one
     } else {
@@ -64,13 +69,13 @@ class UploadDocs implements Callable<IndexResult> {
         throw new RuntimeException("Cannot open pre-initialized batch file: " + batchFilename, e);
       }
       if (batchFilename.endsWith(".json")) {
-        this.updateEndpoint = leaderUrl + "/update/json/docs";
+        this.updatePath = "/update/json/docs";
         this.contentType = "application/json; charset=UTF-8";
       } else if (batchFilename.endsWith(".javabin")) {
-        this.updateEndpoint = leaderUrl + "/update";
+        this.updatePath = "/update";
         this.contentType = "application/javabin";
       } else if (batchFilename.endsWith(".cbor")) {
-        this.updateEndpoint = leaderUrl + "/update/cbor";
+        this.updatePath = "/update/cbor";
         this.contentType = "application/cbor";
       } else {
         throw new RuntimeException("Cannot determine update endpoint or content type for pre-initialized batch file: " + batchFilename);
@@ -80,39 +85,41 @@ class UploadDocs implements Callable<IndexResult> {
 
   @Override
   public IndexResult call() throws IOException {
-    log.debug("Posting to " + updateEndpoint + ", type: " + contentType + ", size: " + (payload == null ? 0 : payload.length) + ", commit: " + commit);
-    HttpPost httpPost = new HttpPost(updateEndpoint);
-    httpPost.setHeader(new BasicHeader("Content-Type", contentType));
-    httpPost.getParams().setParameter("overwrite", "false");
-    if (commit) {
-      httpPost.getParams().setParameter("commit", true);
-    }
-
-    httpPost.setEntity(new BasicHttpEntity() {
-      @Override
-      public boolean isStreaming() {
-        return true;
-      }
-
-      @Override
-      public void writeTo(OutputStream outstream) throws IOException {
-        if (payload == null) {
-          OutputStreamWriter writer = new OutputStreamWriter(outstream);
-          for (String doc : docs) {
-            writer.append(doc).append('\n');
-          }
-          writer.flush();
-        } else {
-          outstream.write(payload);
-          outstream.flush();
-        }
-      }
-    });
-
     int retryCount = 0;
+    String updateEndpoint = null;
 
     while (retryCount ++ <= maxRetry) {
       try {
+        updateEndpoint = buildUpdateEndpoint();
+        log.debug("Posting to " + updateEndpoint + ", type: " + contentType + ", size: " + (payload == null ? 0 : payload.length) + ", commit: " + commit);
+        HttpPost httpPost = new HttpPost(updateEndpoint);
+        httpPost.setHeader(new BasicHeader("Content-Type", contentType));
+        httpPost.getParams().setParameter("overwrite", "false");
+        if (commit) {
+          httpPost.getParams().setParameter("commit", true);
+        }
+
+        httpPost.setEntity(new BasicHttpEntity() {
+          @Override
+          public boolean isStreaming() {
+            return true;
+          }
+
+          @Override
+          public void writeTo(OutputStream outstream) throws IOException {
+            if (payload == null) {
+              OutputStreamWriter writer = new OutputStreamWriter(outstream);
+              for (String doc : docs) {
+                writer.append(doc).append('\n');
+              }
+              writer.flush();
+            } else {
+              outstream.write(payload);
+              outstream.flush();
+            }
+          }
+        });
+
         HttpResponse rsp = client.execute(httpPost);
         httpPost.getEntity().getContentLength();
         int statusCode = rsp.getStatusLine().getStatusCode();
@@ -153,6 +160,16 @@ class UploadDocs implements Callable<IndexResult> {
       }
     }
     return new IndexResult(bytesWritten, docs.size());
+  }
+
+  private String buildUpdateEndpoint() throws IOException {
+    String leaderUrl = leaderUrlProvider.findLeaderUrl(slice);
+    if (leaderUrl == null) {
+      throw new RuntimeException("Cannot determine update endpoint for " + slice);
+    } else {
+      return leaderUrl + updatePath;
+    }
+
   }
 }
 
