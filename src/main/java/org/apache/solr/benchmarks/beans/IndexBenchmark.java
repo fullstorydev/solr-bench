@@ -42,6 +42,9 @@ public class IndexBenchmark extends BaseBenchmark {
   @JsonProperty("commit")
   public boolean commit; //whether to commit on every update call
 
+  @JsonProperty("live-state")
+  public boolean liveState; //whether to use live collection state for indexing. This could be slow. Only set to false if the cluster/collection state could change during the test
+
   static public class Setup {
     @JsonProperty("setup-name")
     public String name;

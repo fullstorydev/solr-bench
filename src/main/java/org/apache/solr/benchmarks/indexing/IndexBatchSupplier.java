@@ -28,17 +28,17 @@ public class IndexBatchSupplier implements Supplier<Callable<IndexResult>>, Auto
   private IndexBenchmark benchmark;
   private DocCollection docCollection;
   private HttpClient httpClient;
-  private Map<String, String> shardVsLeader;
+  private final LeaderUrlProvider leaderUrlProvider;
   private BlockingQueue<Callable<IndexResult>> pendingBatches = new LinkedBlockingQueue<>(10); //at most 10 pending batches
   private final boolean init;
   private AtomicLong batchesIndexed = new AtomicLong();
 
-  public IndexBatchSupplier(boolean init, DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, Map<String, String> shardVsLeader) {
+  public IndexBatchSupplier(boolean init, DocReader docReader, IndexBenchmark benchmark, DocCollection docCollection, HttpClient httpClient, LeaderUrlProvider leaderUrlProvider) {
     this.benchmark = benchmark;
     this.docCollection = docCollection;
     this.init = init;
     this.httpClient = httpClient;
-    this.shardVsLeader = shardVsLeader;
+    this.leaderUrlProvider = leaderUrlProvider;
 
 
     this.workerFuture = startWorker(docReader);
@@ -75,8 +75,8 @@ public class IndexBatchSupplier implements Supplier<Callable<IndexResult>>, Auto
               shardVsDocs.remove(targetSlice.getName());
               String batchFilename = computeBatchFilename(benchmark, batchCounters, targetSlice.getName());
               //a shard has accumulated enough docs to be executed
-              Callable<IndexResult> docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, shardDocs, shardVsLeader.get(targetSlice.getName())) :
-                      new UploadDocs(benchmark, batchFilename, shardDocs, httpClient, shardVsLeader.get(targetSlice.getName()), batchesIndexed);
+              Callable<IndexResult> docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, shardDocs, leaderUrlProvider.findLeaderUrl(targetSlice.getName())) :
+                      new UploadDocs(benchmark, batchFilename, shardDocs, httpClient, leaderUrlProvider.findLeaderUrl(targetSlice.getName()), batchesIndexed);
               while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
                 //try again
               }
@@ -86,13 +86,15 @@ public class IndexBatchSupplier implements Supplier<Callable<IndexResult>>, Auto
         shardVsDocs.forEach((shard, docs) -> { //flush the remaining ones
           try {
             String batchFilename = computeBatchFilename(benchmark, batchCounters, shard);
-            Callable<IndexResult> docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, docs, shardVsLeader.get(shard)) :
-                    new UploadDocs(benchmark, batchFilename, docs, httpClient, shardVsLeader.get(shard), batchesIndexed);
+            Callable<IndexResult> docsBatchCallable = init ? new PrepareRawBinaryFiles(benchmark, batchFilename, docs, leaderUrlProvider.findLeaderUrl(shard)) :
+                    new UploadDocs(benchmark, batchFilename, docs, httpClient, leaderUrlProvider.findLeaderUrl(shard), batchesIndexed);
             while (!exit && !pendingBatches.offer(docsBatchCallable, 1, TimeUnit.SECONDS)) {
               //try again
             }
           } catch (InterruptedException e) {
             log.warn(e.getMessage(), e);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
           }
         });
       } catch (IOException e) {
@@ -168,3 +170,4 @@ public class IndexBatchSupplier implements Supplier<Callable<IndexResult>>, Auto
     return batchesIndexed.get();
   }
 }
+
