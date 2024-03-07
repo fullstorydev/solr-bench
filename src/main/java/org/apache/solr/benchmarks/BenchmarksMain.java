@@ -301,7 +301,11 @@ public class BenchmarksMain {
 					if (benchmark.liveState) {
 						urlProvider = (String slice) -> {
 							Replica leader = stateProvider.getCollection(collection).getSlicesMap().get(slice).getLeader();
-							return leader.getBaseUrl() + "/" + leader.getCoreName();
+							if (leader != null) {
+								return leader.getBaseUrl() + "/" + leader.getCoreName();
+							} else {
+								throw new RuntimeException("Failed to find replica for collection " + collection + " slice " + slice);
+							}
 						};
 					} else {
 						Map<String, String> shardVsLeader = new HashMap<>();

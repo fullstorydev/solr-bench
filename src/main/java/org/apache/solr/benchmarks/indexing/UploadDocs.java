@@ -137,10 +137,11 @@ class UploadDocs implements Callable<IndexResult> {
           }
           break; //successful, do not retry
         }
-      } catch (IOException e) {
+      } catch (Exception e) {
         if (interruptOnFailure) {
           throw e;
         }
+        log.warn("Exception encountered with message {}, current retry {} max retry {}", e.getMessage(), retryCount, maxRetry);
       }
 
       log.info("Retry attempt #{} for {} for indexing on {} in {} millisecs", retryCount, taskName, updateEndpoint, RETRY_DELAY);
