@@ -137,7 +137,7 @@ class UploadDocs implements Callable<IndexResult> {
           }
           break; //successful, do not retry
         }
-      } catch (Exception e) {
+      } catch (IOException e) {
         if (interruptOnFailure) {
           throw e;
         }
