@@ -2,6 +2,7 @@ package org.apache.solr.benchmarks.beans;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -36,15 +37,23 @@ public class IndexBenchmark extends BaseBenchmark {
   @JsonProperty("interrupt-on-failure")
   public boolean interruptOnFailure;
 
+  /**
+   *  Retries up to this amount of time if indexing op failed (non successful http response code or IOException), has no effect if interruptOnFailure is true
+   */
   @JsonProperty("max-retry")
-  public int maxRetry; //retry up to this amount of time if indexing op failed, has no effect if interruptOnFailure is true
+  public int maxRetry;
 
+  /**
+   * whether to append commit=true on update calls
+   */
   @JsonProperty("commit")
-  public boolean commit; //whether to commit on every update call
+  public boolean commit;
 
+  /**
+   * whether to use live collection state for indexing. This could be slow. Only set to false if the cluster/collection state could change during the test
+   */
   @JsonProperty("live-state")
-  public boolean liveState; //whether to use live collection state for indexing. This could be slow. Only set to false if the cluster/collection state could change during the test
-
+  public boolean liveState;
   static public class Setup {
     @JsonProperty("setup-name")
     public String name;
