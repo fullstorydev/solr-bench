@@ -13,6 +13,7 @@ import java.util.Map;
 /**
  * A Task would invoke runAction repeatedly based on the rpm and duration defined in {@link TaskByClass}
  *
+ * @param <T> The response type of each executed Action of such Task
  */
 public interface Task<T> {
 

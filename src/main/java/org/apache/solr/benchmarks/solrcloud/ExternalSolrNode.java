@@ -37,7 +37,9 @@ public class ExternalSolrNode extends GenericSolrNode {
 
   @Override
   public int restart() throws Exception {
-    return Util.execute(restartScript + " " + host + " " + (user != null ? user : ""), Util.getWorkingDir());
+    String cmd = restartScript + " " + host + " " + (user != null ? user : "");
+    log.info("Executing restart command {}", cmd);
+    return Util.execute(cmd, Util.getWorkingDir());
   }
 
   @Override

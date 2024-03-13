@@ -35,4 +35,10 @@ public class TaskInstance {
 	
 	@JsonProperty("wait-for")
 	public String waitFor;
+
+	/**
+	 * Delay the execution of this task instance by n milli-sec
+	 */
+	@JsonProperty("start-delay")
+	public int startDelay;
 }
