@@ -259,7 +259,7 @@ public class StressMain {
 							//it's ok to ignore interrupt
 						} catch (ExecutionException e) { //unhandled exception, print error and stop other futures
 							exception.add(e);
-							log.warn("Found exception from submitted ask [" + taskName + "] with exception. Going to interrupt all other tasks");
+							log.warn("Found exception from submitted task [" + taskName + "] with exception. Going to interrupt all other tasks");
 							taskFutures.values().forEach(targets -> targets.forEach(f -> f.cancel(true)));
 						}
 					});
@@ -282,7 +282,11 @@ public class StressMain {
 
 				for (String waitForTask : waitForTasks) { //probably more accurate to spawn threads and wait for it, but for simplicity just iterate each wait for
 					waitForTask = waitForTask.trim();
-					boolean await = taskExecutors.get(waitForTask).awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+					ExecutorService executorServiceOfWaitForTask = taskExecutors.get(waitForTask);
+					if (executorServiceOfWaitForTask == null) {
+						throw new RuntimeException("Wait for task " + waitForTask + " cannot be found!");
+					}
+					boolean await = executorServiceOfWaitForTask.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 					log.info(waitForTask+" finished! "+await);
 					for (Future future : taskFutures.get(waitForTask)) {
 						try {
@@ -295,6 +299,12 @@ public class StressMain {
 					}
 				}
 			}
+			if (instance.startDelay > 0) {
+				log.info("Task {} Sleeping for {}ms due to start-delay defined", taskName, instance.startDelay);
+				TimeUnit.MILLISECONDS.sleep(instance.startDelay);
+				log.info("Resuming Task {} after start-delay", taskName);
+			}
+
 			Map<String, Integer> copyOfGlobalVarialbes = new HashMap<String, Integer>();
 			if (instance.preTaskEvals != null) {
 				copyOfGlobalVarialbes = evaluate(instance.preTaskEvals, globalVariables);

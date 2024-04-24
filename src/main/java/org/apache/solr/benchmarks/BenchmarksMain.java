@@ -6,6 +6,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.benchmarks.beans.IndexBenchmark;
 import org.apache.solr.benchmarks.beans.QueryBenchmark;
 import org.apache.solr.benchmarks.indexing.IndexResult;
+import org.apache.solr.benchmarks.indexing.LeaderUrlProvider;
 import org.apache.solr.benchmarks.prometheus.PrometheusExportManager;
 import org.apache.solr.benchmarks.indexing.DocReader;
 import org.apache.solr.benchmarks.indexing.FileDocReader;
@@ -94,7 +95,7 @@ public class BenchmarksMain {
 				QueryGenerator queryGenerator = new QueryGenerator(benchmark);
 				HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
 				ControlledExecutor<QueryResponseContents> controlledExecutor = new ControlledExecutor(
-					benchmark.name,
+					benchmark.name + " " + collection,
 					threads,
 					benchmark.durationSecs,
 					benchmark.rpm,
@@ -296,15 +297,30 @@ public class BenchmarksMain {
           HttpClusterStateProvider stateProvider = new HttpClusterStateProvider(Collections.singletonList(baseUrl), httpClient);
           DocCollection coll = stateProvider.getCollection(collection);
 
-          Map<String, String> shardVsLeader = new HashMap<>();
+					LeaderUrlProvider urlProvider;
+					if (benchmark.liveState) {
+						urlProvider = (String slice) -> {
+							Replica leader = stateProvider.getCollection(collection).getSlicesMap().get(slice).getLeader();
+							if (leader != null) {
+								return leader.getBaseUrl() + "/" + leader.getCoreName();
+							} else {
+								throw new RuntimeException("Failed to find replica for collection " + collection + " slice " + slice);
+							}
+						};
+					} else {
+						Map<String, String> shardVsLeader = new HashMap<>();
 
-          for (Slice slice : coll.getSlices()) {
-              Replica leader = slice.getLeader();
-              shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getCoreName());
-          }
+						for (Slice slice : coll.getSlices()) {
+							Replica leader = slice.getLeader();
+							shardVsLeader.put(slice.getName(), leader.getBaseUrl() + "/" + leader.getCoreName());
+						}
+						urlProvider = shardVsLeader::get;
+					}
+
+
           File datasetFile = Util.resolveSuitePath(benchmark.datasetFile);
           try (DocReader docReader = new FileDocReader(datasetFile, benchmark.maxDocs != null ? benchmark.maxDocs.longValue() : null, benchmark.offset)) {
-            try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, shardVsLeader)) {
+            try (IndexBatchSupplier indexBatchSupplier = new IndexBatchSupplier(init, docReader, benchmark, coll, httpClient, urlProvider)) {
               ControlledExecutor.ExecutionListener<BenchmarksMain.OperationKey, IndexResult>[] listeners;
               if (PrometheusExportManager.isEnabled()) {
 								log.info("Adding Prometheus listener for index benchmark [" + benchmark.name + "]");
@@ -314,7 +330,7 @@ public class BenchmarksMain {
               }
 
               ControlledExecutor<IndexResult> controlledExecutor = new ControlledExecutor<IndexResult>(
-                benchmark.name,
+                benchmark.name + " " + collection,
                 threads,
                 benchmark.durationSecs,
                 benchmark.rpm,

@@ -116,7 +116,7 @@ public class ControlledExecutor<R> {
                             }
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to execute action. Message: " + e.getMessage(), e);
+                        warn("Failed to execute action. Message: " + e.getMessage());
                         throw e;
                     }
                     return null;
@@ -137,9 +137,9 @@ public class ControlledExecutor<R> {
 
             if (stopReason == StopReason.DURATION || stopReason == StopReason.EXCEPTION) {
                 if (stopReason == StopReason.EXCEPTION) {
-                    log.warn("Interrupting all actions in executor of task " + taskName + " due to exception");
+                    warn("Interrupting all actions in executor of task " + taskName + " due to exception");
                 } else {
-                    log.info("Interrupting all actions in executor of task " + taskName + " as it reaches the duration " + duration);
+                    log("Interrupting all actions in executor of task " + taskName + " as it reaches the duration " + duration);
                 }
                 actionFutures.forEach(f -> f.cancel(true));
             }
@@ -275,5 +275,9 @@ public class ControlledExecutor<R> {
 
     private void log(String message) {
         log.info("(" + taskName + ") " +  message);
+    }
+
+    private void warn(String message) {
+        log.warn("(" + taskName + ") " +  message);
     }
 }
