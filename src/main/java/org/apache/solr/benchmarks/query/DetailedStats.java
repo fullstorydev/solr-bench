@@ -43,7 +43,7 @@ public class DetailedStats {
     if (statsObj instanceof SynchronizedDescriptiveStatistics) {
       SynchronizedDescriptiveStatistics stats = (SynchronizedDescriptiveStatistics) statsObj;
       resultMap = Util.map("5th", stats.getPercentile(5), "10th", stats.getPercentile(10), "50th", stats.getPercentile(50), "90th", stats.getPercentile(90),
-              "95th", stats.getPercentile(95), "99th", stats.getPercentile(99), "mean", stats.getMean(), "total-queries", stats.getN());
+              "95th", stats.getPercentile(95), "99th", stats.getPercentile(99), "mean", stats.getMean(), "min", stats.getMin(), "max", stats.getMax(), "total-queries", stats.getN());
     } else if (statsObj instanceof Number) {
       resultMap = Util.map("count", ((Number) statsObj).doubleValue());
     } else {
