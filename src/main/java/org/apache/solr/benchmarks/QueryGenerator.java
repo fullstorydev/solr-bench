@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class QueryGenerator {
     final QueryBenchmark queryBenchmark;
     List<String> queries = new ArrayList<>();
-    Random random;
     AtomicLong counter = new AtomicLong();
     final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -41,9 +40,6 @@ public class QueryGenerator {
         } else {
             queries = FileUtils.readLines(file, "UTF-8");
         }
-        if (Boolean.TRUE.equals(queryBenchmark.shuffle)) {
-            random = new Random();
-        }
 
         if (queryBenchmark.endDate != null) {
             this.queryBenchmark.params.put("NOW", String.valueOf(DATE_FORMAT.parse(queryBenchmark.endDate).getTime()));
@@ -55,17 +51,16 @@ public class QueryGenerator {
 
 
     public QueryRequest nextRequest() {
-    	while (counter.get() < queryBenchmark.offset) {
-            long idx = random == null ? counter.get() : random.nextInt(queries.size());
-            String q = queries.get((int) (idx % queries.size()));
-            long c = counter.incrementAndGet();
-            System.err.println("Skipping query "+c+": "+q);
-    	}
+        if (queryBenchmark.shuffle && counter.get() % queries.size() == 0) {
+            Collections.shuffle(queries);
+        }
+    	  while (counter.get() < queryBenchmark.offset) {
+            String q = queries.get((int) (counter.getAndIncrement() % queries.size()));
+            System.err.println("Skipping query "+counter.get()+": "+q);
+    	  }
         
-    	long idx = random == null ? counter.get() : random.nextInt(queries.size());
-        String q = queries.get((int) (idx % queries.size()));
-        counter.incrementAndGet();
-        
+    	  String q = queries.get((int) (counter.getAndIncrement() % queries.size()));
+
         QueryRequest request;
         if (queryBenchmark.templateValues != null && !queryBenchmark.templateValues.isEmpty()) {
             PropertiesUtil.substituteProperty(q, queryBenchmark.templateValues);
