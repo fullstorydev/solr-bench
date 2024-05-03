@@ -100,25 +100,29 @@ public class ControlledExecutor<R> {
                 }
                 Future<Object> actionFuture = executor.submit(() -> {
                     long start = System.nanoTime();
+                    R result;
                     try {
-                        R result = action.call();
-                        if (checker.incrementAndGetExecutionCount() > warmCount) {
-                            long durationInNanoSec = (System.nanoTime() - start);
-                            stats.addValue(durationInNanoSec  / 1000_000.0);
-                            if (executionListeners.length > 0) {
-                                BenchmarksMain.OperationKey key = null;
-                                if (action instanceof CallableWithType) {
-                                    key = ((CallableWithType<R>) action).getType();
-                                }
-                                for (ExecutionListener<BenchmarksMain.OperationKey, R> executionListener : executionListeners) {
-                                    executionListener.onExecutionComplete(key, result, durationInNanoSec);
-                                }
-                            }
-                        }
+                        result = action.call();
                     } catch (Exception e) {
                         warn("Failed to execute action. Message: " + e.getMessage());
                         throw e;
+                    } finally {
+                        checker.incrementAndGetExecutionCount();
                     }
+                    if (checker.getExecutionCount() > warmCount) {
+                        long durationInNanoSec = (System.nanoTime() - start);
+                        stats.addValue(durationInNanoSec  / 1000_000.0);
+                        if (executionListeners.length > 0) {
+                            BenchmarksMain.OperationKey key = null;
+                            if (action instanceof CallableWithType) {
+                                key = ((CallableWithType<R>) action).getType();
+                            }
+                            for (ExecutionListener<BenchmarksMain.OperationKey, R> executionListener : executionListeners) {
+                                executionListener.onExecutionComplete(key, result, durationInNanoSec);
+                            }
+                        }
+                    }
+
                     return null;
                 });
                 actionFutures.add(actionFuture);
