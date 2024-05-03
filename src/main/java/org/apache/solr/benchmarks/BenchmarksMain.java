@@ -101,7 +101,7 @@ public class BenchmarksMain {
 					benchmark.rpm,
 					benchmark.totalCount,
 					benchmark.warmCount,
-					getQuerySupplier(queryGenerator, client, collection),
+					getQuerySupplier(queryGenerator, client, collection, benchmark.interruptOnFailure),
 					listeners.toArray(new ControlledExecutor.ExecutionListener[listeners.size()]));
 				long start = System.currentTimeMillis();
 				try {
@@ -196,7 +196,7 @@ public class BenchmarksMain {
 		}
 	}
 
-  private static Supplier<ControlledExecutor.CallableWithType<QueryResponseContents>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection) {
+  private static Supplier<ControlledExecutor.CallableWithType<QueryResponseContents>> getQuerySupplier(QueryGenerator queryGenerator, HttpSolrClient client, String collection, boolean interruptOnFailure) {
     class QueryCallable implements ControlledExecutor.CallableWithType<QueryResponseContents> {
       private final QueryRequest queryRequest;
 
@@ -210,11 +210,20 @@ public class BenchmarksMain {
 
       @Override
       public QueryResponseContents call() throws Exception {
-        NamedList<Object> rsp = client.request(queryRequest, collection);
-        //let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
-        //Probably better to let the caller handle the return values instead
-        //printErrOutput(queryRequest, rsp);
-        return new QueryResponseContents(rsp);
+				try {
+					NamedList<Object> rsp = client.request(queryRequest, collection);
+					//let's not do printErrOutput here as this reads the input stream and once read it cannot be read anymore
+					//Probably better to let the caller handle the return values instead
+					//printErrOutput(queryRequest, rsp);
+					return new QueryResponseContents(rsp);
+				} catch (Exception e) {
+					if (interruptOnFailure) {
+						throw e;
+					} else {
+						log.warn("Query failed with exception, but not interrupting : " + e.getMessage(), e);
+						return null;
+					}
+				}
       }
     }
     return () -> {
@@ -356,7 +365,9 @@ public class BenchmarksMain {
 		@Override
 		public void onExecutionComplete(OperationKey key, QueryResponseContents result, long duration) {
 			try {
-				printErrOutput((String) key.attributes.get("query"), result.getResponseStreamAsString());
+				if (result != null) {
+					printErrOutput((String) key.attributes.get("query"), result.getResponseStreamAsString());
+				}
 			} catch (IOException e) {
 				log.warn("Failed to invoke printErrOutput");
 			}

@@ -64,4 +64,7 @@ public class QueryBenchmark extends BaseBenchmark {
    */
   @JsonProperty("prometheus-type-label")
   public String prometheusTypeLabel;
+
+  @JsonProperty("interrupt-on-failure")
+  public boolean interruptOnFailure = true;
 }
