@@ -220,7 +220,7 @@ public class BenchmarksMain {
 					if (interruptOnFailure) {
 						throw e;
 					} else {
-						log.warn("Query failed with exception, but not interrupting : " + e.getMessage(), e);
+						log.warn("Query failed with exception, continuing as interrupt-on-failure=false: {}", e.getMessage());
 						return null;
 					}
 				}
