@@ -8,6 +8,7 @@ import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /**
  * A DocReader that reads from a File.
@@ -22,6 +23,19 @@ public class FileDocReader implements DocReader {
     this.maxDocs = maxDocs;
     this.reader = JsonlFileType.getBufferedReader(datasetFile);
     this.offset = offset;
+  }
+
+  private static String generateRandomString(int targetStringLength) {
+    char leftLimit = 'a'; // numeral '0'
+    char rightLimit = 'z'; // letter 'Z'
+    Random random = new Random();
+    StringBuilder buffer = new StringBuilder(targetStringLength);
+    for (int i = 0; i < targetStringLength; i++) {
+      int randomLimitedInt = random.nextInt(rightLimit - leftLimit + 1) + leftLimit;
+//      System.out.println(randomLimitedInt + "=>" + (char)randomLimitedInt);
+      buffer.append((char) randomLimitedInt);
+    }
+    return buffer.toString();
   }
 
   /**
@@ -48,7 +62,10 @@ public class FileDocReader implements DocReader {
         if (docsRead < offset) continue;
 
         // _version_ must be removed or adding doc will fail
+        //"_version_":1753748992113508354,
+        //"Id":"11zsy1wa13sd2!11zsy1wa13sd2_1chsbyn053ntx",
         line = line.replaceAll("\"_version_\":\\d*,*", "");
+        line = line.replaceAll("\"Id\":\"[a-z0-9!]*\"", "\"Id\":\"" + generateRandomString(16) + "\"");
         docs.add(line);
         docsRead++;
 
