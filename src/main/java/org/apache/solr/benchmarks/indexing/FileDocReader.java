@@ -65,7 +65,7 @@ public class FileDocReader implements DocReader {
         //"_version_":1753748992113508354,
         //"Id":"11zsy1wa13sd2!11zsy1wa13sd2_1chsbyn053ntx",
         line = line.replaceAll("\"_version_\":\\d*,*", "");
-        line = line.replaceAll("\"Id\":\"[a-z0-9!]*\"", "\"Id\":\"" + generateRandomString(16) + "\"");
+        line = line.replaceAll("\"Id\":\"[a-z0-9!_]*\"", "\"Id\":\"" + generateRandomString(16) + "\"");
         docs.add(line);
         docsRead++;
 
