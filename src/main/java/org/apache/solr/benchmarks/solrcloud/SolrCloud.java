@@ -232,8 +232,12 @@ public class SolrCloud {
   }
 
   private ZkStateReader getZkStateReader() {
+    String zkHost = getZookeeperUrl();
+    if (getZookeeperChroot() != null) {
+      zkHost += getZookeeperChroot();
+    }
       //uses timeout otherwise the client thread dangles even on close
-      return new ZkStateReader(getZookeeperUrl(), 30_000, 30_000);
+      return new ZkStateReader(zkHost, 30_000, 30_000);
   }
 
     private Collection<String> getExternalDataNodes(CloudSolrClient client) {
