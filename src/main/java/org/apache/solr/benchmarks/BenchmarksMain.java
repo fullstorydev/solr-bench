@@ -178,11 +178,13 @@ public class BenchmarksMain {
 						}
 						solrCloud.createCollection(setup, collectionName, configsetName);
 					}
-
+					log.info("HELLO: Init called.");
 					indexInit(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
 					long start = System.nanoTime();
+					log.info("HELLO: Index called.");
 					index(solrCloud.nodes.get(0).getBaseUrl(), collectionName, i, setup, benchmark);
 					long end = System.nanoTime();
+					log.info("HELLO: Index call ended.");
 
 					if (i != benchmark.maxThreads && setup.createCollection) {
 						if (deleteAfter) {
@@ -297,6 +299,7 @@ public class BenchmarksMain {
     	} else return false;
     }
     static void indexJsonComplex(boolean init, String baseUrl, String collection, int threads, IndexBenchmark.Setup setup, IndexBenchmark benchmark) throws Exception {
+		log.info("HELLO: indexJsonComplex() with init? " + init);
       if (init && !isInitPhaseNeeded(benchmark)) return; // no-op
 
         long start = System.currentTimeMillis();
@@ -347,7 +350,12 @@ public class BenchmarksMain {
                 0,
                 indexBatchSupplier,
                 listeners);
+
+			  log.info("HELLO: Running controlled executor: " + controlledExecutor);
+
               controlledExecutor.run();
+			  log.info("HELLO: Done running the controlled executor: " + controlledExecutor);
+
               HttpSolrClient client = new HttpSolrClient.Builder(baseUrl).build();
               client.commit(collection);
               client.close();

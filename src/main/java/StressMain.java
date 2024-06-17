@@ -259,7 +259,7 @@ public class StressMain {
 							//it's ok to ignore interrupt
 						} catch (ExecutionException e) { //unhandled exception, print error and stop other futures
 							exception.add(e);
-							log.warn("Found exception from submitted task [" + taskName + "] with exception. Going to interrupt all other tasks");
+							log.warn("Found exception from submitted task [" + taskName + "] with exception. Going to interrupt all other tasks", e);
 							taskFutures.values().forEach(targets -> targets.forEach(f -> f.cancel(true)));
 						}
 					});

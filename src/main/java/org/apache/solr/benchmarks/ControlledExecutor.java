@@ -74,6 +74,7 @@ public class ControlledExecutor<R> {
         this.executionListeners = executionListeners;
         this.maxPendingActions = threads * 10; //at most 10 * # of thread pending actions
         this.rpm = rpm;
+        log.info("HELLO: Threads: "+threads);
         executor = new ThreadPoolExecutor(threads, threads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),

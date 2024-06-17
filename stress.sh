@@ -156,8 +156,8 @@ terraform-gcp-provisioner() {
      cd $BASEDIR
      export ZK_NODE=`terraform output -state=terraform/terraform.tfstate -json zookeeper_details|jq '.[] | .name'`
      export ZK_NODE=${ZK_NODE//\"/}
-     export ZK_TARBALL_NAME="apache-zookeeper-3.8.3-bin.tar.gz"
-     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.8.3-bin.tar.gz"
+     export ZK_TARBALL_NAME="apache-zookeeper-3.8.4-bin.tar.gz"
+     export ZK_TARBALL_PATH="$BASEDIR/apache-zookeeper-3.8.4-bin.tar.gz"
      export JDK_TARBALL=`jq -r '."cluster"."jdk-tarball"' $CONFIGFILE`
      export BENCH_USER=`jq -r '."cluster"."terraform-gcp-config"."user"' $CONFIGFILE`
      export BENCH_KEY="terraform/id_rsa"
@@ -177,7 +177,7 @@ terraform-gcp-provisioner() {
 }
 
 buildsolr() {
-     echo_blue "Building Solr package for $COMMIT"
+     echo_blue "Building Solr package for $COMMIT from dir $LOCALREPO_VC_DIR"
      if [ ! -d $LOCALREPO_VC_DIR ]
      then
           GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $REPOSRC $LOCALREPO
@@ -191,11 +191,14 @@ buildsolr() {
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git reset --hard
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clean -fdx
 
+     # clean within submodules
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule foreach --recursive git clean -fdx
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule foreach --recursive git reset --hard
+     
      # checkout to the commit point
      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git checkout $COMMIT
      if [[ "0" != "$?" ]]; then echo "Failed to checkout $COMMIT..."; exit 1; fi
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule init 
-     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update
+     GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git submodule update --init --recursive
 
 
      if [[ "$PATCHURL" != "" ]];
@@ -210,7 +213,7 @@ buildsolr() {
      # Build Solr package
      bash -c "$BUILDCOMMAND"
      cd $LOCALREPO
-     PACKAGE_PATH=`pwd`/`find . -name "solr*tgz" | grep -v src|head -1`
+     PACKAGE_PATH=`pwd`/`find $PACKAGE_DIR -name "solr*tgz" | grep -v src|head -1`
      echo_blue "Package found here: $PACKAGE_PATH"
      cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 }
@@ -252,9 +255,12 @@ generate_meta() {
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
 for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $BASEDIR; done
 
-if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
+provisionmethod=`jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE`
+echo "Prov method: $provisionmethod"
+if [[ "external" != $provisionmethod ]]
 then
-  curl  https://dlcdn.apache.org/zookeeper/zookeeper-3.8.3/apache-zookeeper-3.8.3-bin.tar.gz --output apache-zookeeper-3.8.3-bin.tar.gz
+  echo "Downloading Zookeeper..."
+  curl  https://dlcdn.apache.org/zookeeper/zookeeper-3.8.4/apache-zookeeper-3.8.4-bin.tar.gz --output apache-zookeeper-3.8.4-bin.tar.gz
   # Clone/checkout the git repository and build Solr
   if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
   then
