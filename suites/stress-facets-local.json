@@ -6,13 +6,13 @@
         "name": "ECOMMERCE_EVENTS",
         "description": "E-Commerce Events dataset",
         "replication-type": "cloud",
-        "dataset-file": "ecommerce-events.json.gz",
+        "dataset-file": "datasets/ecommerce-events.json.gz",
         "file-format": "json",
         "max-docs": 20000000,
         "batch-size": 50000,
         "id-field": "id",
-        "min-threads": 6,
-        "max-threads": 6,
+        "min-threads": 8,
+        "max-threads": 8,
         "setups": [
           {
             "setup-name": "cloud_3x1",
@@ -29,7 +29,7 @@
       "query-benchmark": {
         "name": "Facet queries",
         "collection": "ecommerce-events",
-        "query-file": "facets2.json",
+        "query-file": "queries/facets2.json",
         "min-threads": 1,
         "max-threads": 1,
         "json-query": true,
@@ -85,7 +85,7 @@
   },
   "cluster": {
     "num-solr-nodes": 3,
-    "startup-params": "-m 2g -V",
+    "startup-params": "-m 16g -V -Dsolr.searchThreads=4",
     "provisioning-method": "local"
   },
   "repositories": [
@@ -93,7 +93,7 @@
       "commit-id": "d007470bda2f70ba4e1c407ac624e21288947128",
       "description": "Solr 8.4",
       "name": "git-repository",
-      "package-subdir": "/solr/package/",
+      "package-subdir": "solr/package/",
       "build-command": "ant ivy-bootstrap && cd solr && ant compile package",
       "submodules": false,
       "url": "https://github.com/apache/lucene-solr",
@@ -103,7 +103,7 @@
       "commit-id": "dfde16a004206cc92e21cc5a6cad9030fbe13c20",
       "description": "Solr 10x",
       "name": "solr-repository",
-      "package-subdir": "/solr/packaging/",
+      "package-subdir": "solr/packaging/",
       "build-command": "git clean -fdx && cd solr && ../gradlew distTar",
       "submodules": false,
       "url": "https://github.com/apache/solr",

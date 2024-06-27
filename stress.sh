@@ -10,14 +10,19 @@ SOLR_BENCH_VERSION="0.0.1-SNAPSHOT"
 
 download() {
         file=$1
+	dir=$2
+        if [[ $dir == "" ]]
+	then
+		dir="."
+	fi
         if [[ $file == "https://"* ]] || [[ $file == "http://"* ]]
         then
-		echo_blue "Downloading $file"
-                wget -c $file
+		echo_blue "Downloading $file in location: $dir"
+                wget -c $file -P $dir
         elif [[ $file == "gs://"* ]]
         then
-		echo_blue "Downloading $file"
-                gsutil cp -n $file .
+		echo_blue "Downloading $file in location: $dir"
+                gsutil cp -n $file $dir
         fi
         # else, don't do anything
 }
@@ -86,7 +91,7 @@ then
          then
                cd $_LOCALREPO
                echo "Fetching from $_LOCALREPO"
-               GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+               GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch origin
          else
              echo "Cloning from $_REPOSRC to $_LOCALREPO"
              GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --recurse-submodules $_REPOSRC $_LOCALREPO
@@ -184,7 +189,7 @@ buildsolr() {
           cd $LOCALREPO
      else
           cd $LOCALREPO
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git fetch origin
      fi
 
      # remove local changes, if any
@@ -253,7 +258,7 @@ generate_meta() {
 
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
-for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i; cd $BASEDIR; done
+for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; download $i datasets; cd $BASEDIR; done
 
 provisionmethod=`jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE`
 echo "Prov method: $provisionmethod"
