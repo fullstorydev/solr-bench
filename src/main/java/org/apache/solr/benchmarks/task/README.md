@@ -35,7 +35,7 @@ A task to monitor segment count and doc count median per collection. The values 
 ```
 "prometheus-export": { "port": 1234 }
 ```
-See [this section](../README.md#prometheus-exporter) for prometheus export details
+See [this section](../../../../../../../../README.md#prometheus-exporter) for prometheus export details
 
 ### ScriptExecutionTask
 A task to execute a script once with optional fields `script-params` (params to pass to the script) and `max-retry` (default to 0, retry up to this value for non-zero exit code, no retry on exception) , take note that concurrent or repeated executions are not currently supported
@@ -45,15 +45,51 @@ A task to execute a script once with optional fields `script-params` (params to 
     "task-class": "org.apache.solr.benchmarks.task.ScriptExecutionTask",
        "name": "My name",
        "params" : {
-         "max-retry" : 10,
-         "script": "./restart/move-shard.sh",
-         "script-params": ["solr-bench-test-"]
+         "script": "./some-script.sh",
+         "script-params": ["c01", true],
+         "max-retry": 10
       }
     }
   }
 }
 ```
-"script": "some-script.sh",
-"script-params": ["c01", true],
-"max-retry": 10 
+
+### UrlCommandTask
+Very similar to the "command" task, which sends a URL command to a solr node via GET request.
+
+However, UrlCommandTask provides extra features:
+1. Execute against a list of solr nodes based with optional node role filter, instead of a single random node.
+2. Allow repeating the same URL "command" with concurrency, duration and rpm control like other tasks
+
+#### Parameters
+- `command` (mandatory) : The URL command, it is usually in format of `${SOLRURL}<endpoint>`. For example `${SOLRURL}admin/cores?action=STATUS`, take note that `SOLRURL` is the node base URL, which has trailing /
+- `node-role` (optional) : The list of nodes to apply the command: `DATA`, `COORDINATOR` OR `OVERSEER`. All nodes if undefined
+- `max-retry` (optional) : Retry up to this value for non 2XX status code. There is a 10 sec delay between each retry
+
+#### Example
+The below config will issue cores status request to each data node (in round-robin), at rate of 4 per min, for 10 minutes
 ```
+"core-status-task": {
+  "task-by-class": {
+    "task-class": "org.apache.solr.benchmarks.task.UrlCommandTask",
+    "name": "Periodically call core status",
+    "params" : {
+      "command" : "${SOLRURL}admin/cores?action=STATUS",
+      "node-role": "DATA"
+    },
+    "min-threads": 1,
+    "max-threads": 1,
+    "rpm": 4,
+    "duration-secs" : 600
+  }
+}
+```
+
+#### Remarks
+If neither `rpm` nor `duration-secs` are defined, then it will assume the command be executed only once per node.
+
+`rpm` is the total rate on all the nodes. Therefore, if there are 4 nodes, a 4 rpm would mean 1 per minute per node. With the current implementation, the requests are queued in round-robin manner, however slow processing on certain node could impact the whole threadpool which is shared for the task instance.
+
+To issue request to only a single node, use static `command`. For example `http://my-solr-node:8983/solr/admin/cores?action=STATUS`   
+
+This task supports Prometheus export with metric name `solr_bench_url_command_duration`, labels `command_url` and `http_status_code`, See [this section](../../../../../../../../README.md#prometheus-exporter) for prometheus export details for prometheus export details

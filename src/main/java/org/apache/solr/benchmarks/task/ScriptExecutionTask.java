@@ -21,12 +21,11 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final String script;
   private final List<?> scriptParameters;
-  private final AtomicBoolean actionSubmitted = new AtomicBoolean(false);
   private final int maxRetry; //max retry on non zero exit code, no retry on exception
   private final int RETRY_DELAY = 10000; //10 secs delay
 
   public ScriptExecutionTask(TaskByClass taskSpec, SolrCloud solrCloud) {
-    super(taskSpec, true); //does not support repeated execution
+    super(taskSpec, 1L); //does not support repeated execution
     script = (String) taskSpec.params.get("script");
     if (script == null) {
       throw new IllegalArgumentException("script param of script execution task should not be null!");
@@ -49,8 +48,9 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
       exitCode = Util.execute(cmd, Util.getWorkingDir());
       if (exitCode != 0) {
         log.warn("Cmd exit with non-zero code {}", exitCode);
-        if (retryCount ++ <= maxRetry) {
+        if (++ retryCount <= maxRetry) {
           log.info("Retry #{} after {} millisecond delay", retryCount, RETRY_DELAY);
+          Thread.sleep(RETRY_DELAY);
         } else {
           log.info("Exhausted all retries. Exiting!");
           keepRunning = false;
@@ -89,11 +89,6 @@ public class ScriptExecutionTask extends AbstractTask<ScriptExecutionTask.Execut
     public int getExitCode() {
       return exitCode;
     }
-  }
-
-  @Override
-  protected boolean hasNext() {
-    return !actionSubmitted.getAndSet(true);
   }
 }
 

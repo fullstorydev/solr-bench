@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import com.google.common.io.Files;
@@ -31,6 +32,7 @@ import org.apache.solr.benchmarks.solrcloud.GenericSolrNode;
 import org.apache.solr.benchmarks.solrcloud.LocalSolrNode;
 import org.apache.solr.benchmarks.solrcloud.SolrCloud;
 import org.apache.solr.benchmarks.solrcloud.SolrNode;
+import org.apache.solr.benchmarks.task.UrlCommandTask;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -758,18 +760,8 @@ public class StressMain {
 						"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
 
 			} else if (type.command != null) {
-				Map<String, String> solrurlMap = new HashMap<>();
-				solrurlMap.put("SOLRURL", cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
-				log.info("Resolving random params: "+type.command);
-				try {
-					resolveRandomParams(cloud, type, params, solrurlMap);
-				} catch (Exception ex) {
-					log.error("Failed to populate random params", ex);
-				}
-				String command = resolveString(resolveString(resolveString(type.command, params), workflow.globalConstants), solrurlMap); //nocommit resolve instance.parameters as well
-				log.info("Resolved command: " + command);
+				String command = resolveCommandUrl(cloud, type.command, params, workflow.globalConstants);
 				log.info("Running in "+ instance.mode+" mode: "+command);
-
 				long taskStart = System.currentTimeMillis();
 				int responseCode = -1;
 				try {
@@ -788,7 +780,12 @@ public class StressMain {
 				if (!org.apache.solr.benchmarks.task.Task.class.isAssignableFrom(taskClass)) {
 					throw new IllegalArgumentException(type.taskByClass.taskClass + " does not implement " + Task.class.getName());
 				} else {
-					org.apache.solr.benchmarks.task.Task task = (org.apache.solr.benchmarks.task.Task)taskClass.getDeclaredConstructor(TaskByClass.class, SolrCloud.class).newInstance(type.taskByClass, cloud); //default constructor
+					org.apache.solr.benchmarks.task.Task task;
+					if (taskClass == UrlCommandTask.class) {
+						task = UrlCommandTask.buildTask(type.taskByClass, resolveCommandUrls(cloud, params, workflow.globalConstants, type.taskByClass));
+					} else {
+						task = (org.apache.solr.benchmarks.task.Task) taskClass.getDeclaredConstructor(TaskByClass.class, SolrCloud.class).newInstance(type.taskByClass, cloud); //default constructor
+					}
 					long taskStart = System.currentTimeMillis();
 					Map<String, Object> additionalResult = task.runTask();
 					long taskEnd = System.currentTimeMillis();
@@ -808,6 +805,48 @@ public class StressMain {
 			return end-start;			
 		};
 		return c;
+	}
+
+	private static List<String> resolveCommandUrls(SolrCloud cloud, Map<String, String> taskInstanceParams, Map<String, String> globalConstants, TaskByClass typeSpec) {
+		String command = (String) typeSpec.params.get("command");
+		if (command == null) {
+			throw new IllegalArgumentException("command field must be defined for task [" + typeSpec.name + "] 's params field");
+		}
+
+		List<? extends SolrNode> nodes = null;
+		if (command.contains("${SOLRURL}")) { //then it should be distributed to a list of nodes, round-robin style
+			if (typeSpec.params.get("node-role") instanceof String) {
+				nodes = cloud.getNodesByRole(SolrCloud.NodeRole.valueOf((String) typeSpec.params.get("node-role")));
+			} else {
+				nodes = cloud.nodes;
+			}
+			return nodes.stream().map(node -> resolveCommandUrl(cloud, command, taskInstanceParams, globalConstants, node.getBaseUrl())).collect(Collectors.toList());
+		} else { //it's a static URL
+			return Collections.singletonList(resolveCommandUrl(cloud, command, taskInstanceParams, globalConstants, null));
+		}
+
+	}
+
+	private static String resolveCommandUrl(SolrCloud cloud, String command, Map<String, String> taskInstanceParams, Map<String, String> globalConstants) {
+		return resolveCommandUrl(cloud, command, taskInstanceParams, globalConstants, cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
+	}
+	private static String resolveCommandUrl(SolrCloud cloud, String command, Map<String, String> taskInstanceParams, Map<String, String> globalConstants, String baseUrl) {
+		if (command == null) {
+			throw new IllegalArgumentException("url param of command task should not be null!");
+		}
+		Map<String, String> solrurlMap = new HashMap<>();
+		if (baseUrl != null) {
+			solrurlMap.put("SOLRURL", baseUrl);
+		}
+		log.info("Resolving random params: "+command);
+		try {
+			resolveRandomParams(cloud, command, taskInstanceParams, solrurlMap);
+		} catch (Exception ex) {
+			log.error("Failed to populate random params", ex);
+		}
+		String resolvedCommand = resolveString(resolveString(resolveString(command, taskInstanceParams), globalConstants), solrurlMap); //nocommit resolve instance.parameters as well
+		log.info("Resolved command: " + resolvedCommand);
+		return resolvedCommand;
 	}
 
 	private static CloudSolrClient buildSolrClient(SolrCloud cloud) {
@@ -879,16 +918,16 @@ public class StressMain {
 	/**
 	 * Populate some random variables like RANDOM_COLLECTION or RANDOM_SHARD
 	 */
-	private static void resolveRandomParams(SolrCloud cloud, TaskType type, Map<String, String> params,
+	private static void resolveRandomParams(SolrCloud cloud, String command, Map<String, String> params,
 											Map<String, String> solrurlMap) throws InterruptedException, KeeperException, IOException {
 
 		String collection = null;
 
-		if (type.command.contains("RANDOM_BOOLEAN")) {
+		if (command.contains("RANDOM_BOOLEAN")) {
 			solrurlMap.put("RANDOM_BOOLEAN", String.valueOf(new Random().nextBoolean()));
 		}
 
-		if (type.command.contains("RANDOM_COLLECTION")) {
+		if (command.contains("RANDOM_COLLECTION")) {
 			try(CloudSolrClient client = buildSolrClient(cloud)) {
 				log.info("Trying to get list of collections: ");
 				Thread.sleep(500);
@@ -905,7 +944,7 @@ public class StressMain {
 		}
 
 
-		if (type.command.contains("RANDOM_SHARD")) {
+		if (command.contains("RANDOM_SHARD")) {
 			try(CloudSolrClient client = buildSolrClient(cloud)) {
 				collection = collection==null? params.get("COLLECTION"): collection;
 				if (collection == null) {
