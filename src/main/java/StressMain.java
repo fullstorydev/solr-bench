@@ -807,13 +807,20 @@ public class StressMain {
 		return c;
 	}
 
+	/**
+	 * Resolves a list of "command" urls by calling `resolveCommandUrl` by using the "command" defined in typeSpec.params
+	 * , then substituting the ${SOLRURL} in the "command" with each host found in the cloud argument optionally filtered
+	 * by the "node-role" param from typeSpec.params.
+	 * <p>
+	 * If there's no ${SOLRURL} in the "command", then it will resolve to a single command
+	 */
 	private static List<String> resolveCommandUrls(SolrCloud cloud, Map<String, String> taskInstanceParams, Map<String, String> globalConstants, TaskByClass typeSpec) {
 		String command = (String) typeSpec.params.get("command");
 		if (command == null) {
 			throw new IllegalArgumentException("command field must be defined for task [" + typeSpec.name + "] 's params field");
 		}
 
-		List<? extends SolrNode> nodes = null;
+		List<? extends SolrNode> nodes;
 		if (command.contains("${SOLRURL}")) { //then it should be distributed to a list of nodes, round-robin style
 			if (typeSpec.params.get("node-role") instanceof String) {
 				nodes = cloud.getNodesByRole(SolrCloud.NodeRole.valueOf((String) typeSpec.params.get("node-role")));
@@ -827,6 +834,9 @@ public class StressMain {
 
 	}
 
+	/**
+	 * Resolves a "command" url on a single randomly selected node from cloud argument. Used by "command" task type.
+	 */
 	private static String resolveCommandUrl(SolrCloud cloud, String command, Map<String, String> taskInstanceParams, Map<String, String> globalConstants) {
 		return resolveCommandUrl(cloud, command, taskInstanceParams, globalConstants, cloud.nodes.get(new Random().nextInt(cloud.nodes.size())).getBaseUrl());
 	}
