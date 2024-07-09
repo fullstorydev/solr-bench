@@ -12,7 +12,7 @@ import java.util.Map;
  */
 public abstract class AbstractTask<T> implements Task<T> {
   protected final TaskByClass taskSpec;
-  private final Long maxExecution;
+  private final Long maxExecution; //max execution count, if defined, the runAction should only be invoked up to this number
 
   protected AbstractTask(TaskByClass taskSpec) {
     this(taskSpec, null);
