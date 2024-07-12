@@ -215,7 +215,7 @@ buildsolr() {
      cp $PACKAGE_PATH $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz
 }
 
-generate_meta() {
+generate_meta_from_repo() {
      local meta_file_path="${BASEDIR}/suites/results/$TEST_NAME/${COMMIT}/meta.prop"
      echo_blue "Generating Meta data file by reading info from $LOCALREPO"
      cd $LOCALREPO
@@ -247,6 +247,19 @@ generate_meta() {
      echo_blue "Meta file $meta_file_path contents:"
      cat $meta_file_path
 }
+
+generate_meta_no_repo() {
+      local meta_file_path="${BASEDIR}/suites/results/$TEST_NAME/${COMMIT}/meta.prop"
+      echo_blue "Generating Meta data file"
+
+      echo "groups=$TEST_NAME" > $meta_file_path #use branches as groups
+      echo "test_name=$TEST_NAME" >> $meta_file_path
+      echo "message=$note" >> $meta_file_path
+      echo "test_date=$(date +%s)" >> $meta_file_path
+
+      echo_blue "Meta file $meta_file_path contents:"
+      cat $meta_file_path
+ }
 
 # Download the pre-requisites
 download `jq -r '."cluster"."jdk-url"' $CONFIGFILE`
@@ -335,7 +348,9 @@ then
      mkdir -p $result_dir
      if [[ "null" != `jq -r '.["repositories"]' $CONFIGFILE` ]];
      then
-          generate_meta
+         generate_meta_from_repo
+     else
+         generate_meta_no_repo
      fi
      cp $CONFIGFILE $result_dir/config.json
      cp $BASEDIR/results.json $result_dir/results.json
