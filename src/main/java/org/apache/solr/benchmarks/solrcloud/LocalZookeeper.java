@@ -18,17 +18,20 @@
 package org.apache.solr.benchmarks.solrcloud;
 
 import java.io.File;
+import java.lang.invoke.MethodHandles;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
+
 import org.apache.solr.benchmarks.Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class provides blueprint for Zookeeper Node.
  */
 public class LocalZookeeper implements Zookeeper {
 
-  public final static Logger log = Logger.getLogger(LocalZookeeper.class);
+  public final static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   //public static String zooCleanCommand;
 

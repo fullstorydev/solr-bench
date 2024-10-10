@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.invoke.MethodHandles;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
@@ -40,13 +41,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanOperationInfo;
+
 import javax.management.ObjectName;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.MultiMapSolrParams;
@@ -61,7 +62,7 @@ import com.j256.simplejmx.client.JmxClient;
  */
 public class Util {
 
-  public final static Logger logger = Logger.getLogger(Util.class);
+  public final static Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   public static String WORK_DIRECTORY = getWorkingDir() + File.separator;
 
@@ -192,7 +193,7 @@ public class Util {
   
   public static class ProcessStreamReader extends Thread {
 
-    public final static Logger logger = Logger.getLogger(ProcessStreamReader.class);
+	  public final static Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     InputStream is;
     String type;
