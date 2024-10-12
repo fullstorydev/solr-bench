@@ -267,7 +267,7 @@ for i in `jq -r '."pre-download" | .[]' $CONFIGFILE`; do cd $CONFIGFILE_DIR; dow
 
 if [ "external" != `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ]
 then
-  curl  https://dlcdn.apache.org/zookeeper/zookeeper-3.8.3/apache-zookeeper-3.8.3-bin.tar.gz --output apache-zookeeper-3.8.3-bin.tar.gz
+  curl  https://archive.apache.org/dist/zookeeper/zookeeper-3.8.3/apache-zookeeper-3.8.3-bin.tar.gz --output apache-zookeeper-3.8.3-bin.tar.gz
   # Clone/checkout the git repository and build Solr
   if [[ "null" == `jq -r '.["solr-package"]' $CONFIGFILE` ]] && [ ! -f $BASEDIR/SolrNightlyBenchmarksWorkDirectory/Download/solr-$COMMIT.tgz ]
   then
