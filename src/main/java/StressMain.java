@@ -380,9 +380,9 @@ public class StressMain {
 
 				long taskStart = System.currentTimeMillis();
 				ExecutorService executor = null;
-				ConcurrentHashMap<String, Long> shutdownTimes = new ConcurrentHashMap<>();
-				ConcurrentHashMap<String, Long> startTimes = new ConcurrentHashMap<>();
-				ConcurrentHashMap<String, Long> minHeaps = new ConcurrentHashMap<>();
+				Map<String, Long> shutdownTimes = Collections.synchronizedMap(new TreeMap<>());
+				Map<String, Long> startTimes = Collections.synchronizedMap(new TreeMap<>());
+				Map<String, Long> minHeaps = Collections.synchronizedMap(new TreeMap<>());
 				try {
 					executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(taskName + "-restart-thread-pool").build());
 
@@ -789,11 +789,12 @@ public class StressMain {
 					long taskStart = System.currentTimeMillis();
 					Map<String, Object> additionalResult = task.runTask();
 					long taskEnd = System.currentTimeMillis();
-					if (additionalResult != null) {
-						finalResults.get(taskName).add(additionalResult);
-					}
-					finalResults.get(taskName).add(Map.of("total-time", (taskEnd-taskStart)/1000.0, "start-time", (taskStart- executionStart)/1000.0, "end-time", (taskEnd- executionStart)/1000.0,
+					Map<String, Object> result = new LinkedHashMap<>(Map.of("total-time", (taskEnd - taskStart) / 1000.0, "start-time", (taskStart - executionStart) / 1000.0, "end-time", (taskEnd - executionStart) / 1000.0,
 									"init-timestamp", executionStart, "start-timestamp", taskStart, "end-timestamp", taskEnd));
+					if (additionalResult != null) {
+						result.putAll(additionalResult);
+					}
+					finalResults.get(taskName).add(result);
 
 				}
 			}
