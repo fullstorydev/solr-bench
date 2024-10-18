@@ -157,6 +157,8 @@ if args.get("output") is not None:
     output_path = args['output']
 else:
     output_path = ""
+
+
 def export_to_query_details_csv(output_key, stats):
 
     # Each element in stats array is results on a query, but the result for that
@@ -171,6 +173,7 @@ def export_to_query_details_csv(output_key, stats):
     # First figure out and validate # of runs based on the result array size. And group the elements by metricType
     run_count = 0
     stats_by_metric_type = {}
+    generated = False
     for i, stats_entry in enumerate(stats):
         if run_count == 0:
             run_count = len(stats_entry['results'])
@@ -190,6 +193,7 @@ def export_to_query_details_csv(output_key, stats):
         for metric_type, stats in stats_by_metric_type.items():
             if len(stats) == 0 or len(stats[0]['results']) == 0:
                 continue
+            generated = True
             output_file_name = sanitize_filename(output_key + "-" + str(run + 1)) + "-" + metric_type + ".csv"
             output_file_path = os.path.join(output_path, output_file_name)
             with open(output_file_path, 'w', newline='') as csvfile:
@@ -217,7 +221,7 @@ def export_to_query_details_csv(output_key, stats):
                     writer.writerow(row)
 
                 logging.info(f"Finished writing to {os.path.abspath(output_file_path)}")
-
+    return generated
 
 def export_to_generic_stats_csv(output_key, stats):
 
@@ -296,10 +300,11 @@ for result_dir in result_dirs:
         output_key = date.strftime('%Y-%m-%d-%H-%M-%S') + '-' + meta_prop.get("groups", "")
         # output_file_name = sanitize_filename(output_key) + ".csv"
         query_stats = extract_query_detailed_stats(meta_prop)
-        export_to_query_details_csv(output_key + "-query-details", query_stats)
+        generated_query_csv = export_to_query_details_csv(output_key + "-query-details", query_stats)
 
-        generic_stats = extract_generic_stats(meta_prop)
-        export_to_generic_stats_csv(output_key, generic_stats)
+        if not generated_query_csv:
+            generic_stats = extract_generic_stats(meta_prop)
+            export_to_generic_stats_csv(output_key, generic_stats)
 
         # export_to_generic_csv(output_key, stats)
         # logging.info(f'{stats}')
