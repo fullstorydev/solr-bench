@@ -299,12 +299,16 @@ for result_dir in result_dirs:
         date = datetime.datetime.fromtimestamp(int(meta_prop.get("test_date")))
         output_key = date.strftime('%Y-%m-%d-%H-%M-%S') + '-' + meta_prop.get("groups", "")
         # output_file_name = sanitize_filename(output_key) + ".csv"
-        query_stats = extract_query_detailed_stats(meta_prop)
-        generated_query_csv = export_to_query_details_csv(output_key + "-query-details", query_stats)
 
-        if not generated_query_csv:
-            generic_stats = extract_generic_stats(meta_prop)
-            export_to_generic_stats_csv(output_key, generic_stats)
+        try:
+            query_stats = extract_query_detailed_stats(meta_prop)
+            generated_query_csv = export_to_query_details_csv(output_key + "-query-details", query_stats)
+
+            if not generated_query_csv:
+                generic_stats = extract_generic_stats(meta_prop)
+                export_to_generic_stats_csv(output_key, generic_stats)
+        except ValueError as e:
+            logging.warning(f"Skipping {output_key} due to error: {e}")
 
         # export_to_generic_csv(output_key, stats)
         # logging.info(f'{stats}')
