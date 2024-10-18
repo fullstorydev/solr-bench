@@ -115,6 +115,7 @@ def extract_stat_entry(stat_entry, prefix, results_per_execution):
         elif isinstance(value, dict):
             extract_stat_entry(stat_entry, key, value)
 
+
 def extract_generic_stats(meta_prop):
     generic_stats = {}
     try:
@@ -124,6 +125,8 @@ def extract_generic_stats(meta_prop):
         json_results = json.load(open(result_path))
 
         for key, results_per_task in json_results.items():
+            if key.startswith('detailed-stats'):  # skip detailed stats, as it's already handled elsewhere
+                continue
             task_name = key
             run_stats = []
             for i, results_per_execution in enumerate(results_per_task):
@@ -139,8 +142,6 @@ def extract_generic_stats(meta_prop):
     return generic_stats
 
 
-
-
 def get_commit_date(props):
     return int(props.get("commit_date", '0'))
 
@@ -152,6 +153,7 @@ def sanitize_filename(input):
     # removing any invalid characters
     return ''.join(c for c in input if c in valid_chars)
 
+
 output_path = None
 if args.get("output") is not None:
     output_path = args['output']
@@ -160,7 +162,6 @@ else:
 
 
 def export_to_query_details_csv(output_key, stats):
-
     # Each element in stats array is results on a query, but the result for that
     # (either timings, percentile (for doc hit count) or error_count) are in an array.
     # Each element in that array is actually the result for a task run on n threads (a single run can execute the same
@@ -223,8 +224,8 @@ def export_to_query_details_csv(output_key, stats):
                 logging.info(f"Finished writing to {os.path.abspath(output_file_path)}")
     return generated
 
-def export_to_generic_stats_csv(output_key, stats):
 
+def export_to_generic_stats_csv(output_key, stats):
     # Each element in stats array is results on a query, but the result for that
     # (either timings, percentile (for doc hit count) or error_count) are in an array.
     # Each element in that array is actually the result for a task run on n threads (a single run can execute the same
@@ -264,6 +265,7 @@ def export_to_generic_stats_csv(output_key, stats):
                 writer.writerow(row)
             logging.info(f"Finished writing to {os.path.abspath(output_file_path)}")
 
+
 for result_dir in result_dirs:
     test_name = os.path.splitext(os.path.basename(result_dir))[0]
     test_run_dirs = [f for f in os.listdir(result_dir) if
@@ -302,14 +304,12 @@ for result_dir in result_dirs:
 
         try:
             query_stats = extract_query_detailed_stats(meta_prop)
-            generated_query_csv = export_to_query_details_csv(output_key + "-query-details", query_stats)
+            export_to_query_details_csv(output_key + "-query-details", query_stats)
 
-            if not generated_query_csv:
-                generic_stats = extract_generic_stats(meta_prop)
-                export_to_generic_stats_csv(output_key, generic_stats)
+            generic_stats = extract_generic_stats(meta_prop)
+            export_to_generic_stats_csv(output_key, generic_stats)
         except ValueError as e:
             logging.warning(f"Skipping {output_key} due to error: {e}")
 
         # export_to_generic_csv(output_key, stats)
         # logging.info(f'{stats}')
-
