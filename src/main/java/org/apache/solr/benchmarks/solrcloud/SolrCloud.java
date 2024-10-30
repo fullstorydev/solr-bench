@@ -221,7 +221,7 @@ public class SolrCloud {
                   cluster.externalSolrConfig.sshUserName,
                   cluster.externalSolrConfig.restartScript,
                   cluster.externalSolrConfig.protocol)).collect(Collectors.toList());
-          if (!queryNodes.isEmpty()) {
+          if (!overseerNodes.isEmpty()) {
             nodesByRole.put(NodeRole.OVERSEER, overseerNodes);
           }
         }
