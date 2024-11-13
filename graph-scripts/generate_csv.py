@@ -239,31 +239,34 @@ def export_to_generic_stats_csv(output_key, stats):
     run_count = 0
     stats_by_metric_type = {}
     for task, runs in stats.items():
-        if len(runs) == 0:
-            logging.debug(f"No runs found for task {task} for {output_key}. Skipping export")
-            continue
-        output_file_name = sanitize_filename(output_key + "-" + task) + ".csv"
-        output_file_path = os.path.join(output_path, output_file_name)
-        with open(output_file_path, 'w', newline='') as csvfile:
-            # Define the field names
-            field_names = []
-            # Use the breakdown field from first stats entry, assuming all entries are consistent
-            for field_name in runs[0]:
-                field_names.append(field_name)
+        try :
+            if len(runs) == 0:
+                logging.debug(f"No runs found for task {task} for {output_key}. Skipping export")
+                continue
+            output_file_name = sanitize_filename(output_key + "-" + task) + ".csv"
+            output_file_path = os.path.join(output_path, output_file_name)
+            with open(output_file_path, 'w', newline='') as csvfile:
+                # Define the field names
+                field_names = []
+                # Use the breakdown field from first stats entry, assuming all entries are consistent
+                for field_name in runs[0]:
+                    field_names.append(field_name)
 
-            # Create a CSV writer
-            writer = csv.DictWriter(csvfile, fieldnames=field_names, escapechar='\\', quoting=csv.QUOTE_ALL)
+                # Create a CSV writer
+                writer = csv.DictWriter(csvfile, fieldnames=field_names, escapechar='\\', quoting=csv.QUOTE_ALL)
 
-            # Write the header
-            writer.writeheader()
+                # Write the header
+                writer.writeheader()
 
-            # Write rows
-            for kvs in runs:
-                row = {}
-                for key, val in kvs.items():
-                    row[key] = val
-                writer.writerow(row)
-            logging.info(f"Finished writing to {os.path.abspath(output_file_path)}")
+                # Write rows
+                for kvs in runs:
+                    row = {}
+                    for key, val in kvs.items():
+                        row[key] = val
+                    writer.writerow(row)
+                logging.info(f"Finished writing to {os.path.abspath(output_file_path)}")
+        except ValueError as e:
+            logging.warning(f"Skipping {os.path.abspath(output_file_path)} due to error: {e}")
 
 
 for result_dir in result_dirs:
