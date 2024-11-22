@@ -25,18 +25,6 @@ public class FileDocReader implements DocReader {
     this.offset = offset;
   }
 
-  private static String generateRandomString(int targetStringLength) {
-    char leftLimit = 'a'; // numeral '0'
-    char rightLimit = 'z'; // letter 'Z'
-    Random random = new Random();
-    StringBuilder buffer = new StringBuilder(targetStringLength);
-    for (int i = 0; i < targetStringLength; i++) {
-      int randomLimitedInt = random.nextInt(rightLimit - leftLimit + 1) + leftLimit;
-//      System.out.println(randomLimitedInt + "=>" + (char)randomLimitedInt);
-      buffer.append((char) randomLimitedInt);
-    }
-    return buffer.toString();
-  }
 
   /**
    * Read `count` number of docs if available; otherwise return whatever remains.
@@ -65,7 +53,8 @@ public class FileDocReader implements DocReader {
         //"_version_":1753748992113508354,
         //"Id":"11zsy1wa13sd2!11zsy1wa13sd2_1chsbyn053ntx",
         line = line.replaceAll("\"_version_\":\\d*,*", "");
-        line = line.replaceAll("\"Id\":\"[a-z0-9!_]*\"", "\"Id\":\"" + generateRandomString(16) + "\"");
+//        line = line.replaceAll("\"Id\":\"[a-z0-9!_]*\"", "$1A");
+        line = line.replaceAll("(\"Id\":\"[a-z0-9!_]*)\"", "$1A\"");
         docs.add(line);
         docsRead++;
 
