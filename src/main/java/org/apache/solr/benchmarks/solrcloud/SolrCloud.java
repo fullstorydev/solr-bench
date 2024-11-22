@@ -221,7 +221,7 @@ public class SolrCloud {
                   cluster.externalSolrConfig.sshUserName,
                   cluster.externalSolrConfig.restartScript,
                   cluster.externalSolrConfig.protocol)).collect(Collectors.toList());
-          if (!queryNodes.isEmpty()) {
+          if (!overseerNodes.isEmpty()) {
             nodesByRole.put(NodeRole.OVERSEER, overseerNodes);
           }
         }
@@ -258,7 +258,9 @@ public class SolrCloud {
       try (ZkStateReader reader = getZkStateReader()) {
         if (reader.getZkClient().exists("/node_roles/coordinator/on", true)) {
           List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-          liveNodes.retainAll(reader.getZkClient().getChildren("/node_roles/coordinator/on", null, true));
+          List<String> qaNodesFromZk = reader.getZkClient().getChildren("/node_roles/coordinator/on", null, true);
+          log.info("Computing external query nodes. Live Nodes : {}, QA Nodes from ZK : {}", liveNodes, qaNodesFromZk);
+          liveNodes.retainAll(qaNodesFromZk);
           if (!liveNodes.isEmpty()) {
             return liveNodes;
           }
@@ -278,7 +280,9 @@ public class SolrCloud {
     try (ZkStateReader reader = getZkStateReader()) {
       if (reader.getZkClient().exists("/node_roles/overseer/preferred", true)) {
         List<String> liveNodes = new ArrayList(client.getClusterStateProvider().getLiveNodes());
-        liveNodes.retainAll(reader.getZkClient().getChildren("/node_roles/overseer/preferred", null, true));
+        List<String> osNodesFromZk = reader.getZkClient().getChildren("/node_roles/overseer/preferred", null, true);
+        log.info("Computing external OS nodes. Live Nodes : {}, OS Nodes from ZK : {}", liveNodes, osNodesFromZk);
+        liveNodes.retainAll(osNodesFromZk);
         if (!liveNodes.isEmpty()) {
           return liveNodes;
         }

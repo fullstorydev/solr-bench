@@ -12,18 +12,18 @@ import java.util.Map;
  */
 public abstract class AbstractTask<T> implements Task<T> {
   protected final TaskByClass taskSpec;
-  private final boolean isFiniteTask;
+  private final Long maxExecution; //max execution count, if defined, the runAction should only be invoked up to this number
 
   protected AbstractTask(TaskByClass taskSpec) {
-    this(taskSpec, false);
+    this(taskSpec, null);
   }
-  protected AbstractTask(TaskByClass taskSpec, boolean isFiniteTask) {
-    this.isFiniteTask = isFiniteTask;
+  protected AbstractTask(TaskByClass taskSpec, Long maxExecution) {
+    this.maxExecution = maxExecution;
     if (taskSpec.name == null) {
       throw new IllegalArgumentException(taskSpec + " is invalid, missing task name");
     }
-    if (!isFiniteTask && taskSpec.durationSecs == null) {
-      throw new IllegalArgumentException("duration-secs should be defined if the task [" + taskSpec.name  + "] is not finite");
+    if (maxExecution == null && taskSpec.durationSecs == null) {
+      throw new IllegalArgumentException("duration-secs should be defined if the task [" + taskSpec.name  + "] has no max execution set");
     }
     this.taskSpec = taskSpec;
   }
@@ -40,7 +40,7 @@ public abstract class AbstractTask<T> implements Task<T> {
               threads,
               taskSpec.durationSecs,
               taskSpec.rpm,
-              null,
+              maxExecution,
               0,
 
               () -> {
@@ -69,7 +69,7 @@ public abstract class AbstractTask<T> implements Task<T> {
   }
 
   /**
-   * Whether there are more actions to be executed. Overwrite this if {@link AbstractTask#isFiniteTask} is true
+   * Whether there are more actions to be executed. Overwrite this if the task should end on certain condition
    */
   protected boolean hasNext() {
     return true;

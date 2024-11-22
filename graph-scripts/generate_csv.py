@@ -1,6 +1,7 @@
 import datetime
 
 import json
+import numbers
 import string
 import os
 import argparse
@@ -105,6 +106,42 @@ def extract_query_detailed_stats(meta_prop):
     return detailed_stats
 
 
+def extract_stat_entry(stat_entry, prefix, results_per_execution):
+    for key, value in results_per_execution.items():
+        if prefix != "":
+            key = prefix + "." + key
+        if isinstance(value, numbers.Number):
+            stat_entry[key] = value
+        elif isinstance(value, dict):
+            extract_stat_entry(stat_entry, key, value)
+
+
+def extract_generic_stats(meta_prop):
+    generic_stats = {}
+    try:
+        test_run_dir = meta_prop["test_run_dir"]
+
+        result_path = os.path.join(test_run_dir, "results.json")
+        json_results = json.load(open(result_path))
+
+        for key, results_per_task in json_results.items():
+            if key.startswith('detailed-stats'):  # skip detailed stats, as it's already handled elsewhere
+                continue
+            task_name = key
+            run_stats = []
+            for i, results_per_execution in enumerate(results_per_task):
+                # logging.info(f"key: {key} {i} results_per_execution: {results_per_execution}")
+                stat_entry = {}
+                extract_stat_entry(stat_entry, "", results_per_execution)
+                run_stats.append(stat_entry)
+            generic_stats[task_name] = run_stats
+    except OSError as e:
+        logging.warning(f"Skipping meta data parsing. Unable to open {result_path}: {e}")
+    except BaseException as e:
+        logging.warning(f"Skipping meta data parsing for {result_path}. Unexpected exception: {e}")
+    return generic_stats
+
+
 def get_commit_date(props):
     return int(props.get("commit_date", '0'))
 
@@ -116,12 +153,15 @@ def sanitize_filename(input):
     # removing any invalid characters
     return ''.join(c for c in input if c in valid_chars)
 
+
 output_path = None
 if args.get("output") is not None:
     output_path = args['output']
 else:
     output_path = ""
-def exportToCsv(output_key, stats):
+
+
+def export_to_query_details_csv(output_key, stats):
     # Each element in stats array is results on a query, but the result for that
     # (either timings, percentile (for doc hit count) or error_count) are in an array.
     # Each element in that array is actually the result for a task run on n threads (a single run can execute the same
@@ -134,6 +174,7 @@ def exportToCsv(output_key, stats):
     # First figure out and validate # of runs based on the result array size. And group the elements by metricType
     run_count = 0
     stats_by_metric_type = {}
+    generated = False
     for i, stats_entry in enumerate(stats):
         if run_count == 0:
             run_count = len(stats_entry['results'])
@@ -153,6 +194,7 @@ def exportToCsv(output_key, stats):
         for metric_type, stats in stats_by_metric_type.items():
             if len(stats) == 0 or len(stats[0]['results']) == 0:
                 continue
+            generated = True
             output_file_name = sanitize_filename(output_key + "-" + str(run + 1)) + "-" + metric_type + ".csv"
             output_file_path = os.path.join(output_path, output_file_name)
             with open(output_file_path, 'w', newline='') as csvfile:
@@ -180,6 +222,51 @@ def exportToCsv(output_key, stats):
                     writer.writerow(row)
 
                 logging.info(f"Finished writing to {os.path.abspath(output_file_path)}")
+    return generated
+
+
+def export_to_generic_stats_csv(output_key, stats):
+    # Each element in stats array is results on a query, but the result for that
+    # (either timings, percentile (for doc hit count) or error_count) are in an array.
+    # Each element in that array is actually the result for a task run on n threads (a single run can execute the same
+    # query many times though), which n goes from min-threads to max-threads in benchmark settings.
+    #
+    # Usually min-threads is equal to max-threads, which means the task is only run once.
+    #
+    # In case if max-threads > min-threads, then we will export to multiple CSV file, one for task run on n threads
+
+    # First figure out and validate # of runs based on the result array size. And group the elements by metricType
+    run_count = 0
+    stats_by_metric_type = {}
+    for task, runs in stats.items():
+        try :
+            if len(runs) == 0:
+                logging.debug(f"No runs found for task {task} for {output_key}. Skipping export")
+                continue
+            output_file_name = sanitize_filename(output_key + "-" + task) + ".csv"
+            output_file_path = os.path.join(output_path, output_file_name)
+            with open(output_file_path, 'w', newline='') as csvfile:
+                # Define the field names
+                field_names = []
+                # Use the breakdown field from first stats entry, assuming all entries are consistent
+                for field_name in runs[0]:
+                    field_names.append(field_name)
+
+                # Create a CSV writer
+                writer = csv.DictWriter(csvfile, fieldnames=field_names, escapechar='\\', quoting=csv.QUOTE_ALL)
+
+                # Write the header
+                writer.writeheader()
+
+                # Write rows
+                for kvs in runs:
+                    row = {}
+                    for key, val in kvs.items():
+                        row[key] = val
+                    writer.writerow(row)
+                logging.info(f"Finished writing to {os.path.abspath(output_file_path)}")
+        except ValueError as e:
+            logging.warning(f"Skipping {os.path.abspath(output_file_path)} due to error: {e}")
 
 
 for result_dir in result_dirs:
@@ -192,6 +279,7 @@ for result_dir in result_dirs:
         test_run_dir = os.path.join(result_dir, test_run_base_dir)
 
         results_file = os.path.join(test_run_dir, "results.json")
+
         if os.path.isfile(results_file) is False:
             logging.warning("Results file not found: " + results_file)
             continue
@@ -201,6 +289,7 @@ for result_dir in result_dirs:
         except OSError as e:
             logging.warning(f'failed to open meta.prop in {test_run_dir}. Skipping...')
             continue
+
         if "groups" not in props:
             logging.debug(f'skipping {test_run_dir} es groups prop not found')
             continue
@@ -215,7 +304,15 @@ for result_dir in result_dirs:
         date = datetime.datetime.fromtimestamp(int(meta_prop.get("test_date")))
         output_key = date.strftime('%Y-%m-%d-%H-%M-%S') + '-' + meta_prop.get("groups", "")
         # output_file_name = sanitize_filename(output_key) + ".csv"
-        stats = extract_query_detailed_stats(meta_prop)
-        exportToCsv(output_key, stats)
-        # logging.info(f'{output_file_name} : {stats}')
 
+        try:
+            query_stats = extract_query_detailed_stats(meta_prop)
+            export_to_query_details_csv(output_key + "-query-details", query_stats)
+
+            generic_stats = extract_generic_stats(meta_prop)
+            export_to_generic_stats_csv(output_key, generic_stats)
+        except ValueError as e:
+            logging.warning(f"Skipping {output_key} due to error: {e}")
+
+        # export_to_generic_csv(output_key, stats)
+        # logging.info(f'{stats}')
