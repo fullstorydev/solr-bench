@@ -147,6 +147,7 @@ public class BenchmarksMain {
 				((Map)(results.get("indexing-benchmarks").get(benchmark.name))).put(setup.name, setupMetrics);
 
 				for (int i = benchmark.minThreads; i <= benchmark.maxThreads; i += setup.threadStep) {
+          log.info("Starting indexing benchmark: {} setup: {} threads: {}", benchmark.name, setup.name, i);
 					String collectionName = collectionNameOverride != null ? collectionNameOverride: setup.collection;
 					String configsetName = setup.configset==null? null: collectionName+".SOLRBENCH";
 					if (setup.shareConfigset) configsetName = setup.configset;
@@ -352,7 +353,7 @@ public class BenchmarksMain {
               client.commit(collection);
               client.close();
 
-              log.info("Indexed " + indexBatchSupplier.getBatchesIndexed() + " docs." + "time taken : " + ((System.currentTimeMillis() - start) / 1000));
+              log.info("Indexed " + indexBatchSupplier.getBatchesIndexed() + " docs with " + threads + " threads. Time taken : " + ((System.currentTimeMillis() - start) / 1000));
             }
           }
         } finally {
