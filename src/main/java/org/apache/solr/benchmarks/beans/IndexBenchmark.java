@@ -38,6 +38,12 @@ public class IndexBenchmark extends BaseBenchmark {
   public boolean interruptOnFailure;
 
   /**
+   * An explicit update path to use for indexing. If not set, the update path will be computed
+   */
+  @JsonProperty("update-path")
+  public String updatePath;
+
+  /**
    *  Retries up to this amount of time if indexing op failed (non successful http response code or IOException), has no effect if interruptOnFailure is true
    */
   @JsonProperty("max-retry")

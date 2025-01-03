@@ -58,7 +58,10 @@ class UploadDocs implements Callable<IndexResult> {
 
     log.debug("Batch file: " + batchFilename);
 
-    if (batchFilename == null) { // plain JSON docs
+    if (benchmark.updatePath != null) {
+      this.updatePath = benchmark.updatePath;
+      this.contentType = "application/json; charset=UTF-8";
+    } else if (batchFilename == null) { // plain JSON docs
       this.updatePath = "/update/json/docs";
       this.contentType = "application/json; charset=UTF-8";
       payload = null; // docs will be indexed one by one
