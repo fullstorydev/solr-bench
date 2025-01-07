@@ -116,6 +116,9 @@ then
      fi
 fi
 
+RESULT_DIR="${CONFIGFILE_DIR}/results/$TEST_NAME/${COMMIT}"
+echo "Result path: $RESULT_DIR"
+
 cd $BASEDIR
 
 GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
@@ -216,7 +219,7 @@ buildsolr() {
 }
 
 generate_meta_from_repo() {
-     local meta_file_path="${BASEDIR}/suites/results/$TEST_NAME/${COMMIT}/meta.prop"
+     local meta_file_path="${RESULT_DIR}/meta.prop"
      echo_blue "Generating Meta data file by reading info from $LOCALREPO"
      cd $LOCALREPO
 
@@ -249,7 +252,7 @@ generate_meta_from_repo() {
 }
 
 generate_meta_no_repo() {
-      local meta_file_path="${BASEDIR}/suites/results/$TEST_NAME/${COMMIT}/meta.prop"
+      local meta_file_path="${RESULT_DIR}/meta.prop"
       echo_blue "Generating Meta data file"
 
       echo "groups=$TEST_NAME" > $meta_file_path #use branches as groups
@@ -326,8 +329,8 @@ fi
 if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
      echo_blue "Collecting logs"
-     mkdir -p $BASEDIR/suites/results/logs
-     zip -j $BASEDIR/suites/results/logs/logs-${CONFIGFILE##*/}-$COMMIT.zip $BASEDIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
+     mkdir -p ${RESULT_DIR}/logs
+     zip -j ${RESULT_DIR}/logs/logs-${CONFIGFILE##*/}-$COMMIT.zip $BASEDIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
      rm -rf $BASEDIR/SolrNightlyBenchmarksWorkDirectory/RunDirectory/logs-*tar
 fi
 
@@ -344,20 +347,19 @@ fi
 # Rename the result files for local test
 if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ] || [ "external" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
-     result_dir="${CONFIGFILE_DIR}/results/${TEST_NAME}/${COMMIT}"
-     mkdir -p $result_dir
+     mkdir -p ${RESULT_DIR}
      if [[ "null" != `jq -r '.["repositories"]' $CONFIGFILE` ]];
      then
          generate_meta_from_repo
      else
          generate_meta_no_repo
      fi
-     cp $CONFIGFILE $result_dir/config.json
-     cp $BASEDIR/results.json $result_dir/results.json
-     cp $BASEDIR/metrics.json $result_dir/metrics.json
+     cp $CONFIGFILE ${RESULT_DIR}/config.json
+     cp $BASEDIR/results.json ${RESULT_DIR}/results.json
+     cp $BASEDIR/metrics.json ${RESULT_DIR}/metrics.json
      rm $BASEDIR/results.json $BASEDIR/metrics.json
 
-     echo_blue "Result can be found in $result_dir"
+     echo_blue "Result can be found in ${RESULT_DIR}"
 fi
 
 # Cleanup
