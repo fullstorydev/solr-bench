@@ -344,7 +344,7 @@ fi
 # Rename the result files for local test
 if [ "local" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ] || [ "external" == `jq -r '.["cluster"]["provisioning-method"]' $CONFIGFILE` ];
 then
-     result_dir="${BASEDIR}/suites/results/${TEST_NAME}/${COMMIT}"
+     result_dir="${CONFIGFILE_DIR}/results/${TEST_NAME}/${COMMIT}"
      mkdir -p $result_dir
      if [[ "null" != `jq -r '.["repositories"]' $CONFIGFILE` ]];
      then
